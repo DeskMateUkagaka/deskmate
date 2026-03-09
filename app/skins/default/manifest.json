@@ -1,0 +1,15 @@
+{
+  "name": "Default Ghost",
+  "author": "Ukagaka Dev",
+  "version": "1.0.0",
+  "expressions": {
+    "happy": "happy.png",
+    "sad": "sad.png",
+    "angry": "angry.png",
+    "disgusted": "disgusted.png",
+    "condescending": "condescending.png",
+    "thinking": "thinking.png",
+    "uwamezukai": "uwamezukai.png",
+    "neutral": "neutral.png"
+  }
+}
