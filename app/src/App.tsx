@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { Ghost } from './components/Ghost'
 import { Bubble } from './components/Bubble'
 import { ChatInput } from './components/ChatInput'
@@ -10,6 +10,18 @@ import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
+
+// Force WebKit to repaint transparent regions after overlay dismissal
+// Opacity tricks don't work with WEBKIT_DISABLE_COMPOSITING_MODE=1;
+// need to trigger a real window resize to force compositor redraw
+async function forceRepaint() {
+  const win = getCurrentWindow()
+  const size = await win.innerSize()
+  await win.setSize(new LogicalSize(size.width, size.height + 1))
+  requestAnimationFrame(async () => {
+    await win.setSize(new LogicalSize(size.width, size.height))
+  })
+}
 
 export default function App() {
   const { settings, updateSettings } = useSettings()
@@ -31,6 +43,25 @@ export default function App() {
 
   // Ghost window position for layout
   const [ghostRect, setGhostRect] = useState({ x: 0, y: 0, width: 200 })
+
+  // DEBUG: global event listener to check if webview receives mouse events
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      console.log(`[GLOBAL] ${e.type} button:${e.button} target:${(e.target as HTMLElement)?.tagName}`)
+    }
+    window.addEventListener('mousedown', handler)
+    window.addEventListener('mouseup', handler)
+    window.addEventListener('click', handler)
+    window.addEventListener('auxclick', handler)
+    window.addEventListener('contextmenu', handler)
+    return () => {
+      window.removeEventListener('mousedown', handler)
+      window.removeEventListener('mouseup', handler)
+      window.removeEventListener('click', handler)
+      window.removeEventListener('auxclick', handler)
+      window.removeEventListener('contextmenu', handler)
+    }
+  }, [])
 
   useEffect(() => {
     async function fetchPos() {
@@ -67,6 +98,11 @@ export default function App() {
     setChatOpen((prev) => !prev)
   }, [])
 
+  const handleMiddleClick = useCallback(() => {
+    // TODO: "poking" interaction — trigger a reaction from the character
+    console.log('poke!')
+  }, [])
+
   const handleRightClick = useCallback((x: number, y: number) => {
     setChatOpen(false)
     setContextMenu({ x, y })
@@ -95,6 +131,7 @@ export default function App() {
       <Ghost
         expressionOverride={expressionUrl || undefined}
         onLeftClick={handleGhostClick}
+        onMiddleClick={handleMiddleClick}
         onRightClick={handleRightClick}
       />
 
@@ -126,7 +163,7 @@ export default function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
+          onClose={() => { setContextMenu(null); forceRepaint() }}
           onChangeSkin={() => setSkinPickerOpen(true)}
           onSettings={() => setSettingsOpen(true)}
         />
@@ -137,7 +174,7 @@ export default function App() {
           skins={skins}
           currentSkinId={currentSkin?.id ?? ''}
           onSelect={handleSkinSelect}
-          onClose={() => setSkinPickerOpen(false)}
+          onClose={() => { setSkinPickerOpen(false); forceRepaint() }}
         />
       )}
 
@@ -145,7 +182,7 @@ export default function App() {
         <SettingsPanel
           settings={settings}
           onSave={updateSettings}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => { setSettingsOpen(false); forceRepaint() }}
         />
       )}
     </>

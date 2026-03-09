@@ -18,20 +18,6 @@
     "core:window:allow-hide",
     "core:window:allow-close",
     "store:default",
-    "log:default",
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [
-        { "path": "$RESOURCE/**" },
-        { "path": "$APPDATA/**" }
-      ]
-    },
-    {
-      "identifier": "asset-protocol:default",
-      "allow": [
-        { "path": "$RESOURCE/**" },
-        { "path": "$APPDATA/**" }
-      ]
-    }
+    "log:default"
   ]
 }

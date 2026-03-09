@@ -18,6 +18,7 @@
 
 ## UX Polish
 
+- [ ] Implement middle-click "poking" interaction (trigger character reaction, e.g. annoyed expression + bubble)
 - [ ] Add system tray icon (show/hide character, quit app)
 - [ ] Handle multi-monitor: character stays on placed monitor
 - [ ] Bubble positioning at screen edges (don't go off-screen)
