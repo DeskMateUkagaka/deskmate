@@ -8,15 +8,18 @@ import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/ap
 
 /**
  * Force WebKitGTK to repaint by resizing the window, then restoring
- * both size and position (Sway may move the window on resize).
+ * both size and position (tiling WMs may move the window on resize).
  * Uses physical pixels to avoid logical/physical mismatch on HiDPI Wayland.
+ *
+ * Double rAF ensures one full frame has been composited before restoring —
+ * a single rAF fires before the paint, which isn't enough on X11 (i3).
  */
 async function nudgeWindowRepaint() {
   const win = getCurrentWindow()
   const pos = await win.outerPosition()
   const size = await win.outerSize()
   await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
-  await new Promise(r => requestAnimationFrame(r))
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
   await win.setSize(new PhysicalSize(size.width, size.height))
   await win.setPosition(new PhysicalPosition(pos.x, pos.y))
 }

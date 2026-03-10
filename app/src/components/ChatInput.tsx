@@ -14,7 +14,7 @@ async function nudgeWindowRepaint() {
   const pos = await win.outerPosition()
   const size = await win.outerSize()
   await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
-  await new Promise(r => requestAnimationFrame(r))
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
   await win.setSize(new PhysicalSize(size.width, size.height))
   await win.setPosition(new PhysicalPosition(pos.x, pos.y))
 }
