@@ -18,6 +18,7 @@
 
 ## UX Polish
 
+- [ ] Gateway token setup: add GUI (in Settings window or first-run flow) to let users paste their gateway token, instead of requiring manual settings.json editing
 - [ ] Implement middle-click "poking" interaction (trigger character reaction, e.g. annoyed expression + bubble)
 - [ ] Add system tray icon (show/hide character, quit app)
 - [ ] Handle multi-monitor: character stays on placed monitor

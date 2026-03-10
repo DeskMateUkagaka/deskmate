@@ -7,17 +7,18 @@ export type ChatState = 'idle' | 'sending' | 'streaming' | 'error'
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 // Matches the Rust ChatEvent struct emitted via app.emit("chat-event")
+// Field names match Rust's #[serde(rename = "...")] camelCase output
 interface ChatEvent {
-  run_id: string
-  session_key: string
+  runId: string
+  sessionKey: string
   seq: number
   state: 'delta' | 'final' | 'error' | 'aborted'
   message?: {
     role: string
     content: Array<{ type: string; text?: string }>
   }
-  error_message?: string
-  stop_reason?: string
+  errorMessage?: string
+  stopReason?: string
 }
 
 interface SessionInfo {
@@ -56,7 +57,7 @@ export function useOpenClaw() {
 
   const accumulatedRef = useRef('')
   const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sessionKeyRef = useRef<string>('')
+  const sessionKeyRef = useRef<string>('main')
   const runIdRef = useRef<string>('')
   const unlistenRef = useRef<UnlistenFn | null>(null)
 
@@ -68,18 +69,16 @@ export function useOpenClaw() {
       setConnectionStatus('connecting')
       try {
         const settings = await invoke<{ gateway_url: string; gateway_token: string }>('get_settings')
+        console.log('[useOpenClaw] connecting to gateway:', settings.gateway_url)
         await invoke('connect_gateway', {
           url: settings.gateway_url,
           token: settings.gateway_token || null,
         })
-        if (!cancelled) setConnectionStatus('connected')
-
-        // Try to get default session
-        const sessions = await invoke<SessionInfo[]>('list_sessions')
-        if (sessions.length > 0) {
-          sessionKeyRef.current = sessions[0].key
-        }
-      } catch {
+        // Don't set 'connected' here — connect_gateway returns immediately.
+        // The polling interval below will pick up the actual status.
+        if (!cancelled) setConnectionStatus('connecting')
+      } catch (e) {
+        console.error('[useOpenClaw] connect failed:', e)
         if (!cancelled) setConnectionStatus('error')
       }
     }
@@ -113,7 +112,7 @@ export function useOpenClaw() {
         const evt = event.payload
 
         // Only process events for our current run
-        if (runIdRef.current && evt.run_id !== runIdRef.current) return
+        if (runIdRef.current && evt.runId !== runIdRef.current) return
 
         if (evt.state === 'delta') {
           const deltaText = extractTextFromMessage(evt.message)
@@ -153,7 +152,7 @@ export function useOpenClaw() {
             thinkingTimerRef.current = null
           }
           setChatState('error')
-          setCurrentResponse(evt.error_message ?? 'Unknown error')
+          setCurrentResponse(evt.errorMessage ?? 'Unknown error')
         } else if (evt.state === 'aborted') {
           if (thinkingTimerRef.current) {
             clearTimeout(thinkingTimerRef.current)
@@ -174,6 +173,21 @@ export function useOpenClaw() {
   }, [])
 
   const sendMessage = useCallback(async (text: string) => {
+    console.log('[useOpenClaw] sendMessage called:', text, 'sessionKey:', sessionKeyRef.current)
+
+    // Check connection status before sending
+    try {
+      const status = await invoke<string>('get_connection_status')
+      console.log('[useOpenClaw] connection status:', status)
+      if (status !== 'connected') {
+        setChatState('error')
+        setCurrentResponse(`Gateway not connected (status: ${status}). Check Settings.`)
+        return
+      }
+    } catch (e) {
+      console.error('[useOpenClaw] status check failed:', e)
+    }
+
     accumulatedRef.current = ''
     setCurrentResponse('')
     setCurrentExpression('neutral')
@@ -190,8 +204,10 @@ export function useOpenClaw() {
         sessionKey: sessionKeyRef.current,
         message: text,
       })
+      console.log('[useOpenClaw] chat_send returned runId:', runId)
       runIdRef.current = runId
-    } catch {
+    } catch (e) {
+      console.error('[useOpenClaw] chat_send failed:', e)
       if (thinkingTimerRef.current) {
         clearTimeout(thinkingTimerRef.current)
         thinkingTimerRef.current = null

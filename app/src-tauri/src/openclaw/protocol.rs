@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Wire frame sent by the client to the gateway.
+///
+/// Serialized directly (not via GatewayFrame) when sending to the gateway,
+/// so we need the `type` field for serialization. `default` makes deserialization
+/// tolerant when the field is consumed by GatewayFrame's tag discriminator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestFrame {
-    #[serde(rename = "type")]
-    pub frame_type: String, // always "req"
+    #[serde(rename = "type", default)]
+    pub frame_type: String,
     pub id: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,8 +43,6 @@ pub struct ErrorPayload {
 /// Wire frame sent by the gateway as a response to a RequestFrame.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseFrame {
-    #[serde(rename = "type")]
-    pub frame_type: String, // always "res"
     pub id: String,
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -52,8 +54,6 @@ pub struct ResponseFrame {
 /// Wire frame sent by the gateway to push events to the client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventFrame {
-    #[serde(rename = "type")]
-    pub frame_type: String, // always "event"
     pub event: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<Value>,

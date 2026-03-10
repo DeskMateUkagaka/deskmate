@@ -35,6 +35,7 @@ pub async fn connect_gateway(
         }
     }
 
+    log::info!("connect_gateway called: url={url}");
     let client = GatewayClient::start(url, token);
     let mut event_rx = client.subscribe();
 
@@ -44,16 +45,20 @@ pub async fn connect_gateway(
         loop {
             match event_rx.recv().await {
                 Ok(evt) => {
+                    log::info!("gateway event: type={} seq={:?}", evt.event, evt.seq);
                     if evt.event == "chat" {
                         if let Some(payload) = &evt.payload {
                             match serde_json::from_value::<ChatEvent>(payload.clone()) {
                                 Ok(chat_evt) => {
+                                    log::info!("chat event: state={} runId={}", chat_evt.state, chat_evt.run_id);
                                     let _ = app_clone.emit("chat-event", &chat_evt);
                                 }
                                 Err(e) => {
-                                    log::debug!("chat event parse error: {e}");
+                                    log::warn!("chat event parse error: {e}  payload={payload}");
                                 }
                             }
+                        } else {
+                            log::warn!("chat event with no payload");
                         }
                     }
                     // Forward all gateway events for frontend visibility.

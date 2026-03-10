@@ -145,6 +145,8 @@ impl ClientActor {
             self.set_status(ConnectionStatus::Disconnected);
             // Flush all pending requests with an error.
             self.flush_pending_errors("gateway disconnected");
+            // Drain any queued commands that arrived while we were trying to connect.
+            self.drain_queued_commands();
 
             let delay = backoff_ms;
             backoff_ms = (backoff_ms * 2).min(30_000);
@@ -154,8 +156,12 @@ impl ClientActor {
 
     /// Returns Ok(()) on clean disconnect, Err(true) on Stop command, Err(false) on error.
     async fn connect_once(&mut self, backoff_ms: &mut u64) -> Result<(), bool> {
+        log::info!("gateway: attempting WebSocket connect to {}", self.url);
         let ws_stream = match connect_async(&self.url).await {
-            Ok((ws, _)) => ws,
+            Ok((ws, _)) => {
+                log::info!("gateway: WebSocket connected, waiting for challenge...");
+                ws
+            }
             Err(e) => {
                 log::warn!("gateway connection failed: {e}");
                 return Err(false);
@@ -168,23 +174,28 @@ impl ClientActor {
         let nonce = loop {
             match read.next().await {
                 Some(Ok(Message::Text(text))) => {
-                    if let Ok(frame) = serde_json::from_str::<GatewayFrame>(&text) {
-                        if let GatewayFrame::Event(evt) = frame {
-                            if evt.event == "connect.challenge" {
-                                if let Some(nonce) = evt
-                                    .payload
-                                    .as_ref()
-                                    .and_then(|p| p.get("nonce"))
-                                    .and_then(|n| n.as_str())
-                                    .map(|s| s.trim().to_string())
-                                    .filter(|s| !s.is_empty())
-                                {
-                                    break nonce;
-                                } else {
-                                    log::error!("gateway connect.challenge missing nonce");
-                                    return Err(false);
-                                }
+                    log::debug!("gateway: raw frame: {}", text);
+                    match serde_json::from_str::<GatewayFrame>(&text) {
+                        Err(e) => {
+                            log::warn!("gateway: challenge phase parse error: {e}  raw={text}");
+                        }
+                        Ok(GatewayFrame::Event(evt)) if evt.event == "connect.challenge" => {
+                            if let Some(nonce) = evt
+                                .payload
+                                .as_ref()
+                                .and_then(|p| p.get("nonce"))
+                                .and_then(|n| n.as_str())
+                                .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
+                            {
+                                break nonce;
+                            } else {
+                                log::error!("gateway connect.challenge missing nonce");
+                                return Err(false);
                             }
+                        }
+                        Ok(other) => {
+                            log::debug!("gateway: challenge phase ignoring frame: {:?}", other);
                         }
                     }
                 }
@@ -198,6 +209,7 @@ impl ClientActor {
         };
 
         // Send "connect" request with ConnectParams.
+        log::info!("gateway: got challenge nonce, sending connect request...");
         let connect_id = uuid::Uuid::new_v4().to_string();
         let connect_params = ConnectParams::new(self.token.clone());
         let _ = nonce; // nonce stored in server; we just need to have received it
@@ -207,15 +219,18 @@ impl ClientActor {
             Some(serde_json::to_value(&connect_params).unwrap_or(Value::Null)),
         );
         let req_text = serde_json::to_string(&req).unwrap();
+        log::debug!("gateway: connect request: {}", req_text);
         if let Err(e) = write.send(Message::Text(req_text.into())).await {
             log::warn!("gateway failed to send connect: {e}");
             return Err(false);
         }
+        log::info!("gateway: connect request sent, waiting for hello...");
 
         // Wait for the connect response.
         let hello: HelloOk = loop {
             match read.next().await {
                 Some(Ok(Message::Text(text))) => {
+                    log::debug!("gateway: hello-wait raw frame: {}", text);
                     if let Ok(GatewayFrame::Res(res)) = serde_json::from_str::<GatewayFrame>(&text) {
                         if res.id == connect_id {
                             if !res.ok {
@@ -334,6 +349,22 @@ impl ClientActor {
         let mut inner = self.inner.lock().unwrap();
         for (_, tx) in inner.pending.drain() {
             let _ = tx.send(Err(msg.to_string()));
+        }
+    }
+
+    /// Drain any commands queued in the mpsc channel while disconnected,
+    /// rejecting them immediately so callers don't hang forever.
+    fn drain_queued_commands(&mut self) {
+        while let Ok(cmd) = self.cmd_rx.try_recv() {
+            match cmd {
+                ClientCmd::Request { tx, .. } => {
+                    let _ = tx.send(Err("gateway not connected".to_string()));
+                }
+                ClientCmd::Stop => {
+                    self.set_status(ConnectionStatus::Disconnected);
+                    return;
+                }
+            }
         }
     }
 }

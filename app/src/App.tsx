@@ -62,23 +62,41 @@ export default function App() {
 
   // Listen for events from popup windows
   useEffect(() => {
+    let cancelled = false
     const unlisten: Array<() => void> = []
 
-    listen('settings-saved', () => {
-      reloadSettings()
-    }).then((fn) => unlisten.push(fn))
+    async function setup() {
+      const u1 = await listen('settings-saved', () => {
+        if (!cancelled) reloadSettings()
+      })
+      if (cancelled) { u1(); return }
+      unlisten.push(u1)
 
-    listen<{ id: string }>('skin-selected', (event) => {
-      const { id } = event.payload
-      updateSettings({ current_skin_id: id })
-      reloadSkins()
-    }).then((fn) => unlisten.push(fn))
+      const u2 = await listen<{ id: string }>('skin-selected', (event) => {
+        if (!cancelled) {
+          updateSettings({ current_skin_id: event.payload.id })
+          reloadSkins()
+        }
+      })
+      if (cancelled) { u2(); return }
+      unlisten.push(u2)
 
-    listen<{ text: string }>('chat-send', (event) => {
-      sendMessage(event.payload.text)
-    }).then((fn) => unlisten.push(fn))
+      const u3 = await listen<{ text: string }>('chat-send', (event) => {
+        if (!cancelled) {
+          console.log('[App] chat-send event received:', event.payload)
+          sendMessage(event.payload.text)
+        }
+      })
+      if (cancelled) { u3(); return }
+      unlisten.push(u3)
+    }
 
-    return () => unlisten.forEach((fn) => fn())
+    setup()
+
+    return () => {
+      cancelled = true
+      unlisten.forEach((fn) => fn())
+    }
   }, [reloadSettings, reloadSkins, updateSettings, sendMessage])
 
   // Wire streaming response into bubble
