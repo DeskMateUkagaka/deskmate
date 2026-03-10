@@ -115,8 +115,10 @@ export function useOpenClaw() {
         if (runIdRef.current && evt.runId !== runIdRef.current) return
 
         if (evt.state === 'delta') {
+          // Gateway sends full accumulated text in each delta (not incremental chunks)
           const deltaText = extractTextFromMessage(evt.message)
-          accumulatedRef.current += deltaText
+          console.log(`[chat-event] delta seq=${evt.seq} len=${deltaText.length} text="${deltaText}"`)
+          accumulatedRef.current = deltaText
 
           // Reset thinking timer on each delta
           if (thinkingTimerRef.current) {
@@ -132,6 +134,7 @@ export function useOpenClaw() {
         } else if (evt.state === 'final') {
           // Final message — do a final parse of accumulated text
           const finalText = extractTextFromMessage(evt.message)
+          console.log(`[chat-event] final seq=${evt.seq} len=${finalText.length} text="${finalText}"`)
           if (finalText) {
             accumulatedRef.current = finalText
           }
@@ -174,6 +177,16 @@ export function useOpenClaw() {
 
   const sendMessage = useCallback(async (text: string) => {
     console.log('[useOpenClaw] sendMessage called:', text, 'sessionKey:', sessionKeyRef.current)
+
+    // Debug shortcut: "ack" returns a hardcoded response without hitting the gateway
+    if (text.toLowerCase() === 'ack') {
+      accumulatedRef.current = 'ACK'
+      setCurrentResponse('ACK')
+      setCurrentExpression('neutral')
+      setChatState('streaming')
+      setTimeout(() => setChatState('idle'), 500)
+      return
+    }
 
     // Check connection status before sending
     try {

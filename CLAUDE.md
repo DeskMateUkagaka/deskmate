@@ -115,11 +115,24 @@ skins/<skin-id>/
 
 ### WebKitGTK Transparent Window Limitations (Linux)
 
-WebKitGTK 2.46.6+ has an upstream bug ([tauri#12800](https://github.com/tauri-apps/tauri/issues/12800)) where transparent windows do not repaint when DOM content changes. React state updates correctly, but the compositor never flushes the visual update — dismissed overlays leave ghost artifacts ("bleed").
+WebKitGTK has a compositor bug where transparent windows leave ghost artifacts ("bleed") when DOM elements are removed or hidden. The upstream bug ([tauri#12800](https://github.com/tauri-apps/tauri/issues/12800)) was reportedly fixed in WebKitGTK 2.48.0, but bleed still occurs on WebKitGTK 2.50.5 with Sway/Wayland.
 
-**Rule: Never render show/hide UI overlays inside the transparent main window.** Instead, use separate opaque windows that communicate via Tauri events (`emit`/`listen`). This is the pattern used for settings, skin-picker, and chat-input windows.
+**What works and what doesn't:**
+- Text content changes during streaming DO trigger repaints (chat bubble text updates fine)
+- DOM element removal (`return null`) does NOT trigger repaint — old pixels persist
+- CSS property changes (opacity, background, transform) do NOT clear bleed
+- `document.body.style.display` toggling does NOT clear bleed
+- Opacity transitions cause worse bleed (window becomes fully opaque)
+- New elements rendered over the bleed area do NOT paint over it
 
-Additional notes:
+**Working fix: window size nudge + wait + restore.** Resizing the window by 1px forces the compositor to repaint. Must wait one animation frame (`requestAnimationFrame`) between resize and restore — without the wait, the compositor doesn't process the change. Then restore original size and position. Must use `PhysicalSize`/`PhysicalPosition` (not Logical) to avoid coordinate mismatch on HiDPI Wayland. There is a slight visible budge. See `useBubble.ts` `nudgeWindowRepaint()`.
+
+**Constraint: requires floating window.** On tiling WMs (Sway), `setSize` is ignored for tiled windows. The ghost window must be floating (`for_window [app_id="..."] floating enable` in Sway config).
+
+**Rules:**
+- Use separate opaque windows for complex UI panels (settings, skin picker, chat input)
+- Lightweight overlays (chat bubble) can live in the transparent window — use the size nudge on dismiss
+- Never use opacity transitions on transparent windows
 - `setIgnoreCursorEvents` is all-or-nothing for the entire window — no per-element control
 - Call `window.setFocus()` after showing a window that needs keyboard input
 - Separate windows are opaque (`transparent: false`), hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`

@@ -33,8 +33,6 @@ export function Bubble({
     left: (viewportWidth - bubbleWidth) / 2,
     width: bubbleWidth,
     zIndex: 1000,
-    opacity: bubbleState === 'dismissing' ? 0 : 1,
-    transition: 'opacity 0.3s ease',
     pointerEvents: 'auto',
   }
 
@@ -91,15 +89,15 @@ export function Bubble({
         </div>
         {!isStreaming && (
           <div style={actionsStyle}>
-            <button style={primaryPillStyle} onClick={onTellMeMore}>
+            <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onTellMeMore() }}>
               Tell me more
             </button>
             {isTruncated && (
-              <button style={primaryPillStyle} onClick={onExpand}>
+              <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onExpand() }}>
                 Expand
               </button>
             )}
-            <button style={secondaryPillStyle} onClick={onDismiss}>
+            <button style={secondaryPillStyle} onClick={(e) => { e.stopPropagation(); onDismiss() }}>
               Dismiss
             </button>
           </div>

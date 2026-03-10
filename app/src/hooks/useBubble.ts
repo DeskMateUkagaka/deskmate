@@ -2,7 +2,24 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 export type BubbleState = 'hidden' | 'streaming' | 'visible' | 'dismissing'
 
-const PREVIEW_LENGTH = 100
+const PREVIEW_LENGTH = 200
+
+import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
+
+/**
+ * Force WebKitGTK to repaint by resizing the window, then restoring
+ * both size and position (Sway may move the window on resize).
+ * Uses physical pixels to avoid logical/physical mismatch on HiDPI Wayland.
+ */
+async function nudgeWindowRepaint() {
+  const win = getCurrentWindow()
+  const pos = await win.outerPosition()
+  const size = await win.outerSize()
+  await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+  await new Promise(r => requestAnimationFrame(r))
+  await win.setSize(new PhysicalSize(size.width, size.height))
+  await win.setPosition(new PhysicalPosition(pos.x, pos.y))
+}
 
 interface UseBubbleOptions {
   timeoutMs?: number
@@ -26,9 +43,8 @@ export function useBubble(options: UseBubbleOptions = {}) {
   const startDismissTimer = useCallback(() => {
     clearDismissTimer()
     dismissTimerRef.current = setTimeout(() => {
-      setBubbleState('dismissing')
-      // After animation, fully hide
-      setTimeout(() => setBubbleState('hidden'), 300)
+      setBubbleState('hidden')
+      nudgeWindowRepaint()
     }, timeoutMs)
   }, [timeoutMs, clearDismissTimer])
 
@@ -53,15 +69,15 @@ export function useBubble(options: UseBubbleOptions = {}) {
 
   const dismiss = useCallback(() => {
     clearDismissTimer()
-    setBubbleState('dismissing')
-    setTimeout(() => setBubbleState('hidden'), 300)
+    setBubbleState('hidden')
+    nudgeWindowRepaint()
   }, [clearDismissTimer])
 
   const expand = useCallback(() => {
     setIsExpanded(true)
-    // Reset dismiss timer when user interacts
-    startDismissTimer()
-  }, [startDismissTimer])
+    // User wants to read — clear dismiss timer, don't auto-hide
+    clearDismissTimer()
+  }, [clearDismissTimer])
 
   const resetTimeout = useCallback(() => {
     if (bubbleState === 'visible') {
@@ -75,7 +91,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
 
   const isVisible = bubbleState !== 'hidden'
   const isStreaming = bubbleState === 'streaming'
-  const displayText = isExpanded ? text : text.slice(0, PREVIEW_LENGTH)
+  const displayText = isExpanded ? text : (text.length > PREVIEW_LENGTH ? text.slice(0, PREVIEW_LENGTH) + '...' : text)
   const isTruncated = text.length > PREVIEW_LENGTH && !isExpanded
 
   return {

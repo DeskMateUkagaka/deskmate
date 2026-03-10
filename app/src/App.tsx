@@ -112,12 +112,16 @@ export default function App() {
 
   useEffect(() => {
     if (chatState === 'idle' && bubble.isStreaming) {
+      // Update text one last time — the final event may have arrived with
+      // chatState='idle' in the same render, so Effect 1 above skipped it.
+      bubble.updateText(currentResponse)
       bubble.finalize()
     }
     if (chatState === 'error') {
+      bubble.updateText(currentResponse)
       bubble.finalize()
     }
-  }, [chatState]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGhostClick = useCallback(async () => {
     const chatWin = await getWindowByLabel('chat-input')
