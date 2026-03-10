@@ -91,7 +91,7 @@ Hardcoded client-side ("Tell me more" + "Dismiss"). The gateway protocol has no 
 ### Data Flow
 
 ```
-User types → ChatInput → invoke('chat_send') → Rust GatewayClient → OpenClaw WS
+User types → ChatInputWindow → emit("chat-send") → App listens → sendMessage() → invoke('chat_send') → Rust GatewayClient → OpenClaw WS
 OpenClaw WS → Rust EventFrame listener → app.emit("chat-event") → useOpenClaw hook → Bubble
 ```
 
@@ -112,6 +112,18 @@ skins/<skin-id>/
 - `ProactiveState` (Rust): holds the timer stop channel
 - `Settings` (Rust): persisted to `$APP_DATA_DIR/settings.json`
 - Frontend state: React hooks (`useOpenClaw`, `useBubble`, `useGhost`, `useSkin`, `useSettings`) — no external state library
+
+### WebKitGTK Transparent Window Limitations (Linux)
+
+WebKitGTK 2.46.6+ has an upstream bug ([tauri#12800](https://github.com/tauri-apps/tauri/issues/12800)) where transparent windows do not repaint when DOM content changes. React state updates correctly, but the compositor never flushes the visual update — dismissed overlays leave ghost artifacts ("bleed").
+
+**Rule: Never render show/hide UI overlays inside the transparent main window.** Instead, use separate opaque windows that communicate via Tauri events (`emit`/`listen`). This is the pattern used for settings, skin-picker, and chat-input windows.
+
+Additional notes:
+- `setIgnoreCursorEvents` is all-or-nothing for the entire window — no per-element control
+- Call `window.setFocus()` after showing a window that needs keyboard input
+- Separate windows are opaque (`transparent: false`), hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`
+- Inter-window communication uses Tauri events, not shared React state
 
 ### Tauri Capabilities
 
