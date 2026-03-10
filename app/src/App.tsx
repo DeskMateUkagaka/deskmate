@@ -1,31 +1,41 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
+import { getCurrentWindow, getAllWindows, LogicalPosition } from '@tauri-apps/api/window'
+import { listen } from '@tauri-apps/api/event'
+import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { Ghost } from './components/Ghost'
 import { Bubble } from './components/Bubble'
 import { ChatInput } from './components/ChatInput'
-import { ContextMenu } from './components/ContextMenu'
-import { SkinPicker } from './components/SkinPicker'
-import { SettingsPanel } from './components/SettingsPanel'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
 
-// Force WebKit to repaint transparent regions after overlay dismissal
-// Opacity tricks don't work with WEBKIT_DISABLE_COMPOSITING_MODE=1;
-// need to trigger a real window resize to force compositor redraw
-async function forceRepaint() {
-  const win = getCurrentWindow()
-  const size = await win.innerSize()
-  await win.setSize(new LogicalSize(size.width, size.height + 1))
-  requestAnimationFrame(async () => {
-    await win.setSize(new LogicalSize(size.width, size.height))
-  })
+async function getWindowByLabel(label: string) {
+  const all = await getAllWindows()
+  return all.find((w) => w.label === label) ?? null
+}
+
+async function showPopup(label: string, x?: number, y?: number) {
+  const win = await getWindowByLabel(label)
+  if (!win) return
+  await win.show()
+  if (x !== undefined && y !== undefined) {
+    // Try both position types for debugging
+    console.log(`[showPopup] ${label} at (${x}, ${y})`)
+    await win.setPosition(new LogicalPosition(x, y))
+  }
+  await win.setFocus()
+}
+
+async function hidePopup(label: string) {
+  const win = await getWindowByLabel(label)
+  if (!win) return
+  await win.hide()
 }
 
 export default function App() {
-  const { settings, updateSettings } = useSettings()
-  const { currentSkin, skins, switchSkin, getExpressionUrl } = useSkin()
+  const { settings, updateSettings, reloadSettings } = useSettings()
+  const { currentSkin, skins, switchSkin, getExpressionUrl, reloadSkins } = useSkin()
   const {
     sendMessage,
     connectionStatus,
@@ -37,31 +47,9 @@ export default function App() {
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms })
 
   const [chatOpen, setChatOpen] = useState(false)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
-  const [skinPickerOpen, setSkinPickerOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Ghost window position for layout
   const [ghostRect, setGhostRect] = useState({ x: 0, y: 0, width: 200 })
-
-  // DEBUG: global event listener to check if webview receives mouse events
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      console.log(`[GLOBAL] ${e.type} button:${e.button} target:${(e.target as HTMLElement)?.tagName}`)
-    }
-    window.addEventListener('mousedown', handler)
-    window.addEventListener('mouseup', handler)
-    window.addEventListener('click', handler)
-    window.addEventListener('auxclick', handler)
-    window.addEventListener('contextmenu', handler)
-    return () => {
-      window.removeEventListener('mousedown', handler)
-      window.removeEventListener('mouseup', handler)
-      window.removeEventListener('click', handler)
-      window.removeEventListener('auxclick', handler)
-      window.removeEventListener('contextmenu', handler)
-    }
-  }, [])
 
   useEffect(() => {
     async function fetchPos() {
@@ -72,6 +60,23 @@ export default function App() {
     }
     fetchPos()
   }, [])
+
+  // Listen for events from popup windows
+  useEffect(() => {
+    const unlisten: Array<() => void> = []
+
+    listen('settings-saved', () => {
+      reloadSettings()
+    }).then((fn) => unlisten.push(fn))
+
+    listen<{ id: string }>('skin-selected', (event) => {
+      const { id } = event.payload
+      updateSettings({ current_skin_id: id })
+      reloadSkins()
+    }).then((fn) => unlisten.push(fn))
+
+    return () => unlisten.forEach((fn) => fn())
+  }, [reloadSettings, reloadSkins, updateSettings])
 
   // Wire streaming response into bubble
   useEffect(() => {
@@ -94,18 +99,33 @@ export default function App() {
   }, [chatState]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGhostClick = useCallback(() => {
-    setContextMenu(null)
     setChatOpen((prev) => !prev)
   }, [])
 
   const handleMiddleClick = useCallback(() => {
-    // TODO: "poking" interaction — trigger a reaction from the character
     console.log('poke!')
   }, [])
 
-  const handleRightClick = useCallback((x: number, y: number) => {
+  const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
     setChatOpen(false)
-    setContextMenu({ x, y })
+    const win = getCurrentWindow()
+    const changeSkin = await MenuItem.new({
+      text: 'Change Skin',
+      action: () => showPopup('skin-picker'),
+    })
+    const buySkins = await MenuItem.new({
+      text: 'Buy Skins',
+      action: () => { /* TODO: open external URL */ },
+    })
+    const separator = await PredefinedMenuItem.new({ item: 'Separator' })
+    const settings = await MenuItem.new({
+      text: 'Settings',
+      action: () => showPopup('settings'),
+    })
+    const menu = await Menu.new({
+      items: [changeSkin, buySkins, separator, settings],
+    })
+    await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [])
 
   const handleSend = useCallback((text: string) => {
@@ -117,12 +137,6 @@ export default function App() {
     sendMessage('Tell me more')
     bubble.dismiss()
   }, [sendMessage, bubble])
-
-  const handleSkinSelect = useCallback(async (id: string) => {
-    await switchSkin(id)
-    await updateSettings({ current_skin_id: id })
-    setSkinPickerOpen(false)
-  }, [switchSkin, updateSettings])
 
   const expressionUrl = getExpressionUrl(currentExpression)
 
@@ -158,33 +172,6 @@ export default function App() {
         onSend={handleSend}
         onClose={() => setChatOpen(false)}
       />
-
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => { setContextMenu(null); forceRepaint() }}
-          onChangeSkin={() => setSkinPickerOpen(true)}
-          onSettings={() => setSettingsOpen(true)}
-        />
-      )}
-
-      {skinPickerOpen && (
-        <SkinPicker
-          skins={skins}
-          currentSkinId={currentSkin?.id ?? ''}
-          onSelect={handleSkinSelect}
-          onClose={() => { setSkinPickerOpen(false); forceRepaint() }}
-        />
-      )}
-
-      {settingsOpen && (
-        <SettingsPanel
-          settings={settings}
-          onSave={updateSettings}
-          onClose={() => { setSettingsOpen(false); forceRepaint() }}
-        />
-      )}
     </>
   )
 }

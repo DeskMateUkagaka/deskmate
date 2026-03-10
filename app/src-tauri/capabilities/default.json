@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for Ukagaka desktop companion",
-  "windows": ["main"],
+  "windows": ["main", "settings", "skin-picker"],
   "permissions": [
     "core:default",
     "core:window:default",
@@ -17,6 +17,8 @@
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-close",
+    "core:menu:default",
+    "core:webview:allow-create-webview-window",
     "store:default",
     "log:default"
   ]

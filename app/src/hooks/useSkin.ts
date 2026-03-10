@@ -8,6 +8,7 @@ interface UseSkinReturn {
   skins: SkinInfo[]
   switchSkin: (id: string) => Promise<void>
   getExpressionUrl: (expression: Expression) => string
+  reloadSkins: () => void
 }
 
 export function useSkin(): UseSkinReturn {
@@ -47,5 +48,10 @@ export function useSkin(): UseSkinReturn {
     return expressionUrls[expression] ?? expressionUrls['neutral'] ?? ''
   }, [expressionUrls])
 
-  return { currentSkin, skins, switchSkin, getExpressionUrl }
+  const reloadSkins = useCallback(() => {
+    invoke<SkinInfo[]>('list_skins').then(setSkins).catch(() => {})
+    invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
+  }, [])
+
+  return { currentSkin, skins, switchSkin, getExpressionUrl, reloadSkins }
 }

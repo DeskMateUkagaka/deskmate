@@ -55,5 +55,9 @@ export function useSettings() {
     await invoke('update_settings', { newSettings: next })
   }, [settings])
 
-  return { settings, updateSettings, isLoaded }
+  const reloadSettings = useCallback(() => {
+    invoke<Settings>('get_settings').then(setSettings).catch(() => {})
+  }, [])
+
+  return { settings, updateSettings, reloadSettings, isLoaded }
 }

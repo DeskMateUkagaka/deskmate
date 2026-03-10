@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "ukagaka",
         "width": 400,
         "height": 600,
@@ -22,6 +23,34 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "shadow": false
+      },
+      {
+        "label": "settings",
+        "url": "index.html?window=settings",
+        "title": "Settings",
+        "width": 360,
+        "height": 460,
+        "resizable": false,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": true,
+        "visible": false
+      },
+      {
+        "label": "skin-picker",
+        "url": "index.html?window=skin-picker",
+        "title": "Choose Skin",
+        "width": 340,
+        "height": 440,
+        "resizable": false,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": true,
+        "visible": false
       }
     ],
     "security": {
