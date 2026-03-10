@@ -34,6 +34,11 @@ pub fn set_ghost_position(
 }
 
 #[tauri::command]
+pub fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 pub fn debug_log(content: String) {
     use std::fs::OpenOptions;
     if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("/tmp/debug.log") {

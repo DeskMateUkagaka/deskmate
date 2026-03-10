@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getCurrentWindow, getAllWindows, LogicalPosition } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { Ghost } from './components/Ghost'
@@ -61,6 +62,10 @@ export default function App() {
   // Enter key opens chat input
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'q' && e.ctrlKey) {
+        invoke('exit_app')
+        return
+      }
       if (e.key === 'Enter' && !chatInputOpen) {
         setChatInputOpen(true)
       }
@@ -148,8 +153,13 @@ export default function App() {
       text: 'Settings',
       action: () => showPopup('settings'),
     })
+    const separator2 = await PredefinedMenuItem.new({ item: 'Separator' })
+    const exitItem = await MenuItem.new({
+      text: 'Exit',
+      action: () => invoke('exit_app'),
+    })
     const menu = await Menu.new({
-      items: [changeSkin, buySkins, separator, settings],
+      items: [changeSkin, buySkins, separator, settings, separator2, exitItem],
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [])

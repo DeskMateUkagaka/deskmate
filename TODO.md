@@ -8,6 +8,7 @@
 - [ ] Configure OpenClaw agent system prompt to emit `[expression:X]` tags
 - [ ] Decide expression tag delivery method: `chat.inject` RPC, manual agent config, or prepend to each message
 - [ ] Test with actual AI responses: verify expression parsing + stripping works end-to-end
+- [ ] Tray icon to show/hide on left click. Context menu on right click
 
 ## Art & Assets
 

@@ -49,6 +49,7 @@ pub fn run() {
             commands::ghost::get_ghost_position,
             commands::ghost::set_ghost_position,
             commands::ghost::debug_log,
+            commands::ghost::exit_app,
             commands::skin::list_skins,
             commands::skin::get_current_skin,
             commands::skin::switch_skin,
