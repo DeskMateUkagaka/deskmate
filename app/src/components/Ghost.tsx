@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
@@ -9,19 +9,34 @@ interface GhostProps {
   onLeftClick?: () => void
   onMiddleClick?: () => void
   onRightClick?: (x: number, y: number) => void
+  onImageBounds?: (bottom: number) => void
 }
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightClick }: GhostProps) {
+export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
   const {
     expressionImage,
   } = useGhost()
 
+  const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
+
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
+  const imgRef = useRef<HTMLImageElement>(null)
 
-  const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
+  // Report image bottom position when image loads or window resizes
+  useEffect(() => {
+    const reportBounds = () => {
+      if (imgRef.current && onImageBounds) {
+        const rect = imgRef.current.getBoundingClientRect()
+        onImageBounds(rect.bottom)
+      }
+    }
+    reportBounds()
+    window.addEventListener('resize', reportBounds)
+    return () => window.removeEventListener('resize', reportBounds)
+  }, [onImageBounds, imageSrc])
 
   console.log('[Ghost] render, imageSrc:', imageSrc ? 'present' : 'empty')
 
@@ -108,9 +123,15 @@ export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightC
     >
       {imageSrc && (
         <img
+          ref={imgRef}
           src={imageSrc}
           alt="ghost"
           draggable={false}
+          onLoad={() => {
+            if (imgRef.current && onImageBounds) {
+              onImageBounds(imgRef.current.getBoundingClientRect().bottom)
+            }
+          }}
           style={{
             maxWidth: '100%',
             maxHeight: '100%',

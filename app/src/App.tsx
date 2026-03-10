@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getCurrentWindow, getAllWindows, LogicalPosition } from '@tauri-apps/api/window'
-import { emit, listen } from '@tauri-apps/api/event'
+import { listen } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { Ghost } from './components/Ghost'
 import { Bubble } from './components/Bubble'
+import { ChatInput } from './components/ChatInput'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
@@ -19,7 +20,6 @@ async function showPopup(label: string, x?: number, y?: number) {
   if (!win) return
   await win.show()
   if (x !== undefined && y !== undefined) {
-    // Try both position types for debugging
     console.log(`[showPopup] ${label} at (${x}, ${y})`)
     await win.setPosition(new LogicalPosition(x, y))
   }
@@ -55,10 +55,9 @@ export default function App() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  // Broadcast connection status to chat-input window
-  useEffect(() => {
-    emit('connection-status', connectionStatus)
-  }, [connectionStatus])
+  // Inline chat input state
+  const [chatInputOpen, setChatInputOpen] = useState(false)
+  const [ghostImageBottom, setGhostImageBottom] = useState<number | null>(null)
 
   // Listen for events from popup windows
   useEffect(() => {
@@ -80,15 +79,6 @@ export default function App() {
       })
       if (cancelled) { u2(); return }
       unlisten.push(u2)
-
-      const u3 = await listen<{ text: string }>('chat-send', (event) => {
-        if (!cancelled) {
-          console.log('[App] chat-send event received:', event.payload)
-          sendMessage(event.payload.text)
-        }
-      })
-      if (cancelled) { u3(); return }
-      unlisten.push(u3)
     }
 
     setup()
@@ -97,7 +87,7 @@ export default function App() {
       cancelled = true
       unlisten.forEach((fn) => fn())
     }
-  }, [reloadSettings, reloadSkins, updateSettings, sendMessage])
+  }, [reloadSettings, reloadSkins, updateSettings])
 
   // Wire streaming response into bubble
   useEffect(() => {
@@ -123,24 +113,8 @@ export default function App() {
     }
   }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleGhostClick = useCallback(async () => {
-    const chatWin = await getWindowByLabel('chat-input')
-    if (!chatWin) return
-    const isVisible = await chatWin.isVisible()
-    if (isVisible) {
-      await chatWin.hide()
-    } else {
-      // Position chat-input window above the ghost window
-      const mainWin = getCurrentWindow()
-      const pos = await mainWin.outerPosition()
-      const size = await mainWin.outerSize()
-      await chatWin.setPosition(new LogicalPosition(
-        pos.x + (size.width - 280) / 2,
-        pos.y - 50
-      ))
-      await chatWin.show()
-      await chatWin.setFocus()
-    }
+  const handleGhostClick = useCallback(() => {
+    setChatInputOpen(prev => !prev)
   }, [])
 
   const handleMiddleClick = useCallback(() => {
@@ -148,7 +122,7 @@ export default function App() {
   }, [])
 
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
-    hidePopup('chat-input')
+    setChatInputOpen(false)
     const win = getCurrentWindow()
     const changeSkin = await MenuItem.new({
       text: 'Change Skin',
@@ -183,6 +157,7 @@ export default function App() {
         onLeftClick={handleGhostClick}
         onMiddleClick={handleMiddleClick}
         onRightClick={handleRightClick}
+        onImageBounds={setGhostImageBottom}
       />
 
       <Bubble
@@ -197,6 +172,14 @@ export default function App() {
         onTellMeMore={handleTellMeMore}
       />
 
+      <ChatInput
+        isOpen={chatInputOpen}
+        connectionStatus={connectionStatus}
+        viewportWidth={viewportSize.width}
+        imageBottom={ghostImageBottom}
+        onSend={sendMessage}
+        onClose={() => setChatInputOpen(false)}
+      />
     </>
   )
 }
