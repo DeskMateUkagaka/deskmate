@@ -31,12 +31,12 @@ impl Default for Settings {
 
 impl Settings {
     fn settings_path(app: &tauri::AppHandle) -> PathBuf {
-        let app_dir = app
+        let config_dir = app
             .path()
-            .app_data_dir()
-            .expect("failed to get app data dir");
-        std::fs::create_dir_all(&app_dir).ok();
-        app_dir.join("settings.json")
+            .app_config_dir()
+            .expect("failed to get app config dir");
+        std::fs::create_dir_all(&config_dir).ok();
+        config_dir.join("config.json")
     }
 
     pub fn load(app: &tauri::AppHandle) -> Self {
