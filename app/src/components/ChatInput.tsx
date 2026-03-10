@@ -73,10 +73,13 @@ export function ChatInput({
 
   if (!isOpen) return null
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && value.trim()) {
-      onSend(value.trim())
-      setValue('')
+  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.stopPropagation()
+      if (value.trim()) {
+        onSend(value.trim())
+        setValue('')
+      }
       handleClose()
     }
   }
@@ -143,7 +146,7 @@ export function ChatInput({
           style={inputStyle}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           placeholder="Say something…"
         />
         <button style={closeBtnStyle} onClick={(e) => { e.stopPropagation(); handleClose() }} title="Close">✕</button>

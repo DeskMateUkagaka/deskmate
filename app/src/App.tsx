@@ -57,6 +57,17 @@ export default function App() {
 
   // Inline chat input state
   const [chatInputOpen, setChatInputOpen] = useState(false)
+
+  // Enter key opens chat input
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !chatInputOpen) {
+        setChatInputOpen(true)
+      }
+    }
+    document.addEventListener('keyup', handleKey)
+    return () => document.removeEventListener('keyup', handleKey)
+  }, [chatInputOpen])
   const [ghostImageBottom, setGhostImageBottom] = useState<number | null>(null)
 
   // Listen for events from popup windows
