@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getCurrentWindow, getAllWindows, LogicalPosition } from '@tauri-apps/api/window'
-import { listen } from '@tauri-apps/api/event'
+import { emit, listen } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { Ghost } from './components/Ghost'
 import { Bubble } from './components/Bubble'
-import { ChatInput } from './components/ChatInput'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
@@ -46,20 +45,20 @@ export default function App() {
 
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms })
 
-  const [chatOpen, setChatOpen] = useState(false)
-
-  // Ghost window position for layout
-  const [ghostRect, setGhostRect] = useState({ x: 0, y: 0, width: 200 })
+  // Window viewport size for overlay positioning
+  const [viewportSize, setViewportSize] = useState({ width: 400, height: 600 })
 
   useEffect(() => {
-    async function fetchPos() {
-      const win = getCurrentWindow()
-      const pos = await win.outerPosition()
-      const size = await win.outerSize()
-      setGhostRect({ x: pos.x, y: pos.y, width: size.width })
-    }
-    fetchPos()
+    const update = () => setViewportSize({ width: window.innerWidth, height: window.innerHeight })
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
   }, [])
+
+  // Broadcast connection status to chat-input window
+  useEffect(() => {
+    emit('connection-status', connectionStatus)
+  }, [connectionStatus])
 
   // Listen for events from popup windows
   useEffect(() => {
@@ -75,8 +74,12 @@ export default function App() {
       reloadSkins()
     }).then((fn) => unlisten.push(fn))
 
+    listen<{ text: string }>('chat-send', (event) => {
+      sendMessage(event.payload.text)
+    }).then((fn) => unlisten.push(fn))
+
     return () => unlisten.forEach((fn) => fn())
-  }, [reloadSettings, reloadSkins, updateSettings])
+  }, [reloadSettings, reloadSkins, updateSettings, sendMessage])
 
   // Wire streaming response into bubble
   useEffect(() => {
@@ -98,8 +101,24 @@ export default function App() {
     }
   }, [chatState]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleGhostClick = useCallback(() => {
-    setChatOpen((prev) => !prev)
+  const handleGhostClick = useCallback(async () => {
+    const chatWin = await getWindowByLabel('chat-input')
+    if (!chatWin) return
+    const isVisible = await chatWin.isVisible()
+    if (isVisible) {
+      await chatWin.hide()
+    } else {
+      // Position chat-input window above the ghost window
+      const mainWin = getCurrentWindow()
+      const pos = await mainWin.outerPosition()
+      const size = await mainWin.outerSize()
+      await chatWin.setPosition(new LogicalPosition(
+        pos.x + (size.width - 280) / 2,
+        pos.y - 50
+      ))
+      await chatWin.show()
+      await chatWin.setFocus()
+    }
   }, [])
 
   const handleMiddleClick = useCallback(() => {
@@ -107,7 +126,7 @@ export default function App() {
   }, [])
 
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
-    setChatOpen(false)
+    hidePopup('chat-input')
     const win = getCurrentWindow()
     const changeSkin = await MenuItem.new({
       text: 'Change Skin',
@@ -127,11 +146,6 @@ export default function App() {
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [])
-
-  const handleSend = useCallback((text: string) => {
-    sendMessage(text)
-    setChatOpen(false)
-  }, [sendMessage])
 
   const handleTellMeMore = useCallback(() => {
     sendMessage('Tell me more')
@@ -155,23 +169,12 @@ export default function App() {
         isStreaming={bubble.isStreaming}
         isVisible={bubble.isVisible}
         bubbleState={bubble.bubbleState}
-        ghostX={ghostRect.x}
-        ghostWidth={ghostRect.width}
-        screenWidth={window.screen.width}
+        viewportWidth={viewportSize.width}
         onExpand={bubble.expand}
         onDismiss={bubble.dismiss}
         onTellMeMore={handleTellMeMore}
       />
 
-      <ChatInput
-        isOpen={chatOpen}
-        connectionStatus={connectionStatus}
-        ghostX={ghostRect.x}
-        ghostY={ghostRect.y}
-        ghostWidth={ghostRect.width}
-        onSend={handleSend}
-        onClose={() => setChatOpen(false)}
-      />
     </>
   )
 }

@@ -55,10 +55,6 @@ export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightC
   const handleMouseUp = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     console.log('[Ghost] mouseup button:', e.button, 'didDrag:', didDrag.current, 'hasDownPos:', !!mouseDownPos.current)
     if (e.button === 0) {
-      if (!didDrag.current && mouseDownPos.current) {
-        console.log('[Ghost] left click fired (via mouseup)')
-        onLeftClick?.()
-      }
       mouseDownPos.current = null
       didDrag.current = false
     } else if (e.button === 1) {
@@ -66,7 +62,7 @@ export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightC
       e.preventDefault()
       onMiddleClick?.()
     }
-  }, [onLeftClick, onMiddleClick])
+  }, [onMiddleClick])
 
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     console.log('[Ghost] click event, button:', e.button, 'didDrag:', didDrag.current)

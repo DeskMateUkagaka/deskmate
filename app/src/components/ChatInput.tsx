@@ -4,9 +4,7 @@ import type { ConnectionStatus } from '../hooks/useOpenClaw'
 interface ChatInputProps {
   isOpen: boolean
   connectionStatus: ConnectionStatus
-  ghostX: number
-  ghostY: number
-  ghostWidth: number
+  viewportWidth: number
   onSend: (text: string) => void
   onClose: () => void
 }
@@ -21,9 +19,7 @@ const STATUS_COLORS: Record<ConnectionStatus, string> = {
 export function ChatInput({
   isOpen,
   connectionStatus,
-  ghostX,
-  ghostY,
-  ghostWidth,
+  viewportWidth,
   onSend,
   onClose,
 }: ChatInputProps) {
@@ -33,29 +29,32 @@ export function ChatInput({
   useEffect(() => {
     if (isOpen) {
       setValue('')
-      setTimeout(() => inputRef.current?.focus(), 50)
+      const tryFocus = () => inputRef.current?.focus()
+      tryFocus()
+      const t1 = setTimeout(tryFocus, 50)
+      const t2 = setTimeout(tryFocus, 150)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
     }
   }, [isOpen])
-
-  if (!isOpen) return null
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && value.trim()) {
       onSend(value.trim())
       setValue('')
       onClose()
-    } else if (e.key === 'Escape') {
-      onClose()
     }
   }
 
+  const inputWidth = Math.min(260, viewportWidth - 20)
   const containerStyle: CSSProperties = {
     position: 'fixed',
-    left: ghostX + ghostWidth / 2 - 130,
-    top: ghostY - 52,
-    width: 260,
+    left: (viewportWidth - inputWidth) / 2,
+    top: isOpen ? 10 : -100,
+    width: inputWidth,
     zIndex: 2000,
-    pointerEvents: 'auto',
+    pointerEvents: isOpen ? 'auto' : 'none',
+    opacity: isOpen ? 1 : 0,
+    transition: 'top 0.15s ease, opacity 0.15s ease',
   }
 
   const wrapperStyle: CSSProperties = {
@@ -86,6 +85,17 @@ export function ChatInput({
     flexShrink: 0,
   }
 
+  const closeBtnStyle: CSSProperties = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 14,
+    color: '#999',
+    padding: '0 2px',
+    lineHeight: 1,
+    flexShrink: 0,
+  }
+
   return (
     <div style={containerStyle}>
       <div style={wrapperStyle}>
@@ -97,7 +107,9 @@ export function ChatInput({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Say something…"
+          tabIndex={isOpen ? 0 : -1}
         />
+        <button style={closeBtnStyle} onClick={onClose} title="Close" tabIndex={isOpen ? 0 : -1}>✕</button>
       </div>
     </div>
   )

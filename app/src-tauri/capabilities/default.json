@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for Ukagaka desktop companion",
-  "windows": ["main", "settings", "skin-picker"],
+  "windows": ["main", "settings", "skin-picker", "chat-input"],
   "permissions": [
     "core:default",
     "core:window:default",

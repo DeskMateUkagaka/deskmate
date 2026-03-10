@@ -6,9 +6,7 @@ interface BubbleProps {
   isStreaming: boolean
   isVisible: boolean
   bubbleState: string
-  ghostX: number
-  ghostWidth: number
-  screenWidth: number
+  viewportWidth: number
   onExpand: () => void
   onDismiss: () => void
   onTellMeMore: () => void
@@ -20,26 +18,19 @@ export function Bubble({
   isStreaming,
   isVisible,
   bubbleState,
-  ghostX,
-  ghostWidth,
-  screenWidth,
+  viewportWidth,
   onExpand,
   onDismiss,
   onTellMeMore,
 }: BubbleProps) {
   if (!isVisible) return null
 
-  // Determine if bubble should appear to the left or right of ghost
-  const ghostCenterX = ghostX + ghostWidth / 2
-  const openRight = ghostCenterX < screenWidth / 2
-  const bubbleWidth = 260
+  const bubbleWidth = Math.min(260, viewportWidth - 20)
 
   const containerStyle: CSSProperties = {
     position: 'fixed',
-    top: 20,
-    ...(openRight
-      ? { left: ghostX + ghostWidth + 12 }
-      : { left: ghostX - bubbleWidth - 12 }),
+    top: 10,
+    left: (viewportWidth - bubbleWidth) / 2,
     width: bubbleWidth,
     zIndex: 1000,
     opacity: bubbleState === 'dismissing' ? 0 : 1,
@@ -58,16 +49,6 @@ export function Bubble({
     lineHeight: 1.5,
     color: '#1a1a1a',
     wordBreak: 'break-word',
-  }
-
-  const tailStyle: CSSProperties = {
-    position: 'absolute',
-    top: 16,
-    ...(openRight
-      ? { left: -8, borderRight: '8px solid rgba(255,255,255,0.92)', borderTop: '6px solid transparent', borderBottom: '6px solid transparent' }
-      : { right: -8, borderLeft: '8px solid rgba(255,255,255,0.92)', borderTop: '6px solid transparent', borderBottom: '6px solid transparent' }),
-    width: 0,
-    height: 0,
   }
 
   const actionsStyle: CSSProperties = {
@@ -102,7 +83,6 @@ export function Bubble({
   return (
     <div style={containerStyle}>
       <div style={bubbleStyle}>
-        <div style={tailStyle} />
         <div style={{ minHeight: 20 }}>
           {text}
           {isStreaming && (
