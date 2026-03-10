@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::io::Write;
 use tauri::State;
 
 use crate::settings::Settings;
@@ -30,4 +31,12 @@ pub fn set_ghost_position(
     s.ghost_x = x;
     s.ghost_y = y;
     s.save(&app);
+}
+
+#[tauri::command]
+pub fn debug_log(content: String) {
+    use std::fs::OpenOptions;
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("/tmp/debug.log") {
+        let _ = f.write_all(content.as_bytes());
+    }
 }

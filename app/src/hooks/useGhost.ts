@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window'
 import type { GhostPosition } from '../types'
 
 export function useGhost() {
@@ -10,7 +10,10 @@ export function useGhost() {
   const [expressionImage, setExpressionImage] = useState<string>('')
 
   useEffect(() => {
-    invoke<GhostPosition>('get_ghost_position').then(setPosition)
+    invoke<GhostPosition>('get_ghost_position').then(async (pos) => {
+      setPosition(pos)
+      getCurrentWindow().setPosition(new PhysicalPosition(pos.x, pos.y))
+    })
   }, [])
 
   useEffect(() => {
