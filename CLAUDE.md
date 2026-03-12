@@ -138,6 +138,25 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 - Separate windows are opaque (`transparent: false`), hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`
 - Inter-window communication uses Tauri events, not shared React state
 
+### i3/Tiling WM Gotchas
+
+- **`setPosition` before `show()` is ignored.** i3 applies its own cascading placement when a window is shown, overriding any prior position. Always call `show()` first, then `setPosition()`.
+- **Window lifecycle order matters:** resize → show → setPosition. Hidden windows can't be positioned or resized reliably on tiling WMs.
+- **`setSize` is ignored for tiled windows.** All app windows must be floating (`for_window [app_id="..."] floating enable` in i3/Sway config).
+
+### Multi-Window Keyboard Events
+
+- Use `keydown` (not `keyup`) for keyboard shortcuts in the main ghost window. When a popup window (e.g., chat-input) handles `keydown` and hides itself, the orphaned `keyup` propagates to the main window after focus returns. Using `keydown` avoids this because each OS window receives its own `keydown`.
+- When a popup closes by sending an event (e.g., `chat-send`), the main window's event listener fires before the stale keyup — so event-driven close paths don't have this problem. But dismiss-only paths (empty Enter, ESC) do.
+
+### GTK Minimum Window Size
+
+GTK enforces a minimum window size (~100-150px height). You cannot make a window smaller. Workaround: make the window transparent and use `alignItems: 'flex-end'` in CSS to anchor visible content at the bottom of the oversized transparent window. Always query `win.outerSize()` for the actual size after `setSize()` — don't assume the requested size was honored.
+
+### Save-on-Exit Resilience
+
+When saving state before exit (e.g., window position), always wrap the save in a try-catch so the app exits even if saving fails (disk full, permissions, etc.). The Rust tray exit handler is safe because `app.exit(0)` runs unconditionally. The frontend `savePositionAndExit()` must catch errors from `invoke('set_ghost_position')`.
+
 ### Tauri Capabilities
 
 Permissions are in `app/src-tauri/capabilities/default.json`. If adding new Tauri APIs (e.g., shell, dialog, notification), add the corresponding permission there.
