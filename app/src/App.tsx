@@ -141,8 +141,8 @@ export default function App() {
         showChatInput()
       }
     }
-    document.addEventListener('keyup', handleKey)
-    return () => document.removeEventListener('keyup', handleKey)
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
   }, [showChatInput])
 
   // Listen for events from popup windows
@@ -169,7 +169,7 @@ export default function App() {
       // Listen for chat messages from the popup chat-input window
       const u3 = await listen<{ text: string }>('chat-send', (event) => {
         if (!cancelled) {
-          sendMessage(event.payload.text)
+          if (event.payload.text) sendMessage(event.payload.text)
           chatInputOpenRef.current = false
         }
       })

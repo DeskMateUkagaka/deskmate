@@ -49,7 +49,7 @@ export function ChatInputWindow() {
   }, [win])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && value.trim()) {
+    if (e.key === 'Enter') {
       emit('chat-send', { text: value.trim() })
       setValue('')
       win.hide()
