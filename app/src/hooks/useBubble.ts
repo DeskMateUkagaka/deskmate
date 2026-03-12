@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 export type BubbleState = 'hidden' | 'streaming' | 'visible' | 'dismissing'
 
-const PREVIEW_LENGTH = 200
+const PREVIEW_LENGTH = 16384
 
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 
