@@ -9,6 +9,17 @@ import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
 
+async function savePositionAndExit() {
+  try {
+    const win = getCurrentWindow()
+    const pos = await win.outerPosition()
+    await invoke('set_ghost_position', { x: pos.x, y: pos.y })
+  } catch (e) {
+    console.error('Failed to save position:', e)
+  }
+  await invoke('exit_app')
+}
+
 async function getWindowByLabel(label: string) {
   const all = await getAllWindows()
   return all.find((w) => w.label === label) ?? null
@@ -90,25 +101,29 @@ export default function App() {
     const p = currentSkin?.input_placement ?? { x: 0, y: -10, margin_x: 10, margin_y: 10 }
     const inputWidth = 280
     const inputHeight = 44
-    let screenX: number
-    let screenY: number
-    if (imageBounds) {
-      screenX = windowPos.x + imageBounds.centerX + p.x - inputWidth / 2
-      screenY = windowPos.y + imageBounds.top + p.y - inputHeight
-    } else {
-      screenX = windowPos.x - inputWidth / 2
-      screenY = windowPos.y - inputHeight - 10
-    }
-    // Clamp to screen with margins
-    screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - inputWidth - p.margin_x))
-    screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - inputHeight - p.margin_y))
 
     await win.setSize(new LogicalSize(inputWidth, inputHeight))
     // GTK may enforce a minimum window size — query actual size for positioning
     const actualSize = await win.outerSize()
+    const actualWidth = actualSize.width
     const actualHeight = actualSize.height
-    // Adjust Y so the bottom of the actual window aligns where we intended
-    screenY = screenY - (actualHeight - inputHeight)
+
+    // Compute desired bottom edge of the input window
+    let bottomEdgeY: number
+    let centerX: number
+    if (imageBounds) {
+      centerX = windowPos.x + imageBounds.centerX + p.x
+      bottomEdgeY = windowPos.y + imageBounds.top + p.y
+    } else {
+      centerX = windowPos.x + p.x
+      bottomEdgeY = windowPos.y - 10 + p.y
+    }
+
+    // Position from the actual size (not the requested size)
+    let screenX = centerX - actualWidth / 2
+    let screenY = bottomEdgeY - actualHeight
+    // Clamp to screen with margins
+    screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
     screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
     await win.setPosition(new LogicalPosition(screenX, screenY))
     await win.show()
@@ -119,7 +134,7 @@ export default function App() {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'q' && e.ctrlKey) {
-        invoke('exit_app')
+        savePositionAndExit()
         return
       }
       if (e.key === 'Enter') {
@@ -291,7 +306,7 @@ export default function App() {
     const separator2 = await PredefinedMenuItem.new({ item: 'Separator' })
     const exitItem = await MenuItem.new({
       text: 'Exit',
-      action: () => invoke('exit_app'),
+      action: () => savePositionAndExit(),
     })
     const menu = await Menu.new({
       items: [toggleItem, separator0, changeSkin, buySkins, separator, settings, separator2, exitItem],

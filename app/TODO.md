@@ -2,9 +2,10 @@
 
 ## Bugs
 
-- [ ] Enter key requires two presses to open the chat input box (should be one)
-- [ ] Ghost appears in wrong position on restart
-- [ ] Chat input box drifts downward on repeated open/close, eventually going off-screen
+- [x] Enter key requires two presses to open the chat input box (should be one)
+- [x] Ghost appears in wrong position on restart
+- [x] Chat input box drifts downward on repeated open/close, eventually going off-screen
+- [x] App doesn't exit if saving position fails (e.g. disk full)
 
 ## Features
 

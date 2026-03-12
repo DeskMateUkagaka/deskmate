@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
 
@@ -144,16 +144,20 @@ export function Ghost({ expressionOverride, heightPercent, screenHeight, onLeftC
           src={imageSrc}
           alt="ghost"
           draggable={false}
-          onLoad={() => {
+          onLoad={async () => {
             const img = imgRef.current
             if (!img) return
+            const win = getCurrentWindow()
 
-            // Resize window to fit the computed image size
+            // Resize window, restore saved position, then show
             if (targetHeight != null && img.naturalWidth > 0 && img.naturalHeight > 0) {
               const aspectRatio = img.naturalWidth / img.naturalHeight
               const targetWidth = Math.round(targetHeight * aspectRatio)
-              getCurrentWindow().setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
+              await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
             }
+            await win.show().catch(() => {})
+            const pos = await invoke<{ x: number; y: number }>('get_ghost_position')
+            await win.setPosition(new PhysicalPosition(pos.x, pos.y)).catch(() => {})
 
             if (onImageBounds) {
               const rect = img.getBoundingClientRect()

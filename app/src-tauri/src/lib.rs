@@ -107,6 +107,16 @@ pub fn run() {
                             }
                         }
                         "exit" => {
+                            // Save ghost window position before exiting
+                            if let Some(win) = app.get_webview_window("main") {
+                                if let Ok(pos) = win.outer_position() {
+                                    if let Ok(mut s) = app.state::<std::sync::Mutex<crate::settings::Settings>>().lock() {
+                                        s.ghost_x = pos.x as f64;
+                                        s.ghost_y = pos.y as f64;
+                                        s.save(&app);
+                                    }
+                                }
+                            }
                             app.exit(0);
                         }
                         _ => {}
