@@ -183,13 +183,15 @@ export default function App() {
 
       <Bubble
         text={bubble.text}
-        isTruncated={bubble.isTruncated}
         isStreaming={bubble.isStreaming}
         isVisible={bubble.isVisible}
+        isPinned={bubble.isPinned}
         bubbleState={bubble.bubbleState}
         viewportWidth={viewportSize.width}
-        onExpand={bubble.expand}
+        timeoutMs={bubble.timeoutMs}
+        finalizedAt={bubble.finalizedAt}
         onDismiss={bubble.dismiss}
+        onPin={bubble.pin}
         onTellMeMore={handleTellMeMore}
       />
 

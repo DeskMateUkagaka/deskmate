@@ -19,7 +19,7 @@ impl Default for Settings {
         Self {
             gateway_url: "ws://127.0.0.1:18789".to_string(),
             gateway_token: String::new(),
-            bubble_timeout_ms: 10000,
+            bubble_timeout_ms: 60000,
             proactive_enabled: false,
             proactive_interval_mins: 60,
             ghost_x: 100.0,

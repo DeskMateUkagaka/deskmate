@@ -2,8 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 export type BubbleState = 'hidden' | 'streaming' | 'visible' | 'dismissing'
 
-const PREVIEW_LENGTH = 16384
-
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 
 /**
@@ -29,12 +27,13 @@ interface UseBubbleOptions {
 }
 
 export function useBubble(options: UseBubbleOptions = {}) {
-  const { timeoutMs = 8000 } = options
+  const { timeoutMs = 60000 } = options
 
   const [bubbleState, setBubbleState] = useState<BubbleState>('hidden')
   const [text, setText] = useState('')
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isPinned, setIsPinned] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const finalizedAtRef = useRef<number | null>(null)
 
   const clearDismissTimer = useCallback(() => {
     if (dismissTimerRef.current) {
@@ -45,8 +44,10 @@ export function useBubble(options: UseBubbleOptions = {}) {
 
   const startDismissTimer = useCallback(() => {
     clearDismissTimer()
+    finalizedAtRef.current = Date.now()
     dismissTimerRef.current = setTimeout(() => {
       setBubbleState('hidden')
+      finalizedAtRef.current = null
       nudgeWindowRepaint()
     }, timeoutMs)
   }, [timeoutMs, clearDismissTimer])
@@ -55,7 +56,8 @@ export function useBubble(options: UseBubbleOptions = {}) {
   const startStreaming = useCallback((initialText: string) => {
     clearDismissTimer()
     setText(initialText)
-    setIsExpanded(false)
+    setIsPinned(false)
+    finalizedAtRef.current = null
     setBubbleState('streaming')
   }, [clearDismissTimer])
 
@@ -72,21 +74,28 @@ export function useBubble(options: UseBubbleOptions = {}) {
 
   const dismiss = useCallback(() => {
     clearDismissTimer()
+    setIsPinned(false)
+    finalizedAtRef.current = null
     setBubbleState('hidden')
     nudgeWindowRepaint()
   }, [clearDismissTimer])
 
-  const expand = useCallback(() => {
-    setIsExpanded(true)
-    // User wants to read — clear dismiss timer, don't auto-hide
+  const pin = useCallback(() => {
+    setIsPinned(true)
     clearDismissTimer()
+    finalizedAtRef.current = null
   }, [clearDismissTimer])
 
-  const resetTimeout = useCallback(() => {
-    if (bubbleState === 'visible') {
-      startDismissTimer()
+  // Dismiss on 'x' key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'x' && bubbleState !== 'hidden') {
+        dismiss()
+      }
     }
-  }, [bubbleState, startDismissTimer])
+    document.addEventListener('keyup', handler)
+    return () => document.removeEventListener('keyup', handler)
+  }, [bubbleState, dismiss])
 
   useEffect(() => {
     return () => clearDismissTimer()
@@ -94,22 +103,19 @@ export function useBubble(options: UseBubbleOptions = {}) {
 
   const isVisible = bubbleState !== 'hidden'
   const isStreaming = bubbleState === 'streaming'
-  const displayText = isExpanded ? text : (text.length > PREVIEW_LENGTH ? text.slice(0, PREVIEW_LENGTH) + '...' : text)
-  const isTruncated = text.length > PREVIEW_LENGTH && !isExpanded
 
   return {
     isVisible,
-    text: displayText,
-    fullText: text,
-    isTruncated,
-    isExpanded,
+    text,
     isStreaming,
+    isPinned,
     bubbleState,
+    timeoutMs,
+    finalizedAt: finalizedAtRef.current,
     startStreaming,
     updateText,
     finalize,
-    expand,
     dismiss,
-    resetTimeout,
+    pin,
   }
 }

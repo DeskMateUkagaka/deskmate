@@ -1,28 +1,49 @@
-import type { CSSProperties } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 
 interface BubbleProps {
   text: string
-  isTruncated: boolean
   isStreaming: boolean
   isVisible: boolean
+  isPinned: boolean
   bubbleState: string
   viewportWidth: number
-  onExpand: () => void
+  timeoutMs: number
+  finalizedAt: number | null
   onDismiss: () => void
+  onPin: () => void
   onTellMeMore: () => void
 }
 
 export function Bubble({
   text,
-  isTruncated,
   isStreaming,
   isVisible,
+  isPinned,
   bubbleState,
   viewportWidth,
-  onExpand,
+  timeoutMs,
+  finalizedAt,
   onDismiss,
+  onPin,
   onTellMeMore,
 }: BubbleProps) {
+  // Progress bar countdown (0.0 to 1.0, where 1.0 = full)
+  const [progress, setProgress] = useState(1)
+
+  useEffect(() => {
+    if (!finalizedAt || isPinned) {
+      setProgress(1)
+      return
+    }
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - finalizedAt
+      const remaining = Math.max(0, 1 - elapsed / timeoutMs)
+      setProgress(remaining)
+      if (remaining <= 0) clearInterval(interval)
+    }, 50)
+    return () => clearInterval(interval)
+  }, [finalizedAt, timeoutMs, isPinned])
+
   if (!isVisible) return null
 
   const bubbleWidth = Math.min(260, viewportWidth - 20)
@@ -47,6 +68,7 @@ export function Bubble({
     lineHeight: 1.5,
     color: '#1a1a1a',
     wordBreak: 'break-word',
+    overflow: 'hidden',
   }
 
   const actionsStyle: CSSProperties = {
@@ -78,6 +100,25 @@ export function Bubble({
     color: '#555',
   }
 
+  const progressBarContainerStyle: CSSProperties = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    background: 'rgba(0,0,0,0.06)',
+  }
+
+  const progressBarStyle: CSSProperties = {
+    height: '100%',
+    width: `${progress * 100}%`,
+    background: 'rgba(80, 120, 220, 0.4)',
+    borderRadius: '0 0 12px 12px',
+    transition: 'width 0.1s linear',
+  }
+
+  const showProgressBar = !isStreaming && !isPinned && finalizedAt !== null
+
   return (
     <div style={containerStyle}>
       <div style={bubbleStyle}>
@@ -89,17 +130,24 @@ export function Bubble({
         </div>
         {!isStreaming && (
           <div style={actionsStyle}>
-            <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onTellMeMore() }}>
-              Tell me more
-            </button>
-            {isTruncated && (
-              <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onExpand() }}>
-                Expand
+            {!isPinned && (
+              <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onTellMeMore() }}>
+                Tell me more
+              </button>
+            )}
+            {!isPinned && (
+              <button style={primaryPillStyle} onClick={(e) => { e.stopPropagation(); onPin() }}>
+                Pin
               </button>
             )}
             <button style={secondaryPillStyle} onClick={(e) => { e.stopPropagation(); onDismiss() }}>
-              Dismiss
+              Dismiss (x)
             </button>
+          </div>
+        )}
+        {showProgressBar && (
+          <div style={progressBarContainerStyle}>
+            <div style={progressBarStyle} />
           </div>
         )}
       </div>

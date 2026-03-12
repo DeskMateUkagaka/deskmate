@@ -27,7 +27,8 @@ function SettingsForm({ initial }: { initial: Settings }) {
   const win = getCurrentWindow()
 
   const handleSave = async () => {
-    const next: Partial<Settings> = {
+    const next: Settings = {
+      ...initial,
       gateway_url: gatewayUrl,
       gateway_token: gatewayToken,
       bubble_timeout_ms: bubbleTimeout * 1000,
@@ -114,7 +115,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
 
       <div style={fieldStyle}>
         <label style={labelStyle}>Bubble auto-dismiss (seconds)</label>
-        <input style={inputStyle} type="number" min={1} max={60}
+        <input style={inputStyle} type="number" min={1} max={300}
           value={bubbleTimeout} onChange={(e) => setBubbleTimeout(Number(e.target.value))} />
       </div>
 
