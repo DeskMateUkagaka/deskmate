@@ -140,6 +140,18 @@ export default function App() {
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
     setChatInputOpen(false)
     const win = getCurrentWindow()
+    const toggleItem = await MenuItem.new({
+      text: 'Show / Hide',
+      action: () => {
+        if (win.isVisible()) {
+          win.hide()
+        } else {
+          win.show()
+          win.setFocus()
+        }
+      },
+    })
+    const separator0 = await PredefinedMenuItem.new({ item: 'Separator' })
     const changeSkin = await MenuItem.new({
       text: 'Change Skin',
       action: () => showPopup('skin-picker'),
@@ -159,7 +171,7 @@ export default function App() {
       action: () => invoke('exit_app'),
     })
     const menu = await Menu.new({
-      items: [changeSkin, buySkins, separator, settings, separator2, exitItem],
+      items: [toggleItem, separator0, changeSkin, buySkins, separator, settings, separator2, exitItem],
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [])

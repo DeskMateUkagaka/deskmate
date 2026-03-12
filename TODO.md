@@ -8,9 +8,10 @@
 - [ ] Configure OpenClaw agent system prompt to emit `[expression:X]` tags
 - [ ] Decide expression tag delivery method: `chat.inject` RPC, manual agent config, or prepend to each message
 - [ ] Test with actual AI responses: verify expression parsing + stripping works end-to-end
-- [ ] Tray icon to show/hide on left click. Context menu on right click
+- [x] Tray icon to show/hide on left click. Context menu on right click
 - [ ] Quake terminal that shows all the conversations
 - [ ] Global shortcut key that hides/shows the UI
+- [ ] Investigate `outerPosition()` returning (0,0) on Sway/Wayland — ghost position not saved after drag
 
 ## Art & Assets
 
@@ -23,8 +24,9 @@
 
 - [ ] Gateway token setup: add GUI (in Settings window or first-run flow) to let users paste their gateway token, instead of requiring manual settings.json editing
 - [ ] Implement middle-click "poking" interaction (trigger character reaction, e.g. annoyed expression + bubble)
-- [ ] Add system tray icon (show/hide character, quit app)
+- [x] Add system tray icon (show/hide character, quit app)
 - [ ] Handle multi-monitor: character stays on placed monitor
+- [x] Bubble lifetime UX: 60s countdown progress bar, pin button, dismiss with `x` key, removed Expand
 - [ ] Bubble positioning at screen edges (don't go off-screen)
 - [ ] Resize window dynamically to fit character PNG dimensions
 - [ ] Distinct visual style for proactive dialogue vs regular responses
