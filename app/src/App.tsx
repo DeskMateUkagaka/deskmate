@@ -125,8 +125,8 @@ export default function App() {
     // Clamp to screen with margins
     screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
     screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
-    await win.setPosition(new LogicalPosition(screenX, screenY))
     await win.show()
+    await win.setPosition(new LogicalPosition(screenX, screenY))
     await win.setFocus()
   }, [imageBounds, windowPos, screenSize, currentSkin])
 
