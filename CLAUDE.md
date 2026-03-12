@@ -150,3 +150,7 @@ See `TODO.md` for the full list. Key items:
 - Hit-testing validation on X11/Wayland
 - System prompt configuration for expression tags
 - Cross-platform builds (macOS, Windows)
+
+## Debugging
+
+src-tauri/src/lib.rs has `debug_log()` in case you cant open the Ctrl+Shift+I web debug console - you can't open it sometimes!

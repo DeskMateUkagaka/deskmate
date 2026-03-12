@@ -24,12 +24,22 @@ export interface GhostPosition {
   y: number
 }
 
+export interface UiPlacement {
+  x: number
+  y: number
+  margin_x: number
+  margin_y: number
+}
+
 export interface SkinInfo {
   id: string
   name: string
   author: string | null
   version: string | null
   path: string
+  height_percent: number | null
+  bubble_placement: UiPlacement | null
+  input_placement: UiPlacement | null
 }
 
 export interface Settings {

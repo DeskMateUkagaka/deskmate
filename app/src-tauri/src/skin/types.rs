@@ -12,12 +12,35 @@ pub const EXPRESSIONS: &[&str] = &[
     "neutral",
 ];
 
+/// UI element placement: pixel offset from ghost image center + screen-edge margins.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UiPlacement {
+    /// Horizontal offset from image center (px)
+    #[serde(default)]
+    pub x: f64,
+    /// Vertical offset from image center (px, negative = above)
+    #[serde(default)]
+    pub y: f64,
+    /// Minimum horizontal distance from screen edge (px)
+    #[serde(default)]
+    pub margin_x: f64,
+    /// Minimum vertical distance from screen edge (px)
+    #[serde(default)]
+    pub margin_y: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkinManifest {
     pub name: String,
     pub author: Option<String>,
     pub version: Option<String>,
     pub expressions: HashMap<String, String>,
+    /// Ghost height as percentage of screen height (e.g. 50.0 = 50%)
+    pub height_percent: Option<f64>,
+    /// Bubble placement relative to image center
+    pub bubble_placement: Option<UiPlacement>,
+    /// Chat input placement relative to image center
+    pub input_placement: Option<UiPlacement>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,4 +50,7 @@ pub struct SkinInfo {
     pub author: Option<String>,
     pub version: Option<String>,
     pub path: String,
+    pub height_percent: Option<f64>,
+    pub bubble_placement: Option<UiPlacement>,
+    pub input_placement: Option<UiPlacement>,
 }

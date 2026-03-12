@@ -1,36 +1,53 @@
 import { useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
 
+export interface ImageBounds {
+  top: number
+  bottom: number
+  centerX: number
+  centerY: number
+}
+
 interface GhostProps {
   expressionOverride?: string
+  heightPercent: number | null
+  screenHeight: number
   onLeftClick?: () => void
   onMiddleClick?: () => void
   onRightClick?: (x: number, y: number) => void
-  onImageBounds?: (bottom: number) => void
+  onImageBounds?: (bounds: ImageBounds) => void
 }
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
+export function Ghost({ expressionOverride, heightPercent, screenHeight, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
   const {
     expressionImage,
   } = useGhost()
 
   const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
 
+  // Target image height from skin manifest (% of screen height)
+  const targetHeight = heightPercent != null ? Math.round(screenHeight * heightPercent / 100) : undefined
+
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  // Report image bottom position when image loads or window resizes
+  // Report image bounds when image loads or window resizes
   useEffect(() => {
     const reportBounds = () => {
       if (imgRef.current && onImageBounds) {
         const rect = imgRef.current.getBoundingClientRect()
-        onImageBounds(rect.bottom)
+        onImageBounds({
+          top: rect.top,
+          bottom: rect.bottom,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2,
+        })
       }
     }
     reportBounds()
@@ -128,13 +145,30 @@ export function Ghost({ expressionOverride, onLeftClick, onMiddleClick, onRightC
           alt="ghost"
           draggable={false}
           onLoad={() => {
-            if (imgRef.current && onImageBounds) {
-              onImageBounds(imgRef.current.getBoundingClientRect().bottom)
+            const img = imgRef.current
+            if (!img) return
+
+            // Resize window to fit the computed image size
+            if (targetHeight != null && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              const aspectRatio = img.naturalWidth / img.naturalHeight
+              const targetWidth = Math.round(targetHeight * aspectRatio)
+              getCurrentWindow().setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
+            }
+
+            if (onImageBounds) {
+              const rect = img.getBoundingClientRect()
+              onImageBounds({
+                top: rect.top,
+                bottom: rect.bottom,
+                centerX: rect.left + rect.width / 2,
+                centerY: rect.top + rect.height / 2,
+              })
             }
           }}
           style={{
             maxWidth: '100%',
-            maxHeight: '100%',
+            height: targetHeight,
+            maxHeight: targetHeight ?? '100%',
             objectFit: 'contain',
             cursor: 'grab',
             imageRendering: 'auto',

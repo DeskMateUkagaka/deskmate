@@ -11,5 +11,8 @@
     "thinking": "thinking.png",
     "uwamezukai": "uwamezukai.png",
     "neutral": "neutral.png"
-  }
+  },
+  "height_percent": 50,
+  "bubble_placement": { "x": 0, "y": -20, "margin_x": 10, "margin_y": 10 },
+  "input_placement": { "x": 0, "y": -10, "margin_x": 10, "margin_y": 10 }
 }

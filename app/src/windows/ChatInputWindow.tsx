@@ -58,14 +58,23 @@ export function ChatInputWindow() {
 
   const handleClose = () => win.hide()
 
+  const outerStyle: CSSProperties = {
+    width: '100vw',
+    height: '100vh',
+    background: 'transparent',
+    display: 'flex',
+    alignItems: 'flex-end',
+  }
+
   const panelStyle: CSSProperties = {
     background: '#fff',
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    padding: '8px 12px',
-    height: '100vh',
-    boxSizing: 'border-box',
+    padding: '6px 12px',
+    width: '100%',
+    borderRadius: 24,
+    border: '1px solid #d0d0d0',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
   }
 
@@ -98,17 +107,19 @@ export function ChatInputWindow() {
   }
 
   return (
-    <div style={panelStyle}>
-      <span style={dotStyle} title={connectionStatus} />
-      <input
-        ref={inputRef}
-        style={inputStyle}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Say something…"
-      />
-      <button style={closeBtnStyle} onClick={handleClose} title="Close">✕</button>
+    <div style={outerStyle}>
+      <div style={panelStyle}>
+        <span style={dotStyle} title={connectionStatus} />
+        <input
+          ref={inputRef}
+          style={inputStyle}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Say something..."
+        />
+        <button style={closeBtnStyle} onClick={handleClose} title="Close">✕</button>
+      </div>
     </div>
   )
 }

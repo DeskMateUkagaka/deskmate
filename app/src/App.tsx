@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getCurrentWindow, getAllWindows, LogicalPosition } from '@tauri-apps/api/window'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { getCurrentWindow, getAllWindows, LogicalPosition, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
-import { Ghost } from './components/Ghost'
-import { Bubble } from './components/Bubble'
-import { ChatInput } from './components/ChatInput'
+import { Ghost, type ImageBounds } from './components/Ghost'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
@@ -46,34 +44,91 @@ export default function App() {
 
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms })
 
-  // Window viewport size for overlay positioning
-  const [viewportSize, setViewportSize] = useState({ width: 400, height: 600 })
+  // Track window position on screen + monitor size for edge clamping
+  const [windowPos, setWindowPos] = useState({ x: 0, y: 0 })
+  const [screenSize, setScreenSize] = useState({ width: window.screen.width, height: window.screen.height })
 
   useEffect(() => {
-    const update = () => setViewportSize({ width: window.innerWidth, height: window.innerHeight })
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
+    const win = getCurrentWindow()
+    let cancelled = false
+
+    // Screen size from Web API — no Tauri permission needed
+    setScreenSize({ width: window.screen.width, height: window.screen.height })
+
+    // Get initial window position
+    win.outerPosition()
+      .then((pos) => { if (!cancelled) setWindowPos({ x: pos.x, y: pos.y }) })
+      .catch(() => {})
+
+    // Update window position on move
+    let unlistenMove: (() => void) | null = null
+    win.onMoved(() => {
+      win.outerPosition()
+        .then((pos) => {
+          if (!cancelled) setWindowPos({ x: pos.x, y: pos.y })
+        })
+        .catch(() => {})
+    }).then((fn) => { if (!cancelled) unlistenMove = fn; else fn() })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+      unlistenMove?.()
+    }
   }, [])
 
-  // Inline chat input state
-  const [chatInputOpen, setChatInputOpen] = useState(false)
+  const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
+  const chatInputOpenRef = useRef(false)
 
-  // Enter key opens chat input
+  // Show the chat-input popup window, positioned above the ghost
+  const showChatInput = useCallback(async () => {
+    const win = await getWindowByLabel('chat-input')
+    if (!win) return
+    chatInputOpenRef.current = true
+
+    // Compute screen position above the ghost image
+    const p = currentSkin?.input_placement ?? { x: 0, y: -10, margin_x: 10, margin_y: 10 }
+    const inputWidth = 280
+    const inputHeight = 44
+    let screenX: number
+    let screenY: number
+    if (imageBounds) {
+      screenX = windowPos.x + imageBounds.centerX + p.x - inputWidth / 2
+      screenY = windowPos.y + imageBounds.top + p.y - inputHeight
+    } else {
+      screenX = windowPos.x - inputWidth / 2
+      screenY = windowPos.y - inputHeight - 10
+    }
+    // Clamp to screen with margins
+    screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - inputWidth - p.margin_x))
+    screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - inputHeight - p.margin_y))
+
+    await win.setSize(new LogicalSize(inputWidth, inputHeight))
+    // GTK may enforce a minimum window size — query actual size for positioning
+    const actualSize = await win.outerSize()
+    const actualHeight = actualSize.height
+    // Adjust Y so the bottom of the actual window aligns where we intended
+    screenY = screenY - (actualHeight - inputHeight)
+    screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
+    await win.setPosition(new LogicalPosition(screenX, screenY))
+    await win.show()
+    await win.setFocus()
+  }, [imageBounds, windowPos, screenSize, currentSkin])
+
+  // Enter key opens chat input, Ctrl+Q exits
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'q' && e.ctrlKey) {
         invoke('exit_app')
         return
       }
-      if (e.key === 'Enter' && !chatInputOpen) {
-        setChatInputOpen(true)
+      if (e.key === 'Enter') {
+        showChatInput()
       }
     }
     document.addEventListener('keyup', handleKey)
     return () => document.removeEventListener('keyup', handleKey)
-  }, [chatInputOpen])
-  const [ghostImageBottom, setGhostImageBottom] = useState<number | null>(null)
+  }, [showChatInput])
 
   // Listen for events from popup windows
   useEffect(() => {
@@ -95,6 +150,28 @@ export default function App() {
       })
       if (cancelled) { u2(); return }
       unlisten.push(u2)
+
+      // Listen for chat messages from the popup chat-input window
+      const u3 = await listen<{ text: string }>('chat-send', (event) => {
+        if (!cancelled) {
+          sendMessage(event.payload.text)
+          chatInputOpenRef.current = false
+        }
+      })
+      if (cancelled) { u3(); return }
+      unlisten.push(u3)
+
+      // Listen for bubble actions from the popup bubble window
+      const u4 = await listen<{ action: string }>('bubble-action', (event) => {
+        if (cancelled) return
+        switch (event.payload.action) {
+          case 'dismiss': bubble.dismiss(); break
+          case 'pin': bubble.pin(); break
+          case 'tell-me-more': sendMessage('Tell me more'); bubble.dismiss(); break
+        }
+      })
+      if (cancelled) { u4(); return }
+      unlisten.push(u4)
     }
 
     setup()
@@ -103,7 +180,52 @@ export default function App() {
       cancelled = true
       unlisten.forEach((fn) => fn())
     }
-  }, [reloadSettings, reloadSkins, updateSettings])
+  }, [reloadSettings, reloadSkins, updateSettings, sendMessage, bubble])
+
+  // Broadcast connection status to popup windows
+  useEffect(() => {
+    emit('connection-status', connectionStatus)
+  }, [connectionStatus])
+
+  // Position and update the bubble popup window
+  useEffect(() => {
+    emit('bubble-update', {
+      text: bubble.text,
+      isStreaming: bubble.isStreaming,
+      isVisible: bubble.isVisible,
+      isPinned: bubble.isPinned,
+      timeoutMs: bubble.timeoutMs,
+      finalizedAt: bubble.finalizedAt,
+    })
+
+    if (bubble.isVisible) {
+      // Position the bubble window above the ghost
+      ;(async () => {
+        const win = await getWindowByLabel('bubble')
+        if (!win) return
+        const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10 }
+        const bubbleWidth = 280
+        const bubbleHeight = 200
+
+        let screenX: number
+        let screenY: number
+        if (imageBounds) {
+          screenX = windowPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
+          screenY = windowPos.y + imageBounds.top + p.y - bubbleHeight
+        } else {
+          screenX = windowPos.x - bubbleWidth / 2
+          screenY = windowPos.y - bubbleHeight - 10
+        }
+        screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
+        screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
+
+        await win.setPosition(new LogicalPosition(screenX, screenY))
+        await win.show()
+      })()
+    } else {
+      hidePopup('bubble')
+    }
+  }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, imageBounds, windowPos, screenSize, currentSkin])
 
   // Wire streaming response into bubble
   useEffect(() => {
@@ -130,15 +252,16 @@ export default function App() {
   }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGhostClick = useCallback(() => {
-    setChatInputOpen(prev => !prev)
-  }, [])
+    showChatInput()
+  }, [showChatInput])
 
   const handleMiddleClick = useCallback(() => {
     console.log('poke!')
   }, [])
 
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
-    setChatInputOpen(false)
+    hidePopup('chat-input')
+    chatInputOpenRef.current = false
     const win = getCurrentWindow()
     const toggleItem = await MenuItem.new({
       text: 'Show / Hide',
@@ -176,45 +299,17 @@ export default function App() {
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [])
 
-  const handleTellMeMore = useCallback(() => {
-    sendMessage('Tell me more')
-    bubble.dismiss()
-  }, [sendMessage, bubble])
-
   const expressionUrl = getExpressionUrl(currentExpression)
 
   return (
-    <>
-      <Ghost
-        expressionOverride={expressionUrl || undefined}
-        onLeftClick={handleGhostClick}
-        onMiddleClick={handleMiddleClick}
-        onRightClick={handleRightClick}
-        onImageBounds={setGhostImageBottom}
-      />
-
-      <Bubble
-        text={bubble.text}
-        isStreaming={bubble.isStreaming}
-        isVisible={bubble.isVisible}
-        isPinned={bubble.isPinned}
-        bubbleState={bubble.bubbleState}
-        viewportWidth={viewportSize.width}
-        timeoutMs={bubble.timeoutMs}
-        finalizedAt={bubble.finalizedAt}
-        onDismiss={bubble.dismiss}
-        onPin={bubble.pin}
-        onTellMeMore={handleTellMeMore}
-      />
-
-      <ChatInput
-        isOpen={chatInputOpen}
-        connectionStatus={connectionStatus}
-        viewportWidth={viewportSize.width}
-        imageBottom={ghostImageBottom}
-        onSend={sendMessage}
-        onClose={() => setChatInputOpen(false)}
-      />
-    </>
+    <Ghost
+      expressionOverride={expressionUrl || undefined}
+      heightPercent={currentSkin?.height_percent ?? null}
+      screenHeight={screenSize.height}
+      onLeftClick={handleGhostClick}
+      onMiddleClick={handleMiddleClick}
+      onRightClick={handleRightClick}
+      onImageBounds={setImageBounds}
+    />
   )
 }

@@ -10,6 +10,7 @@ const App = lazy(() => import('./App'))
 const SettingsWindow = lazy(() => import('./windows/SettingsWindow').then(m => ({ default: m.SettingsWindow })))
 const SkinPickerWindow = lazy(() => import('./windows/SkinPickerWindow').then(m => ({ default: m.SkinPickerWindow })))
 const ChatInputWindow = lazy(() => import('./windows/ChatInputWindow').then(m => ({ default: m.ChatInputWindow })))
+const BubbleWindow = lazy(() => import('./windows/BubbleWindow').then(m => ({ default: m.BubbleWindow })))
 
 let content
 switch (windowType) {
@@ -21,6 +22,9 @@ switch (windowType) {
     break
   case 'chat-input':
     content = <ChatInputWindow />
+    break
+  case 'bubble':
+    content = <BubbleWindow />
     break
   default:
     content = <App />

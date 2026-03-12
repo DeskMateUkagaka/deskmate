@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "ukagaka",
-        "width": 400,
-        "height": 600,
+        "width": 355,
+        "height": 1178,
         "resizable": true,
         "fullscreen": false,
         "decorations": false,
@@ -46,10 +46,24 @@
         "height": 44,
         "resizable": false,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "bubble",
+        "url": "index.html?window=bubble",
+        "title": "",
+        "width": 280,
+        "height": 200,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
         "visible": false
       },
       {
