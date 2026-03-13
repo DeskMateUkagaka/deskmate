@@ -12,6 +12,12 @@
 - [ ] Quake terminal that shows all the conversations
 - [ ] Global shortcut key that hides/shows the UI
 - [ ] Investigate `outerPosition()` returning (0,0) on Sway/Wayland — ghost position not saved after drag
+- [ ] Test under many desktop environments
+  - [ ] X11 + i3
+  - [ ] KDE Plasma Wayland
+  - [ ] Sway
+  - [ ] MacOS
+  - [ ] Windows
 
 ## Art & Assets
 

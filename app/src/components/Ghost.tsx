@@ -1,8 +1,9 @@
 import { useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { getCurrentWindow, LogicalSize, PhysicalPosition } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
+import { moveWindowPhysical } from '../lib/moveWindow'
 
 export interface ImageBounds {
   top: number
@@ -155,7 +156,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
             }
             await win.show().catch(() => {})
             const pos = await invoke<{ x: number; y: number }>('get_ghost_position')
-            await win.setPosition(new PhysicalPosition(pos.x, pos.y)).catch(() => {})
+            await moveWindowPhysical(win, pos.x, pos.y).catch(() => {})
 
             if (onImageBounds) {
               const rect = img.getBoundingClientRect()

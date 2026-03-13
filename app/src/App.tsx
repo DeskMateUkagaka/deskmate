@@ -3,6 +3,7 @@ import { getCurrentWindow, getAllWindows, LogicalPosition, LogicalSize } from '@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
+import { moveWindow } from './lib/moveWindow'
 import { Ghost, type ImageBounds } from './components/Ghost'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
@@ -31,7 +32,7 @@ async function showPopup(label: string, x?: number, y?: number) {
   await win.show()
   if (x !== undefined && y !== undefined) {
     console.log(`[showPopup] ${label} at (${x}, ${y})`)
-    await win.setPosition(new LogicalPosition(x, y))
+    await moveWindow(win, x, y)
   }
   await win.setFocus()
 }
@@ -126,7 +127,7 @@ export default function App() {
     screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
     screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
     await win.show()
-    await win.setPosition(new LogicalPosition(screenX, screenY))
+    await moveWindow(win, screenX, screenY)
     await win.setFocus()
   }, [imageBounds, windowPos, screenSize, currentSkin])
 
@@ -234,7 +235,7 @@ export default function App() {
         screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
         screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
 
-        await win.setPosition(new LogicalPosition(screenX, screenY))
+        await moveWindow(win, screenX, screenY)
         await win.show()
       })()
     } else {

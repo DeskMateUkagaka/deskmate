@@ -144,6 +144,7 @@ pub fn run() {
             commands::chat::chat_abort,
             commands::proactive::start_proactive,
             commands::proactive::stop_proactive,
+            commands::window::move_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

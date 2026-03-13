@@ -138,10 +138,17 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 - Separate windows are opaque (`transparent: false`), hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`
 - Inter-window communication uses Tauri events, not shared React state
 
+### Platform-Specific Window Positioning
+
+Wayland compositors do not allow clients to set window positions programmatically — the compositor controls placement. To support multiple desktop environments, window positioning is abstracted through `app/src/lib/moveWindow.ts` and the Rust `move_window` command (`app/src-tauri/src/commands/window.rs`).
+
+- **Sway**: Uses `swaymsg '[title="^..."] move position X Y'` to position windows via the compositor. Window titles in `tauri.conf.json` are prefixed with `ukagaka-` to enable unique targeting (e.g., `ukagaka-input`, `ukagaka-bubble`, `ukagaka-ghost`).
+- **Fallback** (X11, unknown compositors): Falls back to Tauri's built-in `win.setPosition()`.
+- **Adding new compositors**: Add detection (env var check) and positioning logic in `window.rs`. E.g., Hyprland via `hyprctl`, KDE via `kdotool`, etc.
+- Always call `moveWindow(win, x, y)` or `moveWindowPhysical(win, x, y)` instead of `win.setPosition()` directly.
+
 ### i3/Tiling WM Gotchas
 
-- **`setPosition` before `show()` is ignored.** i3 applies its own cascading placement when a window is shown, overriding any prior position. Always call `show()` first, then `setPosition()`.
-- **Window lifecycle order matters:** resize → show → setPosition. Hidden windows can't be positioned or resized reliably on tiling WMs.
 - **`setSize` is ignored for tiled windows.** All app windows must be floating (`for_window [app_id="..."] floating enable` in i3/Sway config).
 
 ### Multi-Window Keyboard Events
