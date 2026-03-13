@@ -3,7 +3,7 @@ import { getCurrentWindow, getAllWindows, LogicalPosition, LogicalSize } from '@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
-import { moveWindow } from './lib/moveWindow'
+import { moveWindow, getWindowPosition } from './lib/moveWindow'
 import { Ghost, type ImageBounds } from './components/Ghost'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
@@ -13,7 +13,7 @@ import { useSkin } from './hooks/useSkin'
 async function savePositionAndExit() {
   try {
     const win = getCurrentWindow()
-    const pos = await win.outerPosition()
+    const pos = await getWindowPosition(win)
     await invoke('set_ghost_position', { x: pos.x, y: pos.y })
   } catch (e) {
     console.error('Failed to save position:', e)
@@ -68,14 +68,14 @@ export default function App() {
     setScreenSize({ width: window.screen.width, height: window.screen.height })
 
     // Get initial window position
-    win.outerPosition()
+    getWindowPosition(win)
       .then((pos) => { if (!cancelled) setWindowPos({ x: pos.x, y: pos.y }) })
       .catch(() => {})
 
     // Update window position on move
     let unlistenMove: (() => void) | null = null
     win.onMoved(() => {
-      win.outerPosition()
+      getWindowPosition(win)
         .then((pos) => {
           if (!cancelled) setWindowPos({ x: pos.x, y: pos.y })
         })

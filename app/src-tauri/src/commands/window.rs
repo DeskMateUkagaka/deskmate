@@ -1,14 +1,8 @@
-// TODO: re-enable when compositor-specific positioning is implemented
-#[allow(unused_imports)]
-use std::process::Command;
-
 /// Detect the current desktop environment / compositor.
 fn detect_compositor() -> Compositor {
-    // Sway sets $SWAYSOCK
     if std::env::var("SWAYSOCK").is_ok() {
         return Compositor::Sway;
     }
-    // Hyprland sets $HYPRLAND_INSTANCE_SIGNATURE
     if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
         return Compositor::Hyprland;
     }
@@ -31,29 +25,90 @@ pub fn move_window(title: String, x: i32, y: i32) -> bool {
     log::info!("move_window: title={title:?} pos=({x},{y}) compositor={compositor:?}");
 
     match compositor {
-        // Sway: swaymsg works but is too slow for responsive UI.
-        // Keeping detection + scaffolding for future use (e.g. IPC socket directly).
-        // Compositor::Sway => {
-        //     let criteria = format!("[title=\"^{}$\"]", title);
-        //     let pos = format!("move position {} {}", x, y);
-        //     let result = Command::new("swaymsg")
-        //         .args([&criteria, &pos])
-        //         .output();
-        //     match result {
-        //         Ok(output) if output.status.success() => true,
-        //         Ok(output) => {
-        //             let stderr = String::from_utf8_lossy(&output.stderr);
-        //             log::warn!("swaymsg failed: {stderr}");
-        //             false
-        //         }
-        //         Err(e) => {
-        //             log::warn!("Failed to run swaymsg: {e}");
-        //             false
-        //         }
-        //     }
-        // }
+        Compositor::Sway => {
+            let cmd = format!("[title=\"^{}$\"] move absolute position {} {}", title, x, y);
+            match swayipc::Connection::new() {
+                Ok(mut conn) => {
+                    match conn.run_command(&cmd) {
+                        Ok(outcomes) => {
+                            let all_ok = outcomes.iter().all(|o| o.is_ok());
+                            if !all_ok {
+                                let errs: Vec<_> = outcomes.iter().filter_map(|o| o.as_ref().err()).collect();
+                                log::warn!("sway IPC command had failures: {errs:?}");
+                            }
+                            all_ok
+                        }
+                        Err(e) => {
+                            log::warn!("sway IPC run_command failed: {e}");
+                            false
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("sway IPC connection failed: {e}");
+                    false
+                }
+            }
+        }
         // TODO: implement Hyprland, KDE, GNOME, etc.
-        // TODO: consider Sway IPC socket directly for better performance
         _ => false,
     }
+}
+
+/// Get a window's position by title using compositor IPC.
+/// Returns (x, y) if the compositor can provide it, None otherwise
+/// (caller should fall back to Tauri's outerPosition).
+#[tauri::command]
+pub fn get_window_position(title: String) -> Option<(i32, i32)> {
+    let compositor = detect_compositor();
+    log::info!("get_window_position: title={title:?} compositor={compositor:?}");
+
+    match compositor {
+        Compositor::Sway => {
+            let mut conn = match swayipc::Connection::new() {
+                Ok(c) => c,
+                Err(e) => {
+                    log::warn!("sway IPC connection failed: {e}");
+                    return None;
+                }
+            };
+            let tree = match conn.get_tree() {
+                Ok(t) => t,
+                Err(e) => {
+                    log::warn!("sway IPC get_tree failed: {e}");
+                    return None;
+                }
+            };
+            find_node_by_title(&tree, &title).map(|node| {
+                let r = node.rect;
+                let dr = node.deco_rect;
+                let wr = node.window_rect;
+                let bw = node.current_border_width;
+                log::info!("get_window_position: rect=({},{}) {}x{} deco_rect=({},{}) {}x{} window_rect=({},{}) {}x{} border_width={bw}",
+                    r.x, r.y, r.width, r.height,
+                    dr.x, dr.y, dr.width, dr.height,
+                    wr.x, wr.y, wr.width, wr.height,
+                    );
+                (r.x, r.y)
+            })
+        }
+        _ => None,
+    }
+}
+
+fn find_node_by_title(node: &swayipc::Node, title: &str) -> Option<swayipc::Node> {
+    if node.name.as_deref() == Some(title) {
+        return Some(node.clone());
+    }
+    for child in &node.nodes {
+        if let Some(n) = find_node_by_title(child, title) {
+            return Some(n);
+        }
+    }
+    for child in &node.floating_nodes {
+        if let Some(n) = find_node_by_title(child, title) {
+            return Some(n);
+        }
+    }
+    None
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getWindowPosition } from '../lib/moveWindow'
 import type { GhostPosition } from '../types'
 
 export function useGhost() {
@@ -30,7 +31,7 @@ export function useGhost() {
     const win = getCurrentWindow()
     await win.startDragging()
     // After drag ends, save position
-    const pos = await win.outerPosition()
+    const pos = await getWindowPosition(win)
     const newPos = { x: pos.x, y: pos.y }
     setPosition(newPos)
     invoke('set_ghost_position', { x: newPos.x, y: newPos.y })

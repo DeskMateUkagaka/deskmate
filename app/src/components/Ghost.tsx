@@ -3,7 +3,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
-import { moveWindowPhysical } from '../lib/moveWindow'
+import { restoreWindowPosition, getWindowPosition } from '../lib/moveWindow'
 
 export interface ImageBounds {
   top: number
@@ -75,7 +75,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
         mouseDownPos.current = null
         const win = getCurrentWindow()
         win.startDragging().then(async () => {
-          const pos = await win.outerPosition()
+          const pos = await getWindowPosition(win)
           invoke('set_ghost_position', { x: pos.x, y: pos.y })
           console.log('[Ghost] drag ended, saved position')
         })
@@ -156,7 +156,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
             }
             await win.show().catch(() => {})
             const pos = await invoke<{ x: number; y: number }>('get_ghost_position')
-            await moveWindowPhysical(win, pos.x, pos.y).catch(() => {})
+            await restoreWindowPosition(win, pos.x, pos.y).catch(() => {})
 
             if (onImageBounds) {
               const rect = img.getBoundingClientRect()

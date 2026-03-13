@@ -38,6 +38,38 @@ export async function moveWindowPhysical(win: Window, x: number, y: number): Pro
   }
 }
 
+/**
+ * Restore a window to a position previously obtained from getWindowPosition().
+ * On compositor IPC: passes coords directly (same coordinate space as get_tree).
+ * On non-compositor: uses PhysicalPosition (same space as outerPosition).
+ */
+export async function restoreWindowPosition(win: Window, x: number, y: number): Promise<void> {
+  const handled = await invoke<boolean>('move_window', {
+    title: await getWindowTitle(win),
+    x: Math.round(x),
+    y: Math.round(y),
+  })
+  if (!handled) {
+    await win.setPosition(new PhysicalPosition(x, y))
+  }
+}
+
+/**
+ * Get a window's position using compositor IPC (e.g. sway get_tree).
+ * Falls back to Tauri's outerPosition() on unsupported compositors.
+ * Coordinates are in compositor layout coords (Sway) or physical pixels (fallback).
+ * Use restoreWindowPosition() to move back to a saved position.
+ */
+export async function getWindowPosition(win: Window): Promise<{ x: number; y: number }> {
+  const title = await getWindowTitle(win)
+  const pos = await invoke<[number, number] | null>('get_window_position', { title })
+  if (pos) {
+    return { x: pos[0], y: pos[1] }
+  }
+  const outer = await win.outerPosition()
+  return { x: outer.x, y: outer.y }
+}
+
 // Window title map matching tauri.conf.json
 const WINDOW_TITLES: Record<string, string> = {
   'main': 'ukagaka-ghost',
