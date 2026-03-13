@@ -121,6 +121,10 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 - Text content changes during streaming DO trigger repaints (chat bubble text updates fine)
 - DOM element removal (`return null`) does NOT trigger repaint — old pixels persist
 - CSS property changes (opacity, background, transform) do NOT clear bleed
+- `visibility: hidden` + `width/height: 0` + `overflow: hidden` (keeping element in DOM) does NOT clear bleed
+- Rendering a semi-transparent element over the bleed area does NOT clear bleed
+- Rendering transparent text (`color: transparent`) over the bleed area with changing content does NOT clear bleed — only *visible* text triggers repaints
+- **Only known working fix remains the window size nudge** (`nudgeWindowRepaint()`)
 - `document.body.style.display` toggling does NOT clear bleed
 - Opacity transitions cause worse bleed (window becomes fully opaque)
 - New elements rendered over the bleed area do NOT paint over it
@@ -129,9 +133,15 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 
 **Constraint: requires floating window.** On tiling WMs (Sway), `setSize` is ignored for tiled windows. The ghost window must be floating (`for_window [app_id="..."] floating enable` in Sway config).
 
+**The fundamental tradeoff on Wayland (affects almost all modern Linux):**
+1. **Separate windows** can't be positioned programmatically — the compositor controls placement. Compositor-specific workarounds (e.g. `swaymsg`) exist but are too slow for responsive UI.
+2. **Overlays** (DOM within the transparent ghost window) can be positioned freely but suffer from the bleed problem above (fixable with nudge), BUT require a much larger transparent window to have space for overlays (bubble above ghost, chat input below). This larger window blocks clicks on everything behind the transparent area since `setIgnoreCursorEvents` is all-or-nothing — there is no per-element hit-testing on transparent windows.
+
+**Current decision:** Chat input and chat bubble use overlays within the transparent ghost window (with nudge on dismiss to handle bleed). Settings and skin picker remain as separate opaque windows since they don't need precise positioning. The click-through problem on the enlarged transparent canvas remains unsolved.
+
 **Rules:**
-- Use separate opaque windows for complex UI panels (settings, skin picker, chat input)
-- Lightweight overlays (chat bubble) can live in the transparent window — use the size nudge on dismiss
+- Use separate opaque windows for complex UI panels (settings, skin picker) that don't need precise positioning
+- Chat input and chat bubble must be overlays in the transparent ghost window — use the size nudge on dismiss to handle bleed
 - Never use opacity transitions on transparent windows
 - `setIgnoreCursorEvents` is all-or-nothing for the entire window — no per-element control
 - Call `window.setFocus()` after showing a window that needs keyboard input
