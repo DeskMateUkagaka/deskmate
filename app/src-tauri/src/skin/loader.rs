@@ -120,7 +120,6 @@ impl SkinManager {
                 author: manifest.author.clone(),
                 version: manifest.version.clone(),
                 path: path.to_string_lossy().to_string(),
-                height_percent: manifest.height_percent,
                 bubble_placement: manifest.bubble_placement.clone(),
                 input_placement: manifest.input_placement.clone(),
             },

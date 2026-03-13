@@ -35,8 +35,6 @@ pub struct SkinManifest {
     pub author: Option<String>,
     pub version: Option<String>,
     pub expressions: HashMap<String, String>,
-    /// Ghost height as percentage of screen height (e.g. 50.0 = 50%)
-    pub height_percent: Option<f64>,
     /// Bubble placement relative to image center
     pub bubble_placement: Option<UiPlacement>,
     /// Chat input placement relative to image center
@@ -50,7 +48,6 @@ pub struct SkinInfo {
     pub author: Option<String>,
     pub version: Option<String>,
     pub path: String,
-    pub height_percent: Option<f64>,
     pub bubble_placement: Option<UiPlacement>,
     pub input_placement: Option<UiPlacement>,
 }

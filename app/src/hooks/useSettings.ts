@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: Settings = {
   ghost_x: 100,
   ghost_y: 100,
   current_skin_id: 'default',
+  ghost_height_pixels: 540,
 }
 
 export function useSettings() {

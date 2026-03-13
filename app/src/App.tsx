@@ -319,8 +319,7 @@ export default function App() {
   return (
     <Ghost
       expressionOverride={expressionUrl || undefined}
-      heightPercent={currentSkin?.height_percent ?? null}
-      screenHeight={screenSize.height}
+      ghostHeightPixels={settings.ghost_height_pixels}
       onLeftClick={handleGhostClick}
       onMiddleClick={handleMiddleClick}
       onRightClick={handleRightClick}

@@ -12,7 +12,11 @@ pub struct Settings {
     pub ghost_x: f64,
     pub ghost_y: f64,
     pub current_skin_id: String,
+    #[serde(default = "default_ghost_height_pixels")]
+    pub ghost_height_pixels: u32,
 }
+
+fn default_ghost_height_pixels() -> u32 { 540 }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -25,6 +29,7 @@ impl Default for Settings {
             ghost_x: 100.0,
             ghost_y: 100.0,
             current_skin_id: "default".to_string(),
+            ghost_height_pixels: 540,
         }
     }
 }

@@ -37,7 +37,6 @@ export interface SkinInfo {
   author: string | null
   version: string | null
   path: string
-  height_percent: number | null
   bubble_placement: UiPlacement | null
   input_placement: UiPlacement | null
 }
@@ -51,4 +50,5 @@ export interface Settings {
   ghost_x: number
   ghost_y: number
   current_skin_id: string
+  ghost_height_pixels: number
 }

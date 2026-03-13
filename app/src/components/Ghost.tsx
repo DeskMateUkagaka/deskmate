@@ -13,8 +13,7 @@ export interface ImageBounds {
 
 interface GhostProps {
   expressionOverride?: string
-  heightPercent: number | null
-  screenHeight: number
+  ghostHeightPixels: number
   onLeftClick?: () => void
   onMiddleClick?: () => void
   onRightClick?: (x: number, y: number) => void
@@ -23,15 +22,14 @@ interface GhostProps {
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ expressionOverride, heightPercent, screenHeight, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
+export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
   const {
     expressionImage,
   } = useGhost()
 
   const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
 
-  // Target image height from skin manifest (% of screen height)
-  const targetHeight = heightPercent != null ? Math.round(screenHeight * heightPercent / 100) : undefined
+  const targetHeight = ghostHeightPixels
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
@@ -150,7 +148,7 @@ export function Ghost({ expressionOverride, heightPercent, screenHeight, onLeftC
             const win = getCurrentWindow()
 
             // Resize window, restore saved position, then show
-            if (targetHeight != null && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
               const aspectRatio = img.naturalWidth / img.naturalHeight
               const targetWidth = Math.round(targetHeight * aspectRatio)
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
@@ -172,7 +170,7 @@ export function Ghost({ expressionOverride, heightPercent, screenHeight, onLeftC
           style={{
             maxWidth: '100%',
             height: targetHeight,
-            maxHeight: targetHeight ?? '100%',
+            maxHeight: targetHeight,
             objectFit: 'contain',
             cursor: 'grab',
             imageRendering: 'auto',
