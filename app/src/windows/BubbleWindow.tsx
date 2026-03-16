@@ -63,17 +63,25 @@ export function BubbleWindow() {
     let unlisten: (() => void) | undefined
     listen<BubbleData>('bubble-update', (event) => {
       setData(event.payload)
-      if (!event.payload.isVisible) {
-        win.hide()
-      }
     }).then((fn) => { unlisten = fn })
     return () => unlisten?.()
   }, [win])
 
-  // Show window when visible
+  // Show/hide window — nudge before hide to clear bleed from DOM removal
+  const prevVisibleRef = useRef(false)
   useEffect(() => {
-    if (data.isVisible) {
+    const wasVisible = prevVisibleRef.current
+    prevVisibleRef.current = data.isVisible
+
+    if (data.isVisible && !wasVisible) {
+      // Became visible — show window, nudge once to clear previous bleed
       win.show().catch(() => {})
+      requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
+    } else if (!data.isVisible && wasVisible) {
+      // Became hidden — nudge to clear bleed, then hide
+      nudgeWindowRepaint()
+        .then(() => win.hide())
+        .catch(() => win.hide())
     }
   }, [data.isVisible, win])
 
