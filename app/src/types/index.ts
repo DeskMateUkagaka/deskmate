@@ -31,6 +31,21 @@ export interface UiPlacement {
   margin_y: number
 }
 
+export interface BubbleTheme {
+  background_color: string | null
+  border_color: string | null
+  border_width: string | null
+  border_radius: string | null
+  text_color: string | null
+  accent_color: string | null
+  code_background: string | null
+  code_text_color: string | null
+  font_family: string | null
+  font_size: string | null
+  max_bubble_width: number | null
+  max_bubble_height: number | null
+}
+
 export interface SkinInfo {
   id: string
   name: string
@@ -39,6 +54,7 @@ export interface SkinInfo {
   path: string
   bubble_placement: UiPlacement | null
   input_placement: UiPlacement | null
+  bubble_theme: BubbleTheme | null
 }
 
 export interface Settings {

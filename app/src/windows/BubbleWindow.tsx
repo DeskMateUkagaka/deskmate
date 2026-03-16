@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { listen, emit } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import 'highlight.js/styles/github.css'
+import type { BubbleTheme } from '../types'
 
 interface BubbleData {
   text: string
@@ -9,6 +14,34 @@ interface BubbleData {
   isPinned: boolean
   timeoutMs: number
   finalizedAt: number | null
+  bubbleTheme: BubbleTheme | null
+}
+
+// Defaults matching the original hardcoded styles
+const DEFAULTS = {
+  backgroundColor: '#fff',
+  borderColor: '#d0d0d0',
+  borderWidth: '1px',
+  borderRadius: '12px',
+  textColor: '#1a1a1a',
+  accentColor: '#3060c0',
+  codeBackground: '#f5f5f5',
+  codeTextColor: '#333333',
+  fontSize: '13px',
+}
+
+function themeVal(theme: BubbleTheme | null, key: keyof BubbleTheme, fallback: string): string {
+  return theme?.[key] ?? fallback
+}
+
+async function nudgeWindowRepaint() {
+  const win = getCurrentWindow()
+  const pos = await win.outerPosition()
+  const size = await win.outerSize()
+  await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  await win.setSize(new PhysicalSize(size.width, size.height))
+  await win.setPosition(new PhysicalPosition(pos.x, pos.y))
 }
 
 export function BubbleWindow() {
@@ -19,8 +52,10 @@ export function BubbleWindow() {
     isPinned: false,
     timeoutMs: 60000,
     finalizedAt: null,
+    bubbleTheme: null,
   })
   const [progress, setProgress] = useState(1)
+  const wasStreamingRef = useRef(false)
   const win = getCurrentWindow()
 
   // Listen for bubble state updates from main window
@@ -68,7 +103,38 @@ export function BubbleWindow() {
     return () => document.removeEventListener('keyup', handler)
   }, [data.isVisible])
 
+  // Nudge repaint on finalization (streaming → rendered Markdown) to clear bleed
+  useEffect(() => {
+    if (data.isStreaming) {
+      wasStreamingRef.current = true
+    } else if (wasStreamingRef.current && data.isVisible) {
+      wasStreamingRef.current = false
+      requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
+    }
+  }, [data.isStreaming, data.isVisible])
+
+  // Nudge repaint when bubble becomes visible (clears bleed from previous dismiss)
+  useEffect(() => {
+    if (data.isVisible) {
+      requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
+    }
+  }, [data.isVisible])
+
   if (!data.isVisible) return null
+
+  const t = data.bubbleTheme
+  const bg = themeVal(t, 'background_color', DEFAULTS.backgroundColor)
+  const borderColor = themeVal(t, 'border_color', DEFAULTS.borderColor)
+  const borderWidth = themeVal(t, 'border_width', DEFAULTS.borderWidth)
+  const borderRadius = themeVal(t, 'border_radius', DEFAULTS.borderRadius)
+  const textColor = themeVal(t, 'text_color', DEFAULTS.textColor)
+  const accentColor = themeVal(t, 'accent_color', DEFAULTS.accentColor)
+  const codeBg = themeVal(t, 'code_background', DEFAULTS.codeBackground)
+  const codeText = themeVal(t, 'code_text_color', DEFAULTS.codeTextColor)
+  const fontSize = themeVal(t, 'font_size', DEFAULTS.fontSize)
+  const fontFamily = t?.font_family ?? undefined
+  const maxBubbleWidth = t?.max_bubble_width ?? 640
+  const maxBubbleHeight = t?.max_bubble_height ?? 540
 
   const outerStyle: CSSProperties = {
     width: '100vw',
@@ -79,19 +145,29 @@ export function BubbleWindow() {
     padding: 4,
   }
 
-  const bubbleStyle: CSSProperties = {
-    background: '#fff',
-    borderRadius: 12,
-    padding: '12px 14px',
-    border: '1px solid #d0d0d0',
+  const bubbleWrapperStyle: CSSProperties = {
     position: 'relative',
-    fontSize: 13,
-    lineHeight: 1.5,
-    color: '#1a1a1a',
-    wordBreak: 'break-word',
-    overflow: 'hidden',
-    width: '100%',
+    width: 'fit-content',
+    minWidth: 200,
+    maxWidth: Math.min(maxBubbleWidth, window.innerWidth - 8),
   }
+
+  const bubbleStyle: CSSProperties = {
+    background: bg,
+    borderRadius,
+    padding: '12px 14px',
+    border: `${borderWidth} solid ${borderColor}`,
+    fontSize,
+    lineHeight: 1.5,
+    color: textColor,
+    fontFamily,
+    wordBreak: 'break-word',
+    maxHeight: maxBubbleHeight,
+    overflowY: 'auto',
+    // CSS custom properties for highlight.js overrides
+    '--code-bg': codeBg,
+    '--code-text': codeText,
+  } as CSSProperties
 
   const actionsStyle: CSSProperties = {
     display: 'flex',
@@ -112,8 +188,8 @@ export function BubbleWindow() {
 
   const primaryPillStyle: CSSProperties = {
     ...pillStyle,
-    background: 'rgba(80, 120, 220, 0.15)',
-    color: '#3060c0',
+    background: `color-mix(in srgb, ${accentColor} 15%, transparent)`,
+    color: accentColor,
   }
 
   const secondaryPillStyle: CSSProperties = {
@@ -134,8 +210,8 @@ export function BubbleWindow() {
   const progressBarStyle: CSSProperties = {
     height: '100%',
     width: `${progress * 100}%`,
-    background: 'rgba(80, 120, 220, 0.4)',
-    borderRadius: '0 0 12px 12px',
+    background: `color-mix(in srgb, ${accentColor} 40%, transparent)`,
+    borderRadius: `0 0 ${borderRadius} ${borderRadius}`,
     transition: 'width 0.1s linear',
   }
 
@@ -143,30 +219,63 @@ export function BubbleWindow() {
 
   return (
     <div style={outerStyle}>
-      <div style={bubbleStyle}>
-        <div style={{ minHeight: 20 }}>
-          {data.text}
-          {data.isStreaming && (
-            <span style={{ display: 'inline-block', marginLeft: 2, animation: 'blink 1s step-end infinite' }}>▋</span>
+      <div style={bubbleWrapperStyle}>
+        <div className="bubble-markdown" style={bubbleStyle}>
+          <div style={{ minHeight: 20 }}>
+            {data.isStreaming ? (
+              <>
+                {data.text}
+                <span style={{ display: 'inline-block', marginLeft: 2, animation: 'blink 1s step-end infinite' }}>▋</span>
+              </>
+            ) : (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={{
+                  pre: ({ children, ...props }) => (
+                    <pre {...props} style={{ overflowX: 'auto', background: 'var(--code-bg)', color: 'var(--code-text)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: '12px', lineHeight: 1.4 }}>
+                      {children}
+                    </pre>
+                  ),
+                  code: ({ children, className, ...props }) => {
+                    if (!className) {
+                      return (
+                        <code {...props} style={{ background: 'var(--code-bg)', color: 'var(--code-text)', padding: '1px 4px', borderRadius: 3, fontSize: '0.9em' }}>
+                          {children}
+                        </code>
+                      )
+                    }
+                    return <code className={className} {...props}>{children}</code>
+                  },
+                  a: ({ children, href, ...props }) => (
+                    <a {...props} href={href} style={{ color: accentColor, textDecoration: 'underline' }} target="_blank" rel="noopener noreferrer">
+                      {children}
+                    </a>
+                  ),
+                }}
+              >
+                {data.text}
+              </ReactMarkdown>
+            )}
+          </div>
+          {!data.isStreaming && (
+            <div style={actionsStyle}>
+              {!data.isPinned && (
+                <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'tell-me-more' })}>
+                  Tell me more
+                </button>
+              )}
+              {!data.isPinned && (
+                <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'pin' })}>
+                  Pin
+                </button>
+              )}
+              <button style={secondaryPillStyle} onClick={() => emit('bubble-action', { action: 'dismiss' })}>
+                Dismiss (x)
+              </button>
+            </div>
           )}
         </div>
-        {!data.isStreaming && (
-          <div style={actionsStyle}>
-            {!data.isPinned && (
-              <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'tell-me-more' })}>
-                Tell me more
-              </button>
-            )}
-            {!data.isPinned && (
-              <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'pin' })}>
-                Pin
-              </button>
-            )}
-            <button style={secondaryPillStyle} onClick={() => emit('bubble-action', { action: 'dismiss' })}>
-              Dismiss (x)
-            </button>
-          </div>
-        )}
         {showProgressBar && (
           <div style={progressBarContainerStyle}>
             <div style={progressBarStyle} />

@@ -122,6 +122,7 @@ impl SkinManager {
                 path: path.to_string_lossy().to_string(),
                 bubble_placement: manifest.bubble_placement.clone(),
                 input_placement: manifest.input_placement.clone(),
+                bubble_theme: manifest.bubble.clone(),
             },
             manifest,
             base_path: path.to_path_buf(),

@@ -212,6 +212,7 @@ export default function App() {
       isPinned: bubble.isPinned,
       timeoutMs: bubble.timeoutMs,
       finalizedAt: bubble.finalizedAt,
+      bubbleTheme: currentSkin?.bubble_theme ?? null,
     })
 
     if (bubble.isVisible) {
@@ -220,8 +221,8 @@ export default function App() {
         const win = await getWindowByLabel('bubble')
         if (!win) return
         const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10 }
-        const bubbleWidth = 280
-        const bubbleHeight = 200
+        const bubbleWidth = 648
+        const bubbleHeight = 548
 
         let screenX: number
         let screenY: number
