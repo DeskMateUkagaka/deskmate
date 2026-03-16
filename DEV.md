@@ -44,6 +44,13 @@ cargo add <crate>         # add Rust dependency (from app/src-tauri/)
 - **Rust logs**: Appear in the terminal where `cargo tauri dev` is running
 - **JS console.log**: Goes to the webview devtools console, NOT the terminal
 
+## Debug Commands
+
+Type these into the chat input to test features without a gateway connection:
+
+- **`ack`** — Returns "ACK" after a brief simulated stream. Tests basic bubble display.
+- **`md`** — Returns a rich Markdown sample (headers, bold, code block, list, blockquote, table, link). Tests Markdown rendering, syntax highlighting, and bubble theming.
+
 ## Known Platform Issues
 
 ### NVIDIA GPU: `Failed to create GBM buffer`

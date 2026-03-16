@@ -188,6 +188,58 @@ export function useOpenClaw() {
       return
     }
 
+    // Debug shortcut: "md" returns sample Markdown to test bubble rendering + theming
+    // Simulates real streaming by feeding text character-by-character
+    if (text.toLowerCase() === 'md') {
+      const sample = `# Hello from Markdown!
+
+Here's some **bold**, *italic*, and \`inline code\`.
+
+## A code block
+
+\`\`\`python
+def greet(name: str) -> str:
+    """Say hello with style."""
+    return f"Hello, {name}! 🎉"
+
+for i in range(3):
+    print(greet("World"))
+\`\`\`
+
+## A list
+
+- First item
+- Second item with **emphasis**
+- Third item
+
+> This is a blockquote. It should look nice.
+
+| Header 1 | Header 2 |
+|----------|----------|
+| Cell A   | Cell B   |
+| Cell C   | Cell D   |
+
+And a [link](https://example.com) for good measure.`
+      accumulatedRef.current = ''
+      setCurrentResponse('')
+      setCurrentExpression('happy')
+      setChatState('streaming')
+      // Stream ~10 chars at a time, ~30ms apart (simulates real gateway deltas)
+      const chunkSize = 10
+      let pos = 0
+      const streamInterval = setInterval(() => {
+        pos = Math.min(pos + chunkSize, sample.length)
+        const partial = sample.slice(0, pos)
+        accumulatedRef.current = partial
+        setCurrentResponse(partial)
+        if (pos >= sample.length) {
+          clearInterval(streamInterval)
+          setChatState('idle')
+        }
+      }, 30)
+      return
+    }
+
     // Check connection status before sending
     try {
       const status = await invoke<string>('get_connection_status')
