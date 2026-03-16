@@ -56,8 +56,7 @@ export function useOpenClaw() {
   const [currentExpression, setCurrentExpression] = useState<Expression>('neutral')
 
   const accumulatedRef = useRef('')
-  const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sessionKeyRef = useRef<string>('main')
+const sessionKeyRef = useRef<string>('main')
   const runIdRef = useRef<string>('')
   const unlistenRef = useRef<UnlistenFn | null>(null)
 
@@ -121,10 +120,7 @@ export function useOpenClaw() {
           accumulatedRef.current = deltaText
 
           // Reset thinking timer on each delta
-          if (thinkingTimerRef.current) {
-            clearTimeout(thinkingTimerRef.current)
-            thinkingTimerRef.current = null
-          }
+
 
           const expr = parseExpression(accumulatedRef.current)
           const display = stripExpressionTags(accumulatedRef.current)
@@ -139,10 +135,7 @@ export function useOpenClaw() {
             accumulatedRef.current = finalText
           }
 
-          if (thinkingTimerRef.current) {
-            clearTimeout(thinkingTimerRef.current)
-            thinkingTimerRef.current = null
-          }
+
 
           const expr = parseExpression(accumulatedRef.current)
           const display = stripExpressionTags(accumulatedRef.current)
@@ -150,17 +143,11 @@ export function useOpenClaw() {
           setCurrentResponse(display)
           setChatState('idle')
         } else if (evt.state === 'error') {
-          if (thinkingTimerRef.current) {
-            clearTimeout(thinkingTimerRef.current)
-            thinkingTimerRef.current = null
-          }
+
           setChatState('error')
           setCurrentResponse(evt.errorMessage ?? 'Unknown error')
         } else if (evt.state === 'aborted') {
-          if (thinkingTimerRef.current) {
-            clearTimeout(thinkingTimerRef.current)
-            thinkingTimerRef.current = null
-          }
+
           setChatState('idle')
         }
       })
@@ -222,7 +209,7 @@ for i in range(3):
 And a [link](https://example.com) for good measure.`
       accumulatedRef.current = ''
       setCurrentResponse('')
-      setCurrentExpression('happy')
+      setCurrentExpression('thinking')
       setChatState('streaming')
       // Stream ~10 chars at a time, ~30ms apart (simulates real gateway deltas)
       const chunkSize = 10
@@ -234,6 +221,7 @@ And a [link](https://example.com) for good measure.`
         setCurrentResponse(partial)
         if (pos >= sample.length) {
           clearInterval(streamInterval)
+          setCurrentExpression('neutral')
           setChatState('idle')
         }
       }, 30)
@@ -255,14 +243,8 @@ And a [link](https://example.com) for good measure.`
 
     accumulatedRef.current = ''
     setCurrentResponse('')
-    setCurrentExpression('neutral')
+    setCurrentExpression('thinking')
     setChatState('sending')
-
-    // 5s thinking timeout
-    if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current)
-    thinkingTimerRef.current = setTimeout(() => {
-      setCurrentExpression('thinking')
-    }, 5000)
 
     try {
       const runId = await invoke<string>('chat_send', {
@@ -273,20 +255,12 @@ And a [link](https://example.com) for good measure.`
       runIdRef.current = runId
     } catch (e) {
       console.error('[useOpenClaw] chat_send failed:', e)
-      if (thinkingTimerRef.current) {
-        clearTimeout(thinkingTimerRef.current)
-        thinkingTimerRef.current = null
-      }
       setChatState('error')
       setCurrentResponse('Failed to send message')
     }
   }, [])
 
   const abortChat = useCallback(async () => {
-    if (thinkingTimerRef.current) {
-      clearTimeout(thinkingTimerRef.current)
-      thinkingTimerRef.current = null
-    }
     try {
       await invoke('chat_abort', {
         sessionKey: sessionKeyRef.current,
