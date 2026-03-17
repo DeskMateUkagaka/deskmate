@@ -123,6 +123,15 @@ export function BubbleWindow() {
     })
   }, [data.contentOffsetX, data.contentOffsetY, data.text, data.isStreaming])
 
+  // Nudge repaint when pin state changes (buttons/progress bar appear/disappear)
+  const prevPinnedRef = useRef(data.isPinned)
+  useEffect(() => {
+    if (data.isPinned !== prevPinnedRef.current && data.isVisible) {
+      prevPinnedRef.current = data.isPinned
+      requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
+    }
+  }, [data.isPinned, data.isVisible])
+
   // Dismiss on 'x' key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
