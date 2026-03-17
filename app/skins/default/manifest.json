@@ -1,5 +1,5 @@
 {
-  "name": "Default Ghost",
+  "name": "Clawra",
   "author": "Ukagaka Dev",
   "version": "1.0.0",
   "expressions": {
@@ -11,7 +11,7 @@
     "thinking": "thinking.png",
     "neutral": "neutral.png"
   },
-  "bubble_placement": { "x": -178, "y": -589, "origin": "bottom-right" },
+  "bubble_placement": { "x": -70, "y": -450, "origin": "bottom-right" },
   "input_placement": { "x": 0, "y": 0 },
   "bubble": {
     "background_color": "#ffffff",
