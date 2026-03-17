@@ -93,22 +93,23 @@ export default function App() {
     const actualWidth = actualSize.width / scaleFactor
     const actualHeight = actualSize.height / scaleFactor
 
-    // Compute desired bottom edge of the input window
-    let bottomEdgeY: number
+    // Compute screen position centered on ghost image + placement offset
     let centerX: number
+    let centerY: number
     if (imageBounds) {
       centerX = windowPos.x + imageBounds.centerX + p.x
-      bottomEdgeY = windowPos.y + imageBounds.top + p.y
+      centerY = windowPos.y + imageBounds.centerY + p.y
     } else {
       centerX = windowPos.x + p.x
-      bottomEdgeY = windowPos.y - 10 + p.y
+      centerY = windowPos.y + p.y
     }
 
-    debugLog(`[showChatInput] windowPos=(${windowPos.x}, ${windowPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} centerX=${centerX} bottomEdgeY=${bottomEdgeY} actualSize=${actualWidth}x${actualHeight} screenX=${centerX - actualWidth / 2} screenY=${bottomEdgeY - actualHeight}`)
+    debugLog(`[showChatInput] windowPos=(${windowPos.x}, ${windowPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
 
-    // Position from the actual size (not the requested size)
     let screenX = centerX - actualWidth / 2
-    let screenY = bottomEdgeY - actualHeight
+    // Visible content is flex-end anchored at the bottom of the GTK-oversized window.
+    // Position so the bottom of the window aligns with the placement center.
+    let screenY = centerY - actualHeight
     // Clamp to screen with margins
     screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
     screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
@@ -216,10 +217,10 @@ export default function App() {
         let screenY: number
         if (imageBounds) {
           screenX = windowPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
-          screenY = windowPos.y + imageBounds.top + p.y - bubbleHeight
+          screenY = windowPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
         } else {
           screenX = windowPos.x - bubbleWidth / 2
-          screenY = windowPos.y - bubbleHeight - 10
+          screenY = windowPos.y - bubbleHeight / 2
         }
         screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
         screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
