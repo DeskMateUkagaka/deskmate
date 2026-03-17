@@ -149,7 +149,8 @@ export function BubbleWindow() {
     height: '100vh',
     background: 'transparent',
     display: 'flex',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 4,
   }
 

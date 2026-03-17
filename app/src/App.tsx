@@ -213,6 +213,8 @@ export default function App() {
         const bubbleWidth = 648
         const bubbleHeight = 548
 
+        // Bubble content is centered within the window (alignItems/justifyContent: center).
+        // Center the window on the ghost image center + placement offset.
         let screenX: number
         let screenY: number
         if (imageBounds) {
