@@ -206,40 +206,44 @@ export default function App() {
 
   // Position and update the bubble popup window
   useEffect(() => {
-    emit('bubble-update', {
-      text: bubble.text,
-      isStreaming: bubble.isStreaming,
-      isVisible: bubble.isVisible,
-      isPinned: bubble.isPinned,
-      timeoutMs: bubble.timeoutMs,
-      finalizedAt: bubble.finalizedAt,
-      bubbleTheme: currentSkin?.bubble_theme ?? null,
-    })
+    const emitBubbleUpdate = (contentOffsetX = 0, contentOffsetY = 0) =>
+      emit('bubble-update', {
+        text: bubble.text,
+        isStreaming: bubble.isStreaming,
+        isVisible: bubble.isVisible,
+        isPinned: bubble.isPinned,
+        timeoutMs: bubble.timeoutMs,
+        finalizedAt: bubble.finalizedAt,
+        bubbleTheme: currentSkin?.bubble_theme ?? null,
+        contentOffsetX,
+        contentOffsetY,
+      })
 
     if (bubble.isVisible) {
-      // Position the bubble window above the ghost
       ;(async () => {
         const win = await getWindowByLabel('bubble')
         if (!win) return
-        // Query fresh ghost position from compositor to avoid stale state
         const ghostPos = await getGhostPos()
         const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10 }
         const bubbleWidth = 648
         const bubbleHeight = 548
 
-        // Bubble content is centered within the window (alignItems/justifyContent: center).
-        // Center the window on the ghost image center + placement offset.
-        let screenX: number
-        let screenY: number
+        // Ideal position: center the window on the ghost image + placement offset
+        let idealX: number
+        let idealY: number
         if (imageBounds) {
-          screenX = ghostPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
-          screenY = ghostPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
+          idealX = ghostPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
+          idealY = ghostPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
         } else {
-          screenX = ghostPos.x - bubbleWidth / 2
-          screenY = ghostPos.y - bubbleHeight / 2
+          idealX = ghostPos.x - bubbleWidth / 2
+          idealY = ghostPos.y - bubbleHeight / 2
         }
-        screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
-        screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
+        const screenX = Math.max(p.margin_x, Math.min(idealX, screenSize.width - bubbleWidth - p.margin_x))
+        const screenY = Math.max(p.margin_y, Math.min(idealY, screenSize.height - bubbleHeight - p.margin_y))
+
+        // When clamping shifts the window, pass the offset so BubbleWindow can
+        // counter-shift its content to stay aligned with the ghost.
+        emitBubbleUpdate(idealX - screenX, idealY - screenY)
 
         // Must show before moveWindow on Sway — hidden windows aren't in the
         // compositor tree so swaymsg can't target them.
@@ -247,6 +251,7 @@ export default function App() {
         await moveWindow(win, screenX, screenY)
       })()
     } else {
+      emitBubbleUpdate()
       hidePopup('bubble')
     }
   }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, imageBounds, windowPos, screenSize, currentSkin])

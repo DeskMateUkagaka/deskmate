@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 import ReactMarkdown from 'react-markdown'
@@ -15,6 +15,8 @@ interface BubbleData {
   timeoutMs: number
   finalizedAt: number | null
   bubbleTheme: BubbleTheme | null
+  contentOffsetX: number
+  contentOffsetY: number
 }
 
 // Defaults matching the original hardcoded styles
@@ -53,9 +55,13 @@ export function BubbleWindow() {
     timeoutMs: 60000,
     finalizedAt: null,
     bubbleTheme: null,
+    contentOffsetX: 0,
+    contentOffsetY: 0,
   })
   const [progress, setProgress] = useState(1)
   const wasStreamingRef = useRef(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 })
   const win = getCurrentWindow()
 
   // Listen for bubble state updates from main window
@@ -99,6 +105,23 @@ export function BubbleWindow() {
     }, 50)
     return () => clearInterval(interval)
   }, [data.finalizedAt, data.timeoutMs, data.isPinned])
+
+  // Clamp content offset so the visible bubble stays within the window
+  useLayoutEffect(() => {
+    if (!wrapperRef.current) {
+      setClampedOffset({ x: 0, y: 0 })
+      return
+    }
+    const padding = 4
+    const wrapperW = wrapperRef.current.offsetWidth
+    const wrapperH = wrapperRef.current.offsetHeight
+    const maxShiftX = Math.max(0, (window.innerWidth - 2 * padding - wrapperW) / 2)
+    const maxShiftY = Math.max(0, (window.innerHeight - 2 * padding - wrapperH) / 2)
+    setClampedOffset({
+      x: Math.max(-maxShiftX, Math.min(data.contentOffsetX, maxShiftX)),
+      y: Math.max(-maxShiftY, Math.min(data.contentOffsetY, maxShiftY)),
+    })
+  }, [data.contentOffsetX, data.contentOffsetY, data.text, data.isStreaming])
 
   // Dismiss on 'x' key
   useEffect(() => {
@@ -159,6 +182,9 @@ export function BubbleWindow() {
     width: 'fit-content',
     minWidth: 200,
     maxWidth: Math.min(maxBubbleWidth, window.innerWidth - 8),
+    transform: (clampedOffset.x || clampedOffset.y)
+      ? `translate(${clampedOffset.x}px, ${clampedOffset.y}px)`
+      : undefined,
   }
 
   const bubbleStyle: CSSProperties = {
@@ -228,7 +254,7 @@ export function BubbleWindow() {
 
   return (
     <div style={outerStyle}>
-      <div style={bubbleWrapperStyle}>
+      <div ref={wrapperRef} style={bubbleWrapperStyle}>
         <div className="bubble-markdown" style={bubbleStyle}>
           <div style={{ minHeight: 20 }}>
             {data.isStreaming ? (
