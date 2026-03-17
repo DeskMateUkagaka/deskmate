@@ -27,8 +27,6 @@ export type PlacementOrigin = 'center' | 'top-left' | 'top-right' | 'bottom-left
 export interface UiPlacement {
   x: number
   y: number
-  margin_x: number
-  margin_y: number
   origin: PlacementOrigin
 }
 
@@ -68,4 +66,8 @@ export interface Settings {
   ghost_y: number
   current_skin_id: string
   ghost_height_pixels: number
+  popup_margin_top: number
+  popup_margin_bottom: number
+  popup_margin_left: number
+  popup_margin_right: number
 }

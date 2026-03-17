@@ -54,21 +54,15 @@ pub enum PlacementOrigin {
     BottomRight,
 }
 
-/// UI element placement: pixel offset from ghost image center + screen-edge margins.
+/// UI element placement: pixel offset from ghost image center (in original PNG coordinates).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UiPlacement {
-    /// Horizontal offset from image center (px)
+    /// Horizontal offset from image center (px, in original PNG coordinates)
     #[serde(default)]
     pub x: f64,
-    /// Vertical offset from image center (px, negative = above)
+    /// Vertical offset from image center (px, in original PNG coordinates, negative = above)
     #[serde(default)]
     pub y: f64,
-    /// Minimum horizontal distance from screen edge (px)
-    #[serde(default)]
-    pub margin_x: f64,
-    /// Minimum vertical distance from screen edge (px)
-    #[serde(default)]
-    pub margin_y: f64,
     /// Which corner of the popup the coordinate refers to
     #[serde(default)]
     pub origin: PlacementOrigin,

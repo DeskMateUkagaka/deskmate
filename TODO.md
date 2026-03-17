@@ -2,9 +2,8 @@
 
 ## Critical — Must Test Before First Real Use
 
-- [ ] Test against live OpenClaw gateway (challenge/nonce handshake, token auth)
-- [ ] Validate hit-testing spike on X11: clicks on transparent pixels pass through to desktop
-- [ ] Test Wayland transparency (`GDK_BACKEND=wayland`) — may need `gtk-layer-shell`
+- [x] Test against live OpenClaw gateway (challenge/nonce handshake, token auth)
+- [x] Test Wayland transparency (`GDK_BACKEND=wayland`) — may need `gtk-layer-shell`
 - [ ] Configure OpenClaw agent system prompt to emit `[expression:X]` tags
 - [ ] Decide expression tag delivery method: `chat.inject` RPC, manual agent config, or prepend to each message
 - [ ] Test with actual AI responses: verify expression parsing + stripping works end-to-end

@@ -12,6 +12,10 @@ const DEFAULT_SETTINGS: Settings = {
   ghost_y: 100,
   current_skin_id: 'default',
   ghost_height_pixels: 540,
+  popup_margin_top: 10,
+  popup_margin_bottom: 10,
+  popup_margin_left: 10,
+  popup_margin_right: 10,
 }
 
 export function useSettings() {

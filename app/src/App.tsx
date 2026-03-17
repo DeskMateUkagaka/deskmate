@@ -93,7 +93,7 @@ export default function App() {
     const ghostPos = await getGhostPos()
 
     // Compute screen position above the ghost image
-    const p = currentSkin?.input_placement ?? { x: 0, y: -10, margin_x: 10, margin_y: 10 }
+    const p = currentSkin?.input_placement ?? { x: 0, y: -10, origin: 'center' as const }
     const inputWidth = 280
     const inputHeight = 44
 
@@ -128,8 +128,8 @@ export default function App() {
     // Position so the bottom of the window aligns with the placement center.
     let screenY = centerY - actualHeight
     // Clamp to screen with margins
-    screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
-    screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
+    screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
+    screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
     // Must show before moveWindow on Sway — hidden windows aren't in the
     // compositor tree so swaymsg can't target them.
     await win.show()
@@ -231,7 +231,7 @@ export default function App() {
         const win = await getWindowByLabel('bubble')
         if (!win) return
         const ghostPos = await getGhostPos()
-        const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10, origin: 'center' as const }
+        const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, origin: 'center' as const }
         const bubbleWidth = 648
         const bubbleHeight = 548
 
@@ -261,8 +261,8 @@ export default function App() {
           case 'bottom-right': idealX = anchorX - bubbleWidth;    idealY = anchorY - bubbleHeight;    break
           default:             idealX = anchorX - bubbleWidth / 2; idealY = anchorY - bubbleHeight / 2; break
         }
-        const screenX = Math.max(p.margin_x, Math.min(idealX, screenSize.width - bubbleWidth - p.margin_x))
-        const screenY = Math.max(p.margin_y, Math.min(idealY, screenSize.height - bubbleHeight - p.margin_y))
+        const screenX = Math.max(settings.popup_margin_left, Math.min(idealX, screenSize.width - bubbleWidth - settings.popup_margin_right))
+        const screenY = Math.max(settings.popup_margin_top, Math.min(idealY, screenSize.height - bubbleHeight - settings.popup_margin_bottom))
 
         // When clamping shifts the window, pass the offset so BubbleWindow can
         // counter-shift its content to stay aligned with the ghost.

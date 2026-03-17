@@ -14,9 +14,18 @@ pub struct Settings {
     pub current_skin_id: String,
     #[serde(default = "default_ghost_height_pixels")]
     pub ghost_height_pixels: u32,
+    #[serde(default = "default_popup_margin")]
+    pub popup_margin_top: f64,
+    #[serde(default = "default_popup_margin")]
+    pub popup_margin_bottom: f64,
+    #[serde(default = "default_popup_margin")]
+    pub popup_margin_left: f64,
+    #[serde(default = "default_popup_margin")]
+    pub popup_margin_right: f64,
 }
 
 fn default_ghost_height_pixels() -> u32 { 540 }
+fn default_popup_margin() -> f64 { 10.0 }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -30,6 +39,10 @@ impl Default for Settings {
             ghost_y: 100.0,
             current_skin_id: "default".to_string(),
             ghost_height_pixels: 540,
+            popup_margin_top: 10.0,
+            popup_margin_bottom: 10.0,
+            popup_margin_left: 10.0,
+            popup_margin_right: 10.0,
         }
     }
 }
