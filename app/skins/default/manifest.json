@@ -9,7 +9,6 @@
     "disgusted": "disgusted.png",
     "condescending": "condescending.png",
     "thinking": "thinking.png",
-    "uwamezukai": "uwamezukai.png",
     "neutral": "neutral.png"
   },
   "bubble_placement": { "x": 0, "y": -20, "margin_x": 10, "margin_y": 10 },
