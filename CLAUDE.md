@@ -106,6 +106,16 @@ skins/<skin-id>/
   ... (7 PNGs total)
 ```
 
+### Popup Window Positioning Coordinates
+
+Bubble and input windows are positioned relative to the ghost image center on screen:
+- `windowPos` = ghost window's screen position (top-left corner, from compositor or `outerPosition`)
+- `imageBounds` = ghost image bounds within the window (`centerX`, `top`, `width`, `height` in CSS pixels)
+- `UiPlacement` (`x`, `y`, `margin_x`, `margin_y`) = skin-defined offset from image center
+- Screen position formula: `screenX = windowPos.x + imageBounds.centerX + placement.x - popupWidth/2`, `screenY = windowPos.y + imageBounds.top + placement.y - popupHeight`
+- Clamped to screen edges using `margin_x`/`margin_y`
+- **Always show before positioning** on Sway (`win.show()` then `moveWindow`) — hidden windows aren't in the compositor tree, so `swaymsg` can't target them. There may be a brief flash at the default position.
+
 ### Key State Management
 
 - `GatewayState` (Rust): holds the WebSocket client, managed via `Arc<Mutex<>>`
@@ -156,6 +166,13 @@ Wayland compositors do not allow clients to set window positions programmaticall
 - **Fallback** (X11, unknown compositors): Falls back to Tauri's built-in `win.setPosition()`.
 - **Adding new compositors**: Add detection (env var check) and positioning logic in `window.rs`. E.g., Hyprland via `hyprctl`, KDE via `kdotool`, etc.
 - Always call `moveWindow(win, x, y)` or `moveWindowPhysical(win, x, y)` instead of `win.setPosition()` directly.
+
+### Wayland Window Position Tracking
+
+- **`win.onMoved()` does NOT fire reliably on Wayland** — the compositor doesn't notify clients of position changes. Do not rely on it for tracking window position.
+- Ghost position is tracked via `onPositionChange` callback from `Ghost.tsx` → `App.tsx`. Ghost reports its position on initial load (after `restoreWindowPosition`) and after each drag (after `startDragging` completes).
+- Popup windows (bubble, input) compute their screen position from `windowPos` (ghost's compositor position) + `imageBounds` (ghost image bounds within the window) + skin `UiPlacement` offsets.
+- **Hidden windows can't be moved on Sway** — they're not in the compositor tree, so `swaymsg` can't target them. Always `win.show()` before `moveWindow()`.
 
 ### i3/Tiling WM Gotchas
 

@@ -19,11 +19,12 @@ interface GhostProps {
   onMiddleClick?: () => void
   onRightClick?: (x: number, y: number) => void
   onImageBounds?: (bounds: ImageBounds) => void
+  onPositionChange?: (pos: { x: number; y: number }) => void
 }
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds }: GhostProps) {
+export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
   const {
     expressionImage,
   } = useGhost()
@@ -31,6 +32,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
   const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
 
   const targetHeight = ghostHeightPixels
+  const initialLoadDone = useRef(false)
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
@@ -77,6 +79,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
         win.startDragging().then(async () => {
           const pos = await getWindowPosition(win)
           invoke('set_ghost_position', { x: pos.x, y: pos.y })
+          onPositionChange?.({ x: pos.x, y: pos.y })
           console.log('[Ghost] drag ended, saved position')
         })
       }
@@ -148,15 +151,23 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
             if (!img) return
             const win = getCurrentWindow()
 
-            // Resize window, restore saved position, then show
+            // Resize window to match image aspect ratio
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
               const aspectRatio = img.naturalWidth / img.naturalHeight
               const targetWidth = Math.round(targetHeight * aspectRatio)
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
             }
-            await win.show().catch(() => {})
-            const pos = await invoke<{ x: number; y: number }>('get_ghost_position')
-            await restoreWindowPosition(win, pos.x, pos.y).catch(() => {})
+
+            // Only restore saved position on initial load — expression changes
+            // must NOT reposition, as swaymsg can introduce decoration offsets.
+            if (!initialLoadDone.current) {
+              initialLoadDone.current = true
+              await win.show().catch(() => {})
+              const pos = await invoke<{ x: number; y: number }>('get_ghost_position')
+              await restoreWindowPosition(win, pos.x, pos.y).catch(() => {})
+              const actualPos = await getWindowPosition(win)
+              onPositionChange?.({ x: actualPos.x, y: actualPos.y })
+            }
 
             if (onImageBounds) {
               const rect = img.getBoundingClientRect()

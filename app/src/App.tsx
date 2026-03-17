@@ -61,32 +61,13 @@ export default function App() {
   const [screenSize, setScreenSize] = useState({ width: window.screen.width, height: window.screen.height })
 
   useEffect(() => {
-    const win = getCurrentWindow()
-    let cancelled = false
-
     // Screen size from Web API — no Tauri permission needed
     setScreenSize({ width: window.screen.width, height: window.screen.height })
+  }, [])
 
-    // Get initial window position
-    getWindowPosition(win)
-      .then((pos) => { if (!cancelled) setWindowPos({ x: pos.x, y: pos.y }) })
-      .catch(() => {})
-
-    // Update window position on move
-    let unlistenMove: (() => void) | null = null
-    win.onMoved(() => {
-      getWindowPosition(win)
-        .then((pos) => {
-          if (!cancelled) setWindowPos({ x: pos.x, y: pos.y })
-        })
-        .catch(() => {})
-    }).then((fn) => { if (!cancelled) unlistenMove = fn; else fn() })
-      .catch(() => {})
-
-    return () => {
-      cancelled = true
-      unlistenMove?.()
-    }
+  // Ghost reports its position on load and after drag via onPositionChange
+  const handlePositionChange = useCallback((pos: { x: number; y: number }) => {
+    setWindowPos(pos)
   }, [])
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
@@ -126,6 +107,8 @@ export default function App() {
     // Clamp to screen with margins
     screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - actualWidth - p.margin_x))
     screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - actualHeight - p.margin_y))
+    // Must show before moveWindow on Sway — hidden windows aren't in the
+    // compositor tree so swaymsg can't target them.
     await win.show()
     await moveWindow(win, screenX, screenY)
     await win.setFocus()
@@ -236,8 +219,10 @@ export default function App() {
         screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
         screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
 
-        await moveWindow(win, screenX, screenY)
+        // Must show before moveWindow on Sway — hidden windows aren't in the
+        // compositor tree so swaymsg can't target them.
         await win.show()
+        await moveWindow(win, screenX, screenY)
       })()
     } else {
       hidePopup('bubble')
@@ -326,6 +311,7 @@ export default function App() {
       onMiddleClick={handleMiddleClick}
       onRightClick={handleRightClick}
       onImageBounds={setImageBounds}
+      onPositionChange={handlePositionChange}
     />
   )
 }
