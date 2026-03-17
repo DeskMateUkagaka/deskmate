@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { Expression } from '../types'
+import { debugLog } from '../lib/debugLog'
 
 export type ChatState = 'idle' | 'sending' | 'streaming' | 'error'
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -68,7 +69,7 @@ const sessionKeyRef = useRef<string>('main')
       setConnectionStatus('connecting')
       try {
         const settings = await invoke<{ gateway_url: string; gateway_token: string }>('get_settings')
-        console.log('[useOpenClaw] connecting to gateway:', settings.gateway_url)
+        debugLog('[useOpenClaw] connecting to gateway:', settings.gateway_url)
         await invoke('connect_gateway', {
           url: settings.gateway_url,
           token: settings.gateway_token || null,
@@ -116,7 +117,7 @@ const sessionKeyRef = useRef<string>('main')
         if (evt.state === 'delta') {
           // Gateway sends full accumulated text in each delta (not incremental chunks)
           const deltaText = extractTextFromMessage(evt.message)
-          console.log(`[chat-event] delta seq=${evt.seq} len=${deltaText.length} text="${deltaText}"`)
+          debugLog(`[chat-event] delta seq=${evt.seq} len=${deltaText.length} text="${deltaText}"`)
           accumulatedRef.current = deltaText
 
           // Reset thinking timer on each delta
@@ -130,7 +131,7 @@ const sessionKeyRef = useRef<string>('main')
         } else if (evt.state === 'final') {
           // Final message — do a final parse of accumulated text
           const finalText = extractTextFromMessage(evt.message)
-          console.log(`[chat-event] final seq=${evt.seq} len=${finalText.length} text="${finalText}"`)
+          debugLog(`[chat-event] final seq=${evt.seq} len=${finalText.length} text="${finalText}"`)
           if (finalText) {
             accumulatedRef.current = finalText
           }
@@ -163,7 +164,7 @@ const sessionKeyRef = useRef<string>('main')
   }, [])
 
   const sendMessage = useCallback(async (text: string) => {
-    console.log('[useOpenClaw] sendMessage called:', text, 'sessionKey:', sessionKeyRef.current)
+    debugLog('[useOpenClaw] sendMessage called:', text, 'sessionKey:', sessionKeyRef.current)
 
     // Debug shortcut: "ack" returns a hardcoded response without hitting the gateway
     if (text.toLowerCase() === 'ack') {
@@ -231,7 +232,7 @@ And a [link](https://example.com) for good measure.`
     // Check connection status before sending
     try {
       const status = await invoke<string>('get_connection_status')
-      console.log('[useOpenClaw] connection status:', status)
+      debugLog('[useOpenClaw] connection status:', status)
       if (status !== 'connected') {
         setChatState('error')
         setCurrentResponse(`Gateway not connected (status: ${status}). Check Settings.`)
@@ -251,7 +252,7 @@ And a [link](https://example.com) for good measure.`
         sessionKey: sessionKeyRef.current,
         message: text,
       })
-      console.log('[useOpenClaw] chat_send returned runId:', runId)
+      debugLog('[useOpenClaw] chat_send returned runId:', runId)
       runIdRef.current = runId
     } catch (e) {
       console.error('[useOpenClaw] chat_send failed:', e)

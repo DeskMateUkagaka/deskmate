@@ -4,6 +4,7 @@ import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
 import { restoreWindowPosition, getWindowPosition } from '../lib/moveWindow'
+import { debugLog } from '../lib/debugLog'
 
 export interface ImageBounds {
   top: number
@@ -56,10 +57,10 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
     return () => window.removeEventListener('resize', reportBounds)
   }, [onImageBounds, imageSrc])
 
-  console.log('[Ghost] render, imageSrc:', imageSrc ? 'present' : 'empty')
+  debugLog('[Ghost] render, imageSrc:', imageSrc ? 'present' : 'empty')
 
   const handleMouseDown = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    console.log('[Ghost] mousedown button:', e.button)
+    debugLog('[Ghost] mousedown button:', e.button)
     if (e.button === 0) {
       mouseDownPos.current = { x: e.screenX, y: e.screenY }
       didDrag.current = false
@@ -72,7 +73,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
       const dx = e.screenX - mouseDownPos.current.x
       const dy = e.screenY - mouseDownPos.current.y
       if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
-        console.log('[Ghost] drag started')
+        debugLog('[Ghost] drag started')
         didDrag.current = true
         mouseDownPos.current = null
         const win = getCurrentWindow()
@@ -80,40 +81,40 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
           const pos = await getWindowPosition(win)
           invoke('set_ghost_position', { x: pos.x, y: pos.y })
           onPositionChange?.({ x: pos.x, y: pos.y })
-          console.log('[Ghost] drag ended, saved position')
+          debugLog('[Ghost] drag ended, saved position')
         })
       }
     }
   }, [])
 
   const handleMouseUp = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    console.log('[Ghost] mouseup button:', e.button, 'didDrag:', didDrag.current, 'hasDownPos:', !!mouseDownPos.current)
+    debugLog('[Ghost] mouseup button:', e.button, 'didDrag:', didDrag.current, 'hasDownPos:', !!mouseDownPos.current)
     if (e.button === 0) {
       mouseDownPos.current = null
       didDrag.current = false
     } else if (e.button === 1) {
-      console.log('[Ghost] middle click fired (via mouseup)')
+      debugLog('[Ghost] middle click fired (via mouseup)')
       e.preventDefault()
       onMiddleClick?.()
     }
   }, [onMiddleClick])
 
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    console.log('[Ghost] click event, button:', e.button, 'didDrag:', didDrag.current)
+    debugLog('[Ghost] click event, button:', e.button, 'didDrag:', didDrag.current)
     if (e.button === 0 && !didDrag.current) {
-      console.log('[Ghost] left click fired (via click)')
+      debugLog('[Ghost] left click fired (via click)')
       onLeftClick?.()
     }
   }, [onLeftClick])
 
   const handleContextMenu = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    console.log('[Ghost] contextmenu fired')
+    debugLog('[Ghost] contextmenu fired')
     e.preventDefault()
     onRightClick?.(e.clientX, e.clientY)
   }, [onRightClick])
 
   const handleAuxClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    console.log('[Ghost] auxclick button:', e.button)
+    debugLog('[Ghost] auxclick button:', e.button)
     if (e.button === 1) {
       e.preventDefault()
     }

@@ -115,6 +115,7 @@ Bubble and input windows are positioned relative to the ghost image center on sc
 - Screen position formula: `screenX = windowPos.x + imageBounds.centerX + placement.x - popupWidth/2`, `screenY = windowPos.y + imageBounds.top + placement.y - popupHeight`
 - Clamped to screen edges using `margin_x`/`margin_y`
 - **Always show before positioning** on Sway (`win.show()` then `moveWindow`) — hidden windows aren't in the compositor tree, so `swaymsg` can't target them. There may be a brief flash at the default position.
+- **Coordinate spaces**: `windowPos` and `imageBounds` are in Sway layout coordinates (logical pixels). Tauri's `win.outerSize()` returns **physical pixels** — always divide by `win.scaleFactor()` before using in position calculations. Mixing physical and logical pixels causes mispositioned windows on HiDPI displays.
 
 ### Key State Management
 
@@ -206,4 +207,4 @@ See `TODO.md` for the full list. Key items:
 
 ## Debugging
 
-src-tauri/src/lib.rs has `debug_log()` in case you cant open the Ctrl+Shift+I web debug console - you can't open it sometimes!
+**Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/debug.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.

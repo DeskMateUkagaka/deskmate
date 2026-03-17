@@ -9,6 +9,7 @@ import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
+import { debugLog } from './lib/debugLog'
 
 async function savePositionAndExit() {
   try {
@@ -31,7 +32,7 @@ async function showPopup(label: string, x?: number, y?: number) {
   if (!win) return
   await win.show()
   if (x !== undefined && y !== undefined) {
-    console.log(`[showPopup] ${label} at (${x}, ${y})`)
+    debugLog(`[showPopup] ${label} at (${x}, ${y})`)
     await moveWindow(win, x, y)
   }
   await win.setFocus()
@@ -86,9 +87,11 @@ export default function App() {
 
     await win.setSize(new LogicalSize(inputWidth, inputHeight))
     // GTK may enforce a minimum window size — query actual size for positioning
+    // outerSize() returns physical pixels; convert to logical for Sway layout coords
     const actualSize = await win.outerSize()
-    const actualWidth = actualSize.width
-    const actualHeight = actualSize.height
+    const scaleFactor = await win.scaleFactor()
+    const actualWidth = actualSize.width / scaleFactor
+    const actualHeight = actualSize.height / scaleFactor
 
     // Compute desired bottom edge of the input window
     let bottomEdgeY: number
@@ -100,6 +103,8 @@ export default function App() {
       centerX = windowPos.x + p.x
       bottomEdgeY = windowPos.y - 10 + p.y
     }
+
+    debugLog(`[showChatInput] windowPos=(${windowPos.x}, ${windowPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} centerX=${centerX} bottomEdgeY=${bottomEdgeY} actualSize=${actualWidth}x${actualHeight} screenX=${centerX - actualWidth / 2} screenY=${bottomEdgeY - actualHeight}`)
 
     // Position from the actual size (not the requested size)
     let screenX = centerX - actualWidth / 2
@@ -258,7 +263,7 @@ export default function App() {
   }, [showChatInput])
 
   const handleMiddleClick = useCallback(() => {
-    console.log('poke!')
+    debugLog('poke!')
   }, [])
 
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
