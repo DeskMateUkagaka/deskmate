@@ -58,7 +58,9 @@ export default function App() {
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms })
 
   // Track window position on screen + monitor size for edge clamping
+  // Use both state (for re-renders) and ref (for always-fresh reads in callbacks)
   const [windowPos, setWindowPos] = useState({ x: 0, y: 0 })
+  const windowPosRef = useRef(windowPos)
   const [screenSize, setScreenSize] = useState({ width: window.screen.width, height: window.screen.height })
 
   useEffect(() => {
@@ -68,17 +70,27 @@ export default function App() {
 
   // Ghost reports its position on load and after drag via onPositionChange
   const handlePositionChange = useCallback((pos: { x: number; y: number }) => {
+    windowPosRef.current = pos
     setWindowPos(pos)
   }, [])
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
   const chatInputOpenRef = useRef(false)
 
+  // Query fresh ghost position directly from compositor — avoids stale state
+  const getGhostPos = useCallback(async () => {
+    const ghostWin = getCurrentWindow()
+    return await getWindowPosition(ghostWin)
+  }, [])
+
   // Show the chat-input popup window, positioned above the ghost
   const showChatInput = useCallback(async () => {
     const win = await getWindowByLabel('chat-input')
     if (!win) return
     chatInputOpenRef.current = true
+
+    // Query fresh ghost position from compositor to avoid stale state
+    const ghostPos = await getGhostPos()
 
     // Compute screen position above the ghost image
     const p = currentSkin?.input_placement ?? { x: 0, y: -10, margin_x: 10, margin_y: 10 }
@@ -97,14 +109,14 @@ export default function App() {
     let centerX: number
     let centerY: number
     if (imageBounds) {
-      centerX = windowPos.x + imageBounds.centerX + p.x
-      centerY = windowPos.y + imageBounds.centerY + p.y
+      centerX = ghostPos.x + imageBounds.centerX + p.x
+      centerY = ghostPos.y + imageBounds.centerY + p.y
     } else {
-      centerX = windowPos.x + p.x
-      centerY = windowPos.y + p.y
+      centerX = ghostPos.x + p.x
+      centerY = ghostPos.y + p.y
     }
 
-    debugLog(`[showChatInput] windowPos=(${windowPos.x}, ${windowPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
+    debugLog(`[showChatInput] ghostPos=(${ghostPos.x}, ${ghostPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
 
     let screenX = centerX - actualWidth / 2
     // Visible content is flex-end anchored at the bottom of the GTK-oversized window.
@@ -209,6 +221,8 @@ export default function App() {
       ;(async () => {
         const win = await getWindowByLabel('bubble')
         if (!win) return
+        // Query fresh ghost position from compositor to avoid stale state
+        const ghostPos = await getGhostPos()
         const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10 }
         const bubbleWidth = 648
         const bubbleHeight = 548
@@ -218,11 +232,11 @@ export default function App() {
         let screenX: number
         let screenY: number
         if (imageBounds) {
-          screenX = windowPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
-          screenY = windowPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
+          screenX = ghostPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
+          screenY = ghostPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
         } else {
-          screenX = windowPos.x - bubbleWidth / 2
-          screenY = windowPos.y - bubbleHeight / 2
+          screenX = ghostPos.x - bubbleWidth / 2
+          screenY = ghostPos.y - bubbleHeight / 2
         }
         screenX = Math.max(p.margin_x, Math.min(screenX, screenSize.width - bubbleWidth - p.margin_x))
         screenY = Math.max(p.margin_y, Math.min(screenY, screenSize.height - bubbleHeight - p.margin_y))
