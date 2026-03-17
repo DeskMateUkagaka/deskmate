@@ -20,39 +20,51 @@ enum Compositor {
 /// Returns true if the compositor handled positioning, false if the caller
 /// should fall back to Tauri's built-in setPosition.
 #[tauri::command]
-pub fn move_window(title: String, x: i32, y: i32) -> bool {
+pub async fn move_window(title: String, x: i32, y: i32) -> bool {
     let compositor = detect_compositor();
     log::info!("move_window: title={title:?} pos=({x},{y}) compositor={compositor:?}");
 
     match compositor {
-        Compositor::Sway => {
-            let cmd = format!("[title=\"^{}$\"] move absolute position {} {}", title, x, y);
-            match swayipc::Connection::new() {
-                Ok(mut conn) => {
-                    match conn.run_command(&cmd) {
-                        Ok(outcomes) => {
-                            let all_ok = outcomes.iter().all(|o| o.is_ok());
-                            if !all_ok {
-                                let errs: Vec<_> = outcomes.iter().filter_map(|o| o.as_ref().err()).collect();
-                                log::warn!("sway IPC command had failures: {errs:?}");
-                            }
-                            all_ok
-                        }
-                        Err(e) => {
-                            log::warn!("sway IPC run_command failed: {e}");
-                            false
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::warn!("sway IPC connection failed: {e}");
-                    false
-                }
-            }
-        }
+        Compositor::Sway => sway_move_window(&title, x, y).await,
         // TODO: implement Hyprland, KDE, GNOME, etc.
         _ => false,
     }
+}
+
+/// Retry up to 10 times with 100ms async sleep — newly shown windows may not
+/// be in Sway's tree yet. Uses async sleep to avoid blocking the thread so
+/// the window can finish registering with the compositor between retries.
+async fn sway_move_window(title: &str, x: i32, y: i32) -> bool {
+    let cmd = format!("[title=\"^{}$\"] move absolute position {} {}", title, x, y);
+
+    for attempt in 1..=10 {
+        let mut conn = match swayipc::Connection::new() {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("sway IPC connection failed: {e}");
+                return false;
+            }
+        };
+
+        match conn.run_command(&cmd) {
+            Ok(outcomes) if outcomes.iter().all(|o| o.is_ok()) => return true,
+            Ok(outcomes) => {
+                let errs: Vec<_> = outcomes.iter().filter_map(|o| o.as_ref().err()).collect();
+                if errs.iter().any(|e| format!("{e}").contains("No matching node")) && attempt < 10 {
+                    log::info!("move_window: {title:?} not in tree yet, retry {attempt}/10");
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+                log::warn!("sway IPC command failed: {errs:?}");
+                return false;
+            }
+            Err(e) => {
+                log::warn!("sway IPC run_command failed: {e}");
+                return false;
+            }
+        }
+    }
+    false
 }
 
 /// Get a window's position by title using compositor IPC.
