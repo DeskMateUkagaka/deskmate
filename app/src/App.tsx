@@ -331,9 +331,9 @@ export default function App() {
       text: 'Change Skin',
       action: () => showPopup('skin-picker'),
     })
-    const reloadSkinItem = await MenuItem.new({
-      text: 'Reload Skin',
-      action: () => reloadSkins(),
+    const reloadConfigItem = await MenuItem.new({
+      text: 'Reload Settings',
+      action: () => { reloadSkins(); reloadSettings() },
     })
     const buySkins = await MenuItem.new({
       text: 'Buy Skins',
@@ -350,10 +350,10 @@ export default function App() {
       action: () => savePositionAndExit(),
     })
     const menu = await Menu.new({
-      items: [toggleItem, separator0, changeSkin, reloadSkinItem, buySkins, separator, settings, separator2, exitItem],
+      items: [toggleItem, separator0, changeSkin, reloadConfigItem, buySkins, separator, settings, separator2, exitItem],
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
-  }, [reloadSkins])
+  }, [reloadSkins, reloadSettings])
 
   const expressionUrl = getExpressionUrl(currentExpression)
 

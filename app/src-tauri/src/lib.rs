@@ -137,6 +137,7 @@ pub fn run() {
             commands::skin::get_expression_image,
             commands::skin::reload_skins,
             commands::settings::get_settings,
+            commands::settings::reload_settings,
             commands::settings::update_settings,
             commands::chat::connect_gateway,
             commands::chat::get_connection_status,
