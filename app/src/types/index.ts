@@ -5,7 +5,6 @@ export type Expression =
   | 'disgusted'
   | 'condescending'
   | 'thinking'
-  | 'uwamezukai'
   | 'neutral'
 
 export const ALL_EXPRESSIONS: Expression[] = [
@@ -15,7 +14,6 @@ export const ALL_EXPRESSIONS: Expression[] = [
   'disgusted',
   'condescending',
   'thinking',
-  'uwamezukai',
   'neutral',
 ]
 

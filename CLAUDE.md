@@ -82,7 +82,7 @@ Reference implementations in `openclaw/`:
 
 `ChatEventSchema` has NO `expression` field (`additionalProperties: false`). Expressions are parsed client-side from AI text content using `[expression:X]` tags, then stripped from display. Falls back to `neutral`. This is a known fragility — the AI must be prompted to emit these tags.
 
-Valid expressions: `happy`, `sad`, `angry`, `disgusted`, `condescending`, `thinking`, `uwamezukai`, `neutral`
+Valid expressions: `happy`, `sad`, `angry`, `disgusted`, `condescending`, `thinking`, `neutral`
 
 ### Action Buttons
 
@@ -103,7 +103,7 @@ skins/<skin-id>/
   manifest.json     # { name, author, version, expressions: { happy: "happy.png", ... } }
   happy.png
   sad.png
-  ... (8 PNGs total)
+  ... (7 PNGs total)
 ```
 
 ### Key State Management

@@ -27,7 +27,7 @@ interface SessionInfo {
 }
 
 const VALID_EXPRESSIONS: Expression[] = [
-  'happy', 'sad', 'angry', 'disgusted', 'condescending', 'thinking', 'uwamezukai', 'neutral'
+  'happy', 'sad', 'angry', 'disgusted', 'condescending', 'thinking', 'neutral'
 ]
 
 function parseExpression(text: string): Expression {

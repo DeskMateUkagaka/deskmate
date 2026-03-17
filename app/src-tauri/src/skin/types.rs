@@ -8,7 +8,6 @@ pub const EXPRESSIONS: &[&str] = &[
     "disgusted",
     "condescending",
     "thinking",
-    "uwamezukai",
     "neutral",
 ];
 
