@@ -169,19 +169,15 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 
 **Constraint: requires floating window.** On tiling WMs (Sway), `setSize` is ignored for tiled windows. The ghost window must be floating (`for_window [app_id="..."] floating enable` in Sway config).
 
-**The fundamental tradeoff on Wayland (affects almost all modern Linux):**
-1. **Separate windows** can't be positioned programmatically — the compositor controls placement. Compositor-specific workarounds (e.g. `swaymsg`) exist but are too slow for responsive UI.
-2. **Overlays** (DOM within the transparent ghost window) can be positioned freely but suffer from the bleed problem above (fixable with nudge), BUT require a much larger transparent window to have space for overlays (bubble above ghost, chat input below). This larger window blocks clicks on everything behind the transparent area since `setIgnoreCursorEvents` is all-or-nothing — there is no per-element hit-testing on transparent windows.
+**Why overlays were rejected:** Overlays (DOM within the transparent ghost window) avoid the Wayland positioning problem but require a much larger transparent window to contain the bubble, input, and ghost together. Most of that enlarged window is visually empty, yet it intercepts all clicks — the user clicks what looks like the desktop or another app, but the transparent window swallows the event. `setIgnoreCursorEvents` is all-or-nothing for the entire window, and forwarding click events to the app behind is non-trivial. This is unacceptable UX.
 
-**Current decision:** Chat input and chat bubble use overlays within the transparent ghost window (with nudge on dismiss to handle bleed). Settings and skin picker remain as separate opaque windows since they don't need precise positioning. The click-through problem on the enlarged transparent canvas remains unsolved.
+**Current decision:** All UI elements (chat bubble, chat input, settings, skin picker) use **separate windows**. Positioning on Wayland uses compositor-specific workarounds (`swaymsg` for Sway). The ghost window stays small (just the character image).
 
 **Rules:**
-- Use separate opaque windows for complex UI panels (settings, skin picker) that don't need precise positioning
-- Chat input and chat bubble must be overlays in the transparent ghost window — use the size nudge on dismiss to handle bleed
+- All popup UI (bubble, input, settings, skin picker) uses separate windows — never overlays in the ghost window
 - Never use opacity transitions on transparent windows
-- `setIgnoreCursorEvents` is all-or-nothing for the entire window — no per-element control
 - Call `window.setFocus()` after showing a window that needs keyboard input
-- Separate windows are opaque (`transparent: false`), hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`
+- Separate windows are hidden by default (`visible: false`), shown/hidden via `win.show()`/`win.hide()`
 - Inter-window communication uses Tauri events, not shared React state
 
 ### Platform-Specific Window Positioning
