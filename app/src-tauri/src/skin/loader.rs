@@ -67,8 +67,7 @@ impl SkinManager {
                 continue;
             }
 
-            let manifest_path = path.join("manifest.json");
-            if !manifest_path.exists() {
+            if !path.join("manifest.yaml").exists() {
                 continue;
             }
 
@@ -91,11 +90,11 @@ impl SkinManager {
     }
 
     fn load_skin(id: &str, path: &Path) -> Result<LoadedSkin, String> {
-        let manifest_path = path.join("manifest.json");
+        let manifest_path = path.join("manifest.yaml");
         let contents = std::fs::read_to_string(&manifest_path)
             .map_err(|e| format!("Failed to read manifest: {}", e))?;
         let manifest: SkinManifest =
-            serde_json::from_str(&contents).map_err(|e| format!("Invalid manifest JSON: {}", e))?;
+            serde_yaml::from_str(&contents).map_err(|e| format!("Invalid manifest YAML: {}", e))?;
 
         // Validate that all required expressions have PNGs
         for expr in EXPRESSIONS {

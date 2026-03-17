@@ -54,7 +54,7 @@ impl Settings {
             .app_config_dir()
             .expect("failed to get app config dir");
         std::fs::create_dir_all(&config_dir).ok();
-        config_dir.join("config.json")
+        config_dir.join("config.yaml")
     }
 
     pub fn load(app: &tauri::AppHandle) -> Self {
@@ -63,7 +63,7 @@ impl Settings {
             match std::fs::read_to_string(&path) {
                 Ok(contents) => {
                     log::info!("Loaded settings from {}", path.display());
-                    serde_json::from_str(&contents).unwrap_or_default()
+                    serde_yaml::from_str(&contents).unwrap_or_default()
                 }
                 Err(e) => {
                     log::warn!("Failed to read settings file: {}", e);
@@ -78,9 +78,9 @@ impl Settings {
 
     pub fn save(&self, app: &tauri::AppHandle) {
         let path = Self::settings_path(app);
-        match serde_json::to_string_pretty(self) {
-            Ok(json) => {
-                if let Err(e) = std::fs::write(&path, &json) {
+        match serde_yaml::to_string(self) {
+            Ok(yaml) => {
+                if let Err(e) = std::fs::write(&path, &yaml) {
                     log::error!("Failed to write settings to {}: {}", path.display(), e);
                 } else {
                     log::info!("Saved settings to {}", path.display());

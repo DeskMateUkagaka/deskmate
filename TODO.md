@@ -18,6 +18,8 @@
   - [ ] MacOS
   - [ ] Windows
 - [ ] Idle animation - says nothing but sometimes a different neutral variation.
+- [ ] YAML config
+- [ ] When streaming, INTERRUPT button should show up.
 
 ## Art & Assets
 
@@ -39,6 +41,7 @@
 - [ ] Distinct visual style for proactive dialogue vs regular responses
 - [ ] Persist last-used session key (currently always picks first session)
 - [ ] Session selection dropdown in settings
+- [ ] Support for command auto completion
 
 ## Platform Testing
 

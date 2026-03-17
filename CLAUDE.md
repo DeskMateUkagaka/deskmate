@@ -100,7 +100,7 @@ OpenClaw WS → Rust EventFrame listener → app.emit("chat-event") → useOpenC
 Each skin is a folder under `app/skins/`:
 ```
 skins/<skin-id>/
-  manifest.json     # { name, author, version, expressions: { happy: "happy.png", ... } }
+  manifest.yaml     # { name, author, version, expressions: { happy: "happy.png", ... } }
   happy.png
   sad.png
   ... (7 PNGs total)
