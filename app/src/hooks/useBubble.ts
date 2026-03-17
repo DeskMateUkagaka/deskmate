@@ -67,7 +67,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
   // Dismiss on 'x' key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'x' && bubbleState !== 'hidden') {
+      if ((e.key === 'x' || e.key === 'Escape') && bubbleState !== 'hidden') {
         dismiss()
       }
     }

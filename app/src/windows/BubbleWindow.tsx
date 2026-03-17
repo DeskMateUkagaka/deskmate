@@ -103,7 +103,7 @@ export function BubbleWindow() {
   // Dismiss on 'x' key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'x' && data.isVisible) {
+      if ((e.key === 'x' || e.key === 'Escape') && data.isVisible) {
         emit('bubble-action', { action: 'dismiss' })
       }
     }
