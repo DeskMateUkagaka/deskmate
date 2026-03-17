@@ -22,11 +22,14 @@ export interface GhostPosition {
   y: number
 }
 
+export type PlacementOrigin = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
 export interface UiPlacement {
   x: number
   y: number
   margin_x: number
   margin_y: number
+  origin: PlacementOrigin
 }
 
 export interface BubbleTheme {

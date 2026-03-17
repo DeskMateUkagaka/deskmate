@@ -109,13 +109,38 @@ skins/<skin-id>/
 ### Popup Window Positioning Coordinates
 
 Bubble and input windows are positioned relative to the ghost image center on screen:
-- `windowPos` = ghost window's screen position (top-left corner, from compositor or `outerPosition`)
-- `imageBounds` = ghost image bounds within the window (`centerX`, `top`, `width`, `height` in CSS pixels)
+- `ghostPos` = ghost window's screen position (queried fresh from compositor via `getWindowPosition()`)
+- `imageBounds` = ghost image bounds within the window (`centerX`, `centerY`, `top`, `bottom` in CSS pixels)
 - `UiPlacement` (`x`, `y`, `margin_x`, `margin_y`) = skin-defined offset from image center
-- Screen position formula: `screenX = windowPos.x + imageBounds.centerX + placement.x - popupWidth/2`, `screenY = windowPos.y + imageBounds.top + placement.y - popupHeight`
-- Clamped to screen edges using `margin_x`/`margin_y`
 - **Always show before positioning** on Sway (`win.show()` then `moveWindow`) — hidden windows aren't in the compositor tree, so `swaymsg` can't target them. There may be a brief flash at the default position.
 - **Coordinate spaces**: `windowPos` and `imageBounds` are in Sway layout coordinates (logical pixels). Tauri's `win.outerSize()` returns **physical pixels** — always divide by `win.scaleFactor()` before using in position calculations. Mixing physical and logical pixels causes mispositioned windows on HiDPI displays.
+
+### Bubble Window Positioning (App.tsx → BubbleWindow.tsx)
+
+The bubble is a fixed-size transparent window (648x548) with the visible bubble content inside. The visible content is much smaller than the window — positioning must account for both window placement AND content alignment within the window.
+
+**Critical: window position ≠ content position.** The visible bubble content is aligned within the transparent window via CSS flexbox. Any feature that affects where the bubble appears on screen must coordinate BOTH the window position (App.tsx) and the content alignment within the window (BubbleWindow.tsx). Positioning only the window while content stays flex-centered will produce wrong visual results.
+
+**Origin system** (`UiPlacement.origin`): determines which corner of the *visible content* the anchor point refers to. Values: `center` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Origin affects:
+1. **Window position** (App.tsx): which corner of the window aligns with the anchor
+2. **Content flex alignment** (BubbleWindow.tsx): `alignItems`/`justifyContent` match the origin corner so the visible content sits at the correct window corner
+3. **Content offset clamping** (BubbleWindow.tsx): shift limits depend on which corner content is anchored to — content anchored at `flex-end` can shift toward `flex-start` but not further past the edge
+
+**Stage 1 — Window positioning (App.tsx):**
+1. Compute anchor: `anchorX = ghostPos.x + imageBounds.centerX + placement.x`
+2. Apply origin offset to get window top-left: e.g., `bottom-right` → `idealX = anchorX - 648`
+3. Clamp to screen edges: `screenX = clamp(idealX, margin_x, screenWidth - 648 - margin_x)`
+4. Compute content offset: `contentOffsetX = idealX - screenX` (how far clamping shifted the window)
+5. Emit `bubble-update` event with `contentOffsetX`/`contentOffsetY` and `origin` to BubbleWindow
+
+**Stage 2 — Content alignment (BubbleWindow.tsx):**
+1. Set flex alignment from origin (e.g., `bottom-right` → `alignItems: flex-end, justifyContent: flex-end`)
+2. Receive `contentOffsetX`/`contentOffsetY` from App
+3. Measure actual wrapper size via ref (`wrapperRef.current.offsetWidth`)
+4. Clamp offset based on origin: content at `flex-start` can shift toward `flex-end` (full space), not past `flex-start` (0). Content at `center` can shift half the space each way.
+5. Apply as `transform: translate(clampedX, clampedY)` on the bubble wrapper
+
+This two-stage approach keeps the visible bubble aligned to the ghost even when the transparent window is clamped to a screen edge. Small bubbles (e.g., short "ACK" messages) shift more; wide bubbles filling the max width barely shift.
 
 ### Key State Management
 

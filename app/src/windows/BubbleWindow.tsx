@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
-import type { BubbleTheme } from '../types'
+import type { BubbleTheme, PlacementOrigin } from '../types'
 
 interface BubbleData {
   text: string
@@ -17,6 +17,7 @@ interface BubbleData {
   bubbleTheme: BubbleTheme | null
   contentOffsetX: number
   contentOffsetY: number
+  origin: PlacementOrigin
 }
 
 // Defaults matching the original hardcoded styles
@@ -57,6 +58,7 @@ export function BubbleWindow() {
     bubbleTheme: null,
     contentOffsetX: 0,
     contentOffsetY: 0,
+    origin: 'center',
   })
   const [progress, setProgress] = useState(1)
   const wasStreamingRef = useRef(false)
@@ -106,7 +108,8 @@ export function BubbleWindow() {
     return () => clearInterval(interval)
   }, [data.finalizedAt, data.timeoutMs, data.isPinned])
 
-  // Clamp content offset so the visible bubble stays within the window
+  // Clamp content offset so the visible bubble stays within the window.
+  // Available shift space depends on origin alignment (which corner content is anchored to).
   useLayoutEffect(() => {
     if (!wrapperRef.current) {
       setClampedOffset({ x: 0, y: 0 })
@@ -115,13 +118,26 @@ export function BubbleWindow() {
     const padding = 4
     const wrapperW = wrapperRef.current.offsetWidth
     const wrapperH = wrapperRef.current.offsetHeight
-    const maxShiftX = Math.max(0, (window.innerWidth - 2 * padding - wrapperW) / 2)
-    const maxShiftY = Math.max(0, (window.innerHeight - 2 * padding - wrapperH) / 2)
+    const spaceX = Math.max(0, window.innerWidth - 2 * padding - wrapperW)
+    const spaceY = Math.max(0, window.innerHeight - 2 * padding - wrapperH)
+
+    // Origin determines where content sits naturally, which affects how far it can shift
+    const o = data.origin
+    const isLeft = o === 'top-left' || o === 'bottom-left'
+    const isRight = o === 'top-right' || o === 'bottom-right'
+    const isTop = o === 'top-left' || o === 'top-right'
+    const isBottom = o === 'bottom-left' || o === 'bottom-right'
+
+    const minX = isRight ? -spaceX : isLeft ? 0 : -spaceX / 2
+    const maxX = isRight ? 0 : isLeft ? spaceX : spaceX / 2
+    const minY = isBottom ? -spaceY : isTop ? 0 : -spaceY / 2
+    const maxY = isBottom ? 0 : isTop ? spaceY : spaceY / 2
+
     setClampedOffset({
-      x: Math.max(-maxShiftX, Math.min(data.contentOffsetX, maxShiftX)),
-      y: Math.max(-maxShiftY, Math.min(data.contentOffsetY, maxShiftY)),
+      x: Math.max(minX, Math.min(data.contentOffsetX, maxX)),
+      y: Math.max(minY, Math.min(data.contentOffsetY, maxY)),
     })
-  }, [data.contentOffsetX, data.contentOffsetY, data.text, data.isStreaming])
+  }, [data.contentOffsetX, data.contentOffsetY, data.origin, data.text, data.isStreaming])
 
   // Nudge repaint when pin state changes (buttons/progress bar appear/disappear)
   const prevPinnedRef = useRef(data.isPinned)
@@ -179,13 +195,18 @@ export function BubbleWindow() {
   const maxBubbleWidth = t?.max_bubble_width ?? 640
   const maxBubbleHeight = t?.max_bubble_height ?? 540
 
+  const alignH = data.origin.includes('left') ? 'flex-start'
+    : data.origin.includes('right') ? 'flex-end' : 'center'
+  const alignV = data.origin.startsWith('top') ? 'flex-start'
+    : data.origin.startsWith('bottom') ? 'flex-end' : 'center'
+
   const outerStyle: CSSProperties = {
     width: '100vw',
     height: '100vh',
     background: 'transparent',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: alignV,
+    justifyContent: alignH,
     padding: 4,
   }
 

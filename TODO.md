@@ -18,13 +18,15 @@
   - [ ] Sway
   - [ ] MacOS
   - [ ] Windows
+- [ ] Idle animation - says nothing but sometimes a different neutral variation.
 
 ## Art & Assets
 
-- [ ] Commission or create real character art (8 expression PNGs per skin)
+- [ ] Commission or create real character art (7 expression PNGs per skin)
 - [ ] Decide character PNG resolution / window size (classic Ukagaka: ~200x400px)
 - [ ] Replace placeholder colored-circle PNGs with actual artwork
 - [ ] Create at least 2 skins to test skin switching
+- [ ] Tray icon
 
 ## UX Polish
 

@@ -105,15 +105,20 @@ export default function App() {
     const actualWidth = actualSize.width / scaleFactor
     const actualHeight = actualSize.height / scaleFactor
 
-    // Compute screen position centered on ghost image + placement offset
+    // Placement values are in original PNG pixel coordinates — scale to display
+    const s = imageBounds?.scale ?? 1
+    const px = p.x * s
+    const py = p.y * s
+
+    // Compute screen position centered on ghost image + scaled placement offset
     let centerX: number
     let centerY: number
     if (imageBounds) {
-      centerX = ghostPos.x + imageBounds.centerX + p.x
-      centerY = ghostPos.y + imageBounds.centerY + p.y
+      centerX = ghostPos.x + imageBounds.centerX + px
+      centerY = ghostPos.y + imageBounds.centerY + py
     } else {
-      centerX = ghostPos.x + p.x
-      centerY = ghostPos.y + p.y
+      centerX = ghostPos.x + px
+      centerY = ghostPos.y + py
     }
 
     debugLog(`[showChatInput] ghostPos=(${ghostPos.x}, ${ghostPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
@@ -206,6 +211,7 @@ export default function App() {
 
   // Position and update the bubble popup window
   useEffect(() => {
+    const origin = currentSkin?.bubble_placement?.origin ?? 'center'
     const emitBubbleUpdate = (contentOffsetX = 0, contentOffsetY = 0) =>
       emit('bubble-update', {
         text: bubble.text,
@@ -217,6 +223,7 @@ export default function App() {
         bubbleTheme: currentSkin?.bubble_theme ?? null,
         contentOffsetX,
         contentOffsetY,
+        origin,
       })
 
     if (bubble.isVisible) {
@@ -224,19 +231,35 @@ export default function App() {
         const win = await getWindowByLabel('bubble')
         if (!win) return
         const ghostPos = await getGhostPos()
-        const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10 }
+        const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, margin_x: 10, margin_y: 10, origin: 'center' as const }
         const bubbleWidth = 648
         const bubbleHeight = 548
 
-        // Ideal position: center the window on the ghost image + placement offset
+        // Placement values are in original PNG pixel coordinates — scale to display
+        const s = imageBounds?.scale ?? 1
+        const px = p.x * s
+        const py = p.y * s
+
+        // Anchor point: ghost image center + scaled placement offset
+        let anchorX: number
+        let anchorY: number
+        if (imageBounds) {
+          anchorX = ghostPos.x + imageBounds.centerX + px
+          anchorY = ghostPos.y + imageBounds.centerY + py
+        } else {
+          anchorX = ghostPos.x + px
+          anchorY = ghostPos.y + py
+        }
+
+        // Origin determines which point of the bubble window the anchor refers to
         let idealX: number
         let idealY: number
-        if (imageBounds) {
-          idealX = ghostPos.x + imageBounds.centerX + p.x - bubbleWidth / 2
-          idealY = ghostPos.y + imageBounds.centerY + p.y - bubbleHeight / 2
-        } else {
-          idealX = ghostPos.x - bubbleWidth / 2
-          idealY = ghostPos.y - bubbleHeight / 2
+        switch (origin) {
+          case 'top-left':     idealX = anchorX;                  idealY = anchorY;                   break
+          case 'top-right':    idealX = anchorX - bubbleWidth;    idealY = anchorY;                   break
+          case 'bottom-left':  idealX = anchorX;                  idealY = anchorY - bubbleHeight;    break
+          case 'bottom-right': idealX = anchorX - bubbleWidth;    idealY = anchorY - bubbleHeight;    break
+          default:             idealX = anchorX - bubbleWidth / 2; idealY = anchorY - bubbleHeight / 2; break
         }
         const screenX = Math.max(p.margin_x, Math.min(idealX, screenSize.width - bubbleWidth - p.margin_x))
         const screenY = Math.max(p.margin_y, Math.min(idealY, screenSize.height - bubbleHeight - p.margin_y))

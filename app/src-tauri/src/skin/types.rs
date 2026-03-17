@@ -42,6 +42,18 @@ pub struct BubbleTheme {
     pub max_bubble_height: Option<u32>,
 }
 
+/// Which corner of the popup the (x, y) coordinate refers to.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PlacementOrigin {
+    #[default]
+    Center,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
 /// UI element placement: pixel offset from ghost image center + screen-edge margins.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UiPlacement {
@@ -57,6 +69,9 @@ pub struct UiPlacement {
     /// Minimum vertical distance from screen edge (px)
     #[serde(default)]
     pub margin_y: f64,
+    /// Which corner of the popup the coordinate refers to
+    #[serde(default)]
+    pub origin: PlacementOrigin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

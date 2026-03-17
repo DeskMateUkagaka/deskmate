@@ -11,7 +11,7 @@
     "thinking": "thinking.png",
     "neutral": "neutral.png"
   },
-  "bubble_placement": { "x": 0, "y": 0, "margin_x": 10, "margin_y": 10 },
+  "bubble_placement": { "x": -178, "y": -589, "margin_x": 10, "margin_y": 10, "origin": "bottom-right" },
   "input_placement": { "x": 0, "y": 0, "margin_x": 10, "margin_y": 10 },
   "bubble": {
     "background_color": "#ffffff",

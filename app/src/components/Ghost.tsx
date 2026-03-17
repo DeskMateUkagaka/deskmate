@@ -11,6 +11,7 @@ export interface ImageBounds {
   bottom: number
   centerX: number
   centerY: number
+  scale: number // targetHeight / naturalHeight — for scaling manifest placement values
 }
 
 interface GhostProps {
@@ -44,11 +45,13 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
     const reportBounds = () => {
       if (imgRef.current && onImageBounds) {
         const rect = imgRef.current.getBoundingClientRect()
+        const nat = imgRef.current.naturalHeight
         onImageBounds({
           top: rect.top,
           bottom: rect.bottom,
           centerX: rect.left + rect.width / 2,
           centerY: rect.top + rect.height / 2,
+          scale: nat > 0 ? targetHeight / nat : 1,
         })
       }
     }
@@ -177,6 +180,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
                 bottom: rect.bottom,
                 centerX: rect.left + rect.width / 2,
                 centerY: rect.top + rect.height / 2,
+                scale: img.naturalHeight > 0 ? targetHeight / img.naturalHeight : 1,
               })
             }
           }}
