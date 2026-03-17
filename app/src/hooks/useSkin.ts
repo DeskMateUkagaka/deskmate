@@ -48,7 +48,8 @@ export function useSkin(): UseSkinReturn {
     return expressionUrls[expression] ?? expressionUrls['neutral'] ?? ''
   }, [expressionUrls])
 
-  const reloadSkins = useCallback(() => {
+  const reloadSkins = useCallback(async () => {
+    await invoke('reload_skins')
     invoke<SkinInfo[]>('list_skins').then(setSkins).catch(() => {})
     invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
   }, [])

@@ -135,6 +135,7 @@ pub fn run() {
             commands::skin::get_current_skin,
             commands::skin::switch_skin,
             commands::skin::get_expression_image,
+            commands::skin::reload_skins,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::chat::connect_gateway,

@@ -22,6 +22,12 @@ pub fn switch_skin(skin_id: String, skin_manager: State<Mutex<SkinManager>>) -> 
 }
 
 #[tauri::command]
+pub fn reload_skins(skin_manager: State<Mutex<SkinManager>>) {
+    let mut sm = skin_manager.lock().unwrap();
+    sm.reload();
+}
+
+#[tauri::command]
 pub fn get_expression_image(
     expression: String,
     skin_manager: State<Mutex<SkinManager>>,

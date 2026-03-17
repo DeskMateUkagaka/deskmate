@@ -129,6 +129,16 @@ impl SkinManager {
         })
     }
 
+    pub fn reload(&mut self) {
+        let current = self.current_skin_id.clone();
+        self.scan_skins();
+        // Keep current skin if it still exists after reload
+        if self.skins.contains_key(&current) {
+            self.current_skin_id = current;
+        }
+        log::info!("Reloaded skins from disk");
+    }
+
     pub fn list_skins(&self) -> Vec<SkinInfo> {
         self.skins.values().map(|s| s.info.clone()).collect()
     }
