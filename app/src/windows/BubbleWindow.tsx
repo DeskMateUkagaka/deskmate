@@ -135,8 +135,11 @@ export function BubbleWindow() {
   // Dismiss on 'x' key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.key === 'x' || e.key === 'Escape') && data.isVisible) {
+      if (!data.isVisible) return
+      if (e.key === 'x' || e.key === 'Escape') {
         emit('bubble-action', { action: 'dismiss' })
+      } else if (e.key === 'p' && !data.isPinned) {
+        emit('bubble-action', { action: 'pin' })
       }
     }
     document.addEventListener('keyup', handler)
@@ -311,7 +314,7 @@ export function BubbleWindow() {
               )}
               {!data.isPinned && (
                 <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'pin' })}>
-                  Pin
+                  Pin (p)
                 </button>
               )}
               <button style={secondaryPillStyle} onClick={() => emit('bubble-action', { action: 'dismiss' })}>
