@@ -1,87 +1,153 @@
 # Ukagaka v1 TODO
 
-## Critical — Must Test Before First Real Use
+## Immediate Product Gaps
 
 - [ ] Copy text from the bubble
-- [x] Test against live OpenClaw gateway (challenge/nonce handshake, token auth)
-- [x] Test Wayland transparency (`GDK_BACKEND=wayland`) — may need `gtk-layer-shell`
-- [ ] Configure OpenClaw agent system prompt to emit `[expression:X]` tags
-- [ ] Decide expression tag delivery method: `chat.inject` RPC, manual agent config, or prepend to each message
-- [ ] Test with actual AI responses: verify expression parsing + stripping works end-to-end
-- [x] Tray icon to show/hide on left click. Context menu on right click
-- [ ] Quake terminal that shows all the conversations
-- [ ] Global shortcut key that hides/shows the UI
-- [ ] Investigate `outerPosition()` returning (0,0) on Sway/Wayland — ghost position not saved after drag
-- [ ] Test under many desktop environments
-  - [ ] X11 + i3
-  - [ ] KDE Plasma Wayland
-  - [ ] Sway
-  - [ ] MacOS
-  - [ ] Windows
-- [ ] Idle animation - says nothing but sometimes a different neutral variation.
-- [ ] YAML config
-- [ ] When streaming, INTERRUPT button should show up.
+- [ ] Add a conversation history / quake-style terminal window
+- [ ] Add a global shortcut to show/hide the ghost
+- [ ] Add an actual poke reaction for middle-click instead of just logging `poke!`
+- [ ] Add idle animation / neutral variation when the character is not speaking
+- [ ] Distinguish proactive dialogue visually from normal replies
+- [ ] Persist the last-used session key instead of always using `main`
+- [ ] Add a session picker UI backed by `list_sessions`
+- [ ] Add command autocomplete in the chat input
+- [ ] Turn the existing token field into a proper first-run setup flow
 
-## Art & Assets
+## Runtime Verification
+
+- [x] Test against a live OpenClaw gateway (challenge/nonce handshake, token auth)
+- [x] Test Wayland transparency (`GDK_BACKEND=wayland`)
+- [x] Verify `[emotion:X]` prompting end-to-end with actual model responses
+- [x] Decide where the `[emotion:X]` contract should be injected: `chat.inject`, agent config, or per-message prelude
+
+## Platform Test Matrix
+
+### Linux - Sway (Wayland)
+
+- [x] Transparent ghost window renders correctly with the WebKitGTK workaround
+- [x] Popup positioning works via `swaymsg` compositor IPC
+- [x] Hidden popup windows are shown before being moved
+- [x] Floating-window rule requirement is documented
+- [x] Bubble repaint nudge workaround is in place for transparency bleed
+- [x] Save/restore ghost position after drag
+- [ ] Bubble stays correctly anchored after repeated drags
+
+### Linux - X11 + i3
+
+- [ ] Floating-window rule requirement works in practice
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Tauri fallback window positioning behaves correctly on X11
+- [ ] Bubble and chat-input positioning remain correct after multiple drags
+
+### Linux - Hyprland (Wayland)
+
+- [ ] Implement compositor-specific window positioning
+- [ ] Transparent ghost window renders correctly
+- [ ] Floating-window rules behave correctly
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Bubble and chat-input placement work after repeated drags
+
+### Linux - KDE Plasma Wayland
+
+- [ ] Implement compositor-specific window positioning
+- [ ] Transparent ghost window renders correctly
+- [ ] Window rules for floating / always-on-top work correctly
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Multi-monitor placement behaves correctly
+
+### Linux - GNOME / Mutter Wayland
+
+- [ ] Implement compositor-specific window positioning
+- [ ] Transparent ghost window renders correctly
+- [ ] Always-on-top behavior works with GNOME tooling or extensions
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Bubble and popup focus behavior remain correct
+
+### macOS
+
+- [ ] App builds successfully
+- [ ] Transparent ghost window renders correctly
+- [ ] Tray icon behavior works correctly
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Bubble, settings, and chat-input windows position correctly
+- [ ] Multi-monitor placement behaves correctly
+
+### Windows
+
+- [ ] App builds successfully
+- [ ] Transparent ghost window renders correctly
+- [ ] Tray icon behavior works correctly
+- [ ] Ghost drag updates and persists position correctly
+- [ ] Restart restores the saved ghost position
+- [ ] Bubble, settings, and chat-input windows position correctly
+- [ ] Multi-monitor placement behaves correctly
+
+### Cross-Platform Windowing Regressions
+
+- [ ] Dragging the ghost does not break later popup positioning
+- [ ] Ghost position survives normal exit and restart
+- [ ] Save-on-exit failure does not block app shutdown
+- [ ] HiDPI coordinate conversions stay correct across drag, restore, and popup placement
+- [ ] Transparent-window repaint workaround still clears bleed after show/hide cycles
+- [ ] Keyboard focus returns to the correct window after popup close
+
+## Art And Content
 
 - [ ] Commission or create real character art (7 expression PNGs per skin)
-- [ ] Decide character PNG resolution / window size (classic Ukagaka: ~200x400px)
-- [ ] Replace placeholder colored-circle PNGs with actual artwork
-- [ ] Create at least 2 skins to test skin switching
-- [ ] Tray icon
+- [ ] Decide production character PNG resolution / default window size
+- [ ] Replace placeholder default skin artwork with final art
+- [ ] Create at least 2 real skins to test switching and packaging
+- [ ] Replace the default tray icon artwork
 
-## UX Polish
+## Platform And Packaging
 
-- [ ] Gateway token setup: add GUI (in Settings window or first-run flow) to let users paste their gateway token, instead of requiring manual settings.json editing
-- [ ] Implement middle-click "poking" interaction (trigger character reaction, e.g. annoyed expression + bubble)
-- [x] Add system tray icon (show/hide character, quit app)
-- [ ] Handle multi-monitor: character stays on placed monitor
-- [x] Bubble lifetime UX: 60s countdown progress bar, pin button, dismiss with `x` key, removed Expand
-- [ ] Bubble positioning at screen edges (don't go off-screen)
-- [ ] Resize window dynamically to fit character PNG dimensions
-- [ ] Distinct visual style for proactive dialogue vs regular responses
-- [ ] Persist last-used session key (currently always picks first session)
-- [ ] Session selection dropdown in settings
-- [ ] Support for command auto completion
+- [ ] Add real multi-monitor support instead of relying on `window.screen`
+- [ ] Test Linux Wayland compositors beyond Sway and implement compositor-specific window movement where needed
+- [ ] Implement Hyprland window positioning in the Rust window command
+- [ ] Test tiling WM requirements and document any remaining floating-window rules
+- [ ] Build and test on macOS
+- [ ] Build and test on Windows
+- [ ] Fix AppImage bundling
 
-## Platform Testing
+## Gateway And Protocol Follow-ups
 
-- [ ] Test on Linux X11 (primary dev platform) — full functionality
-- [ ] Test on Linux Wayland (Sway, Mutter, KWin) — transparency + always-on-top
-- [ ] Test tiling WMs (i3, sway, Hyprland) — document float rule requirements
-- [ ] macOS build + test (NSWindow transparency, notarization prep)
-- [ ] Windows build + test (WS_EX_LAYERED, always-on-top behavior)
-- [ ] Fix AppImage bundling (linuxdeploy issue)
-
-## Gateway Integration
-
-- [ ] Confirm local dev gateway auth mode (token vs none)
-- [ ] Build mock WS server for offline development/testing
-- [ ] Test WebSocket reconnection with exponential backoff
-- [ ] Test `chat.abort` (cancel in-flight response)
-- [ ] Verify `idempotencyKey` prevents duplicate sends on reconnect
-- [ ] Verify seq-based ordering for streaming deltas
-
-## Known Fragilities
-
-- [ ] Expression tag parsing is fragile (AI may forget/misformat tags) — neutral fallback works but degrades UX
-- [ ] Action buttons are hardcoded (no AI-decided buttons possible without protocol extension)
-- [ ] Token-only auth (no device identity) — sufficient for local gateway, not for remote
-
-## v2 Roadmap (not in scope now)
-
-- [ ] Protocol-native expression field (requires OpenClaw PR to extend ChatEventSchema)
-- [ ] AI-decided action buttons via protocol extension
-- [ ] Device identity auth (key-pair signing, nonce binding)
-- [ ] Animated expression transitions
-- [ ] Sidekick/kero character (separate OpenClaw agent)
-- [ ] Steam Workshop skin upload/download implementation
-- [ ] Voice output / TTS
-- [ ] Multi-window architecture (if hit-testing proves unreliable)
+- [ ] Build a mock WebSocket server for offline development/testing
+- [ ] Exercise reconnection and exponential backoff against a real gateway failure/recovery cycle
+- [ ] Test `chat_abort` against a real in-flight run
+- [ ] Verify `idempotencyKey` behavior on reconnect/retry paths
+- [ ] Verify `seq` ordering assumptions for streaming deltas
+- [ ] Decide whether action buttons should stay hardcoded or move to a protocol extension later
 
 ## Housekeeping
 
-- [ ] Set "Buy Skins" URL (needs Steam store page or placeholder)
-- [ ] Add app icon (replace Tauri default icons)
-- [ ] Write user-facing README with setup instructions
-- [ ] Document skin creation guide for community
+- [ ] Set the Buy Skins URL
+- [ ] Replace the default app icons
+- [ ] Expand the top-level README into a user-facing setup guide
+- [ ] Document skin creation for community authors
+
+## Later / v2
+
+- [ ] Protocol-native emotion/expression field instead of tag parsing
+- [ ] AI-decided action buttons via protocol extension
+- [ ] Device identity auth (key-pair signing, nonce binding)
+- [ ] Animated expression transitions
+- [ ] Sidekick / kero character
+- [ ] Steam Workshop skin upload/download
+- [ ] Voice output / TTS
+
+## Already Landed In Code
+
+- [x] Tray icon with show/hide, Change Skin, Settings, and Exit
+- [x] Bubble lifetime UX: countdown progress bar, pin, dismiss with `x` / `Escape`
+- [x] Bubble edge clamping with content offset compensation near screen edges
+- [x] Dynamic ghost window sizing from skin image dimensions
+- [x] Settings stored in `config.yaml`
+- [x] Gateway URL/token editable from the Settings window
+- [x] Backend support for `chat_abort`
+- [x] Reconnection loop with exponential backoff in the gateway client
+- [x] Bubble Markdown rendering with themed code blocks
