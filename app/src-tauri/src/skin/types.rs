@@ -32,6 +32,17 @@ pub struct BubbleTheme {
     pub max_bubble_height: Option<u32>,
 }
 
+/// Input box theme: max dimensions for the growable chat input.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct InputTheme {
+    /// Maximum input width in pixels (default: 640)
+    #[serde(default)]
+    pub max_width: Option<u32>,
+    /// Maximum input height in pixels (default: 480)
+    #[serde(default)]
+    pub max_height: Option<u32>,
+}
+
 /// Which corner of the popup the (x, y) coordinate refers to.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -71,6 +82,9 @@ pub struct SkinManifest {
     /// Bubble visual theme (colors, borders, fonts)
     #[serde(default)]
     pub bubble: Option<BubbleTheme>,
+    /// Input box theme (max dimensions)
+    #[serde(default)]
+    pub input: Option<InputTheme>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,4 +99,5 @@ pub struct SkinInfo {
     pub bubble_placement: Option<UiPlacement>,
     pub input_placement: Option<UiPlacement>,
     pub bubble_theme: Option<BubbleTheme>,
+    pub input_theme: Option<InputTheme>,
 }

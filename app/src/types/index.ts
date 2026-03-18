@@ -26,6 +26,11 @@ export interface BubbleTheme {
   max_bubble_height: number | null
 }
 
+export interface InputTheme {
+  max_width: number | null
+  max_height: number | null
+}
+
 export interface SkinInfo {
   id: string
   name: string
@@ -37,6 +42,7 @@ export interface SkinInfo {
   bubble_placement: UiPlacement | null
   input_placement: UiPlacement | null
   bubble_theme: BubbleTheme | null
+  input_theme: InputTheme | null
 }
 
 export interface Settings {

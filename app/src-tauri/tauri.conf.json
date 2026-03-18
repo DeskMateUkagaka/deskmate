@@ -45,7 +45,7 @@
         "title": "ukagaka-input",
         "width": 280,
         "height": 44,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,

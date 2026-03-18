@@ -98,6 +98,18 @@ export default function App() {
     const inputWidth = 280
     const inputHeight = 44
 
+    // Send max dimensions from skin manifest to the input window, capped by screen margins
+    const maxWidth = Math.min(
+      currentSkin?.input_theme?.max_width ?? 640,
+      screenSize.width - settings.popup_margin_left - settings.popup_margin_right,
+    )
+    const maxHeight = Math.min(
+      currentSkin?.input_theme?.max_height ?? 480,
+      screenSize.height - settings.popup_margin_top - settings.popup_margin_bottom,
+    )
+    await emit('input-config', { maxWidth, maxHeight })
+
+    // Reset to initial small size (will auto-grow as user types)
     await win.setSize(new LogicalSize(inputWidth, inputHeight))
     // GTK may enforce a minimum window size — query actual size for positioning
     // outerSize() returns physical pixels; convert to logical for Sway layout coords
@@ -137,6 +149,44 @@ export default function App() {
     await moveWindow(win, screenX, screenY)
     await win.setFocus()
   }, [imageBounds, windowPos, screenSize, currentSkin])
+
+  // Reposition input window when it resizes (auto-grow), clamping to screen margins
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    listen<{ width: number; height: number }>('input-resized', async (event) => {
+      const win = await getWindowByLabel('chat-input')
+      if (!win) return
+
+      const ghostPos = await getGhostPos()
+      const p = currentSkin?.input_placement ?? { x: 0, y: -10, origin: 'center' as const }
+      const s = imageBounds?.scale ?? 1
+      const px = p.x * s
+      const py = p.y * s
+
+      let centerX: number
+      let centerY: number
+      if (imageBounds) {
+        centerX = ghostPos.x + imageBounds.centerX + px
+        centerY = ghostPos.y + imageBounds.centerY + py
+      } else {
+        centerX = ghostPos.x + px
+        centerY = ghostPos.y + py
+      }
+
+      // GTK may enforce minimum — query actual size
+      const actualSize = await win.outerSize()
+      const scaleFactor = await win.scaleFactor()
+      const actualWidth = actualSize.width / scaleFactor
+      const actualHeight = actualSize.height / scaleFactor
+
+      let screenX = centerX - actualWidth / 2
+      let screenY = centerY - actualHeight
+      screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
+      screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
+      await moveWindow(win, screenX, screenY)
+    }).then((fn) => { unlisten = fn })
+    return () => unlisten?.()
+  }, [imageBounds, screenSize, currentSkin, settings, getGhostPos])
 
   // Enter key opens chat input, Ctrl+Q exits
   useEffect(() => {
