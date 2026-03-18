@@ -148,6 +148,7 @@ pub fn run() {
             commands::proactive::stop_proactive,
             commands::window::move_window,
             commands::window::get_window_position,
+            commands::window::uses_compositor_ipc,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

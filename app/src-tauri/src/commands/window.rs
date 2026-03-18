@@ -1,3 +1,10 @@
+/// Returns true if window positioning uses slow compositor IPC (e.g. swaymsg).
+/// Frontend uses this to debounce repositioning.
+#[tauri::command]
+pub fn uses_compositor_ipc() -> bool {
+    matches!(detect_compositor(), Compositor::Sway)
+}
+
 /// Detect the current desktop environment / compositor.
 fn detect_compositor() -> Compositor {
     if std::env::var("SWAYSOCK").is_ok() {

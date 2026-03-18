@@ -291,10 +291,10 @@ export function BubbleWindow() {
         <div className="bubble-markdown" style={bubbleStyle}>
           <div style={{ minHeight: 20 }}>
             {data.isStreaming ? (
-              <>
+              <span style={{ whiteSpace: 'pre-wrap' }}>
                 {data.text}
                 <span style={{ display: 'inline-block', marginLeft: 2, animation: 'blink 1s step-end infinite' }}>▋</span>
-              </>
+              </span>
             ) : (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
