@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, type CSSProperties } from 'react'
 import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 import ReactMarkdown from 'react-markdown'
@@ -66,6 +66,8 @@ export function BubbleWindow() {
   const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 })
   const [copied, setCopied] = useState<false | 'full' | 'selection'>(false)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dataRef = useRef(data)
+  dataRef.current = data
 
   const copyText = () => {
     navigator.clipboard.writeText(data.text)
@@ -160,26 +162,28 @@ export function BubbleWindow() {
   // Dismiss on 'x' key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!data.isVisible) return
+      const d = dataRef.current
+      if (!d.isVisible) return
       if (e.key === 'x' || e.key === 'Escape') {
         emit('bubble-action', { action: 'dismiss' })
       } else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
         const selection = window.getSelection()?.toString()
-        if (!selection) {
-          e.preventDefault()
-          copyText()
-        } else {
-          // Let browser handle the copy, then show feedback
+        if (selection) {
+          // Let browser handle the native copy to preserve selection highlight
           setCopied('selection')
-          if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
-          copiedTimerRef.current = setTimeout(() => setCopied(false), 1500)
+        } else {
+          e.preventDefault()
+          navigator.clipboard.writeText(d.text)
+          setCopied('full')
         }
-      } else if (e.key === 'p' && !data.isPinned) {
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 1500)
+      } else if (e.key === 'p' && !d.isPinned) {
         emit('bubble-action', { action: 'pin' })
       }
     }
-    document.addEventListener('keyup', handler)
-    return () => document.removeEventListener('keyup', handler)
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
   }, [data.isVisible])
 
   // Nudge repaint on finalization (streaming → rendered Markdown) to clear bleed
@@ -199,15 +203,47 @@ export function BubbleWindow() {
     }
   }, [data.isVisible])
 
+  const t = data.bubbleTheme
+  const accentColor = themeVal(t, 'accent_color', DEFAULTS.accentColor)
+
+  const markdownContent = useMemo(() => (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        pre: ({ children, ...props }) => (
+          <pre {...props} style={{ overflowX: 'auto', background: 'var(--code-bg)', color: 'var(--code-text)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: '12px', lineHeight: 1.4 }}>
+            {children}
+          </pre>
+        ),
+        code: ({ children, className, ...props }) => {
+          if (!className) {
+            return (
+              <code {...props} style={{ background: 'var(--code-bg)', color: 'var(--code-text)', padding: '1px 4px', borderRadius: 3, fontSize: '0.9em' }}>
+                {children}
+              </code>
+            )
+          }
+          return <code className={className} {...props}>{children}</code>
+        },
+        a: ({ children, href, ...props }) => (
+          <a {...props} href={href} style={{ color: accentColor, textDecoration: 'underline' }} target="_blank" rel="noopener noreferrer">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {data.text}
+    </ReactMarkdown>
+  ), [data.text, accentColor])
+
   if (!data.isVisible) return null
 
-  const t = data.bubbleTheme
   const bg = themeVal(t, 'background_color', DEFAULTS.backgroundColor)
   const borderColor = themeVal(t, 'border_color', DEFAULTS.borderColor)
   const borderWidth = themeVal(t, 'border_width', DEFAULTS.borderWidth)
   const borderRadius = themeVal(t, 'border_radius', DEFAULTS.borderRadius)
   const textColor = themeVal(t, 'text_color', DEFAULTS.textColor)
-  const accentColor = themeVal(t, 'accent_color', DEFAULTS.accentColor)
   const codeBg = themeVal(t, 'code_background', DEFAULTS.codeBackground)
   const codeText = themeVal(t, 'code_text_color', DEFAULTS.codeTextColor)
   const fontSize = themeVal(t, 'font_size', DEFAULTS.fontSize)
@@ -319,34 +355,7 @@ export function BubbleWindow() {
                 <span style={{ display: 'inline-block', marginLeft: 2, animation: 'blink 1s step-end infinite' }}>▋</span>
               </span>
             ) : (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-                components={{
-                  pre: ({ children, ...props }) => (
-                    <pre {...props} style={{ overflowX: 'auto', background: 'var(--code-bg)', color: 'var(--code-text)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: '12px', lineHeight: 1.4 }}>
-                      {children}
-                    </pre>
-                  ),
-                  code: ({ children, className, ...props }) => {
-                    if (!className) {
-                      return (
-                        <code {...props} style={{ background: 'var(--code-bg)', color: 'var(--code-text)', padding: '1px 4px', borderRadius: 3, fontSize: '0.9em' }}>
-                          {children}
-                        </code>
-                      )
-                    }
-                    return <code className={className} {...props}>{children}</code>
-                  },
-                  a: ({ children, href, ...props }) => (
-                    <a {...props} href={href} style={{ color: accentColor, textDecoration: 'underline' }} target="_blank" rel="noopener noreferrer">
-                      {children}
-                    </a>
-                  ),
-                }}
-              >
-                {data.text}
-              </ReactMarkdown>
+              markdownContent
             )}
           </div>
           {!data.isStreaming && (

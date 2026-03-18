@@ -58,6 +58,12 @@ button {
   color: var(--code-text, #333333) !important;
 }
 
+/* Bubble Markdown: ensure text selection works despite body { user-select: none } */
+.bubble-markdown, .bubble-markdown * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Bubble Markdown: base typography */
 .bubble-markdown h1, .bubble-markdown h2, .bubble-markdown h3,
 .bubble-markdown h4, .bubble-markdown h5, .bubble-markdown h6 {

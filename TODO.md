@@ -4,8 +4,10 @@
 
 - [ ] Copy text from the bubble
   - [x] Ctrl+C with selection works
-  - [ ] Ctrl+C without selection won't work
-  - [ ] Can't select the code block to copy
+  - [x] Ctrl+C without selection won't work
+  - [x] Can't select the code block to copy
+  - [ ] Add copy button to code blocks
+- [ ] Invisible bubble blocks my clicking (markdown + resize)
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
 - [ ] Add an actual poke reaction for middle-click instead of just logging `poke!`
