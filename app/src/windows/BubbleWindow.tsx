@@ -64,6 +64,15 @@ export function BubbleWindow() {
   const wasStreamingRef = useRef(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 })
+  const [copied, setCopied] = useState(false)
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const copyText = () => {
+    navigator.clipboard.writeText(data.text)
+    setCopied(true)
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 1500)
+  }
   const win = getCurrentWindow()
 
   // Listen for bubble state updates from main window
@@ -154,6 +163,8 @@ export function BubbleWindow() {
       if (!data.isVisible) return
       if (e.key === 'x' || e.key === 'Escape') {
         emit('bubble-action', { action: 'dismiss' })
+      } else if (e.key === 'c') {
+        copyText()
       } else if (e.key === 'p' && !data.isPinned) {
         emit('bubble-action', { action: 'pin' })
       }
@@ -328,11 +339,9 @@ export function BubbleWindow() {
           </div>
           {!data.isStreaming && (
             <div style={actionsStyle}>
-              {!data.isPinned && (
-                <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'tell-me-more' })}>
-                  Tell me more
-                </button>
-              )}
+              <button style={primaryPillStyle} onClick={copyText}>
+                {copied ? 'Copied!' : 'Copy (c)'}
+              </button>
               {!data.isPinned && (
                 <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'pin' })}>
                   Pin (p)

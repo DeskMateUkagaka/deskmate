@@ -258,7 +258,6 @@ export default function App() {
         switch (event.payload.action) {
           case 'dismiss': bubble.dismiss(); break
           case 'pin': bubble.pin(); break
-          case 'tell-me-more': sendMessage('Tell me more'); bubble.dismiss(); break
         }
       })
       if (cancelled) { u4(); return }
