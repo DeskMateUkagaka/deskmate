@@ -2,11 +2,6 @@
 
 ## Immediate Product Gaps
 
-- [ ] Copy text from the bubble
-  - [x] Ctrl+C with selection works
-  - [x] Ctrl+C without selection won't work
-  - [x] Can't select the code block to copy
-  - [ ] Add copy button to code blocks
 - [ ] Invisible bubble blocks my clicking (markdown + resize)
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
@@ -156,3 +151,8 @@
 - [x] Backend support for `chat_abort`
 - [x] Reconnection loop with exponential backoff in the gateway client
 - [x] Bubble Markdown rendering with themed code blocks
+- [x] Copy text from the bubble
+  - [x] Ctrl+C with selection works
+  - [x] Ctrl+C without selection won't work
+  - [x] Can't select the code block to copy - progress bar rendering deselects it
+  - [x] Copy button in the code blocks (Markdown)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, type CSSProperties } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 import ReactMarkdown from 'react-markdown'
@@ -35,6 +35,44 @@ const DEFAULTS = {
 
 function themeVal(theme: BubbleTheme | null, key: keyof BubbleTheme, fallback: string): string {
   return theme?.[key] ?? fallback
+}
+
+function extractText(node: ReactNode): string {
+  if (typeof node === 'string') return node
+  if (typeof node === 'number') return String(node)
+  if (!node) return ''
+  if (Array.isArray(node)) return node.map(extractText).join('')
+  if (typeof node === 'object' && 'props' in node) return extractText(node.props.children)
+  return ''
+}
+
+function CodeCopyButton({ onClick }: { onClick: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const handle = () => {
+    onClick()
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button
+      onClick={handle}
+      style={{
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        padding: '2px 6px',
+        fontSize: '10px',
+        borderRadius: 4,
+        border: '1px solid rgba(0,0,0,0.15)',
+        background: 'var(--code-bg)',
+        color: 'var(--code-text)',
+        cursor: 'pointer',
+        opacity: copied ? 1 : 0.6,
+      }}
+    >
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
 }
 
 async function nudgeWindowRepaint() {
@@ -211,11 +249,18 @@ export function BubbleWindow() {
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeHighlight]}
       components={{
-        pre: ({ children, ...props }) => (
-          <pre {...props} style={{ overflowX: 'auto', background: 'var(--code-bg)', color: 'var(--code-text)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: '12px', lineHeight: 1.4 }}>
-            {children}
-          </pre>
-        ),
+        pre: ({ children, ...props }) => {
+          const copyCode = () => {
+            const text = extractText(children)
+            navigator.clipboard.writeText(text)
+          }
+          return (
+            <pre {...props} style={{ overflowX: 'auto', background: 'var(--code-bg)', color: 'var(--code-text)', padding: '8px 12px', borderRadius: 6, margin: '8px 0', fontSize: '12px', lineHeight: 1.4, position: 'relative' }}>
+              {children}
+              <CodeCopyButton onClick={copyCode} />
+            </pre>
+          )
+        },
         code: ({ children, className, ...props }) => {
           if (!className) {
             return (
