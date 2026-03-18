@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { moveWindow, getWindowPosition } from './lib/moveWindow'
+import { calcWindowPosition, calcAnchor, type Origin, type ScreenMargins } from './lib/windowPosition'
 import { Ghost, type ImageBounds } from './components/Ghost'
 import { useOpenClaw } from './hooks/useOpenClaw'
 import { useBubble } from './hooks/useBubble'
@@ -120,35 +121,25 @@ export default function App() {
     const actualWidth = actualSize.width / scaleFactor
     const actualHeight = actualSize.height / scaleFactor
 
-    // Placement values are in original PNG pixel coordinates — scale to display
-    const s = imageBounds?.scale ?? 1
-    const px = p.x * s
-    const py = p.y * s
-
-    // Compute screen position centered on ghost image + scaled placement offset
-    let centerX: number
-    let centerY: number
-    if (imageBounds) {
-      centerX = ghostPos.x + imageBounds.centerX + px
-      centerY = ghostPos.y + imageBounds.centerY + py
-    } else {
-      centerX = ghostPos.x + px
-      centerY = ghostPos.y + py
-    }
+    const anchor = calcAnchor(ghostPos, imageBounds, p)
 
     // Store anchor for reposition on resize
-    inputAnchorRef.current = { centerX, centerY }
+    inputAnchorRef.current = { centerX: anchor.x, centerY: anchor.y }
 
-    debugLog(`[showChatInput] ghostPos=(${ghostPos.x}, ${ghostPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
+    debugLog(`[showChatInput] ghostPos=(${ghostPos.x}, ${ghostPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} anchor=(${anchor.x}, ${anchor.y}) actualSize=${actualWidth}x${actualHeight}`)
 
-    let screenX = centerX - actualWidth / 2
-    // Visible content is flex-start anchored at the top of the window.
-    // Position so the top of the window aligns with the placement center;
-    // input grows downward as the user types.
-    let screenY = centerY
-    // Clamp to screen with margins
-    screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
-    screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
+    const margins: ScreenMargins = {
+      top: settings.popup_margin_top,
+      bottom: settings.popup_margin_bottom,
+      left: settings.popup_margin_left,
+      right: settings.popup_margin_right,
+    }
+    // Input uses top-center origin: horizontally centered on anchor,
+    // top edge at anchor Y (input grows downward as the user types)
+    const { screenX, screenY } = calcWindowPosition(
+      anchor.x, anchor.y, actualWidth, actualHeight, 'top-center',
+      screenSize.width, screenSize.height, margins,
+    )
     // Must show before moveWindow on Sway — hidden windows aren't in the
     // compositor tree so swaymsg can't target them.
     await win.show()
@@ -180,10 +171,16 @@ export default function App() {
       const actualWidth = actualSize.width / scaleFactor
       const actualHeight = actualSize.height / scaleFactor
 
-      let screenX = centerX - actualWidth / 2
-      let screenY = centerY
-      screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
-      screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
+      const margins: ScreenMargins = {
+        top: settings.popup_margin_top,
+        bottom: settings.popup_margin_bottom,
+        left: settings.popup_margin_left,
+        right: settings.popup_margin_right,
+      }
+      const { screenX, screenY } = calcWindowPosition(
+        centerX, centerY, actualWidth, actualHeight, 'top-center',
+        screenSize.width, screenSize.height, margins,
+      )
       await moveWindow(win, screenX, screenY)
     }
 
@@ -303,38 +300,21 @@ export default function App() {
         const bubbleWidth = 648
         const bubbleHeight = 548
 
-        // Placement values are in original PNG pixel coordinates — scale to display
-        const s = imageBounds?.scale ?? 1
-        const px = p.x * s
-        const py = p.y * s
-
-        // Anchor point: ghost image center + scaled placement offset
-        let anchorX: number
-        let anchorY: number
-        if (imageBounds) {
-          anchorX = ghostPos.x + imageBounds.centerX + px
-          anchorY = ghostPos.y + imageBounds.centerY + py
-        } else {
-          anchorX = ghostPos.x + px
-          anchorY = ghostPos.y + py
+        const anchor = calcAnchor(ghostPos, imageBounds, p)
+        const margins: ScreenMargins = {
+          top: settings.popup_margin_top,
+          bottom: settings.popup_margin_bottom,
+          left: settings.popup_margin_left,
+          right: settings.popup_margin_right,
         }
-
-        // Origin determines which point of the bubble window the anchor refers to
-        let idealX: number
-        let idealY: number
-        switch (origin) {
-          case 'top-left':     idealX = anchorX;                  idealY = anchorY;                   break
-          case 'top-right':    idealX = anchorX - bubbleWidth;    idealY = anchorY;                   break
-          case 'bottom-left':  idealX = anchorX;                  idealY = anchorY - bubbleHeight;    break
-          case 'bottom-right': idealX = anchorX - bubbleWidth;    idealY = anchorY - bubbleHeight;    break
-          default:             idealX = anchorX - bubbleWidth / 2; idealY = anchorY - bubbleHeight / 2; break
-        }
-        const screenX = Math.max(settings.popup_margin_left, Math.min(idealX, screenSize.width - bubbleWidth - settings.popup_margin_right))
-        const screenY = Math.max(settings.popup_margin_top, Math.min(idealY, screenSize.height - bubbleHeight - settings.popup_margin_bottom))
+        const { screenX, screenY, offsetX, offsetY } = calcWindowPosition(
+          anchor.x, anchor.y, bubbleWidth, bubbleHeight, origin as Origin,
+          screenSize.width, screenSize.height, margins,
+        )
 
         // When clamping shifts the window, pass the offset so BubbleWindow can
         // counter-shift its content to stay aligned with the ghost.
-        emitBubbleUpdate(idealX - screenX, idealY - screenY)
+        emitBubbleUpdate(offsetX, offsetY)
 
         // Must show before moveWindow on Sway — hidden windows aren't in the
         // compositor tree so swaymsg can't target them.
@@ -346,6 +326,50 @@ export default function App() {
       hidePopup('bubble')
     }
   }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, imageBounds, windowPos, screenSize, currentSkin])
+
+  // When BubbleWindow reports its rendered content size, resize the window
+  // then reposition via swaymsg so Sway doesn't re-center it.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    listen<{ width: number; height: number }>('bubble-content-sized', async (event) => {
+      const win = await getWindowByLabel('bubble')
+      if (!win) return
+      const { width, height } = event.payload
+      await win.setSize(new LogicalSize(width, height))
+
+      // Reposition using the same logic as above but with the actual content size
+      const origin = currentSkin?.bubble_placement?.origin ?? 'center'
+      const ghostPos = await getGhostPos()
+      const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, origin: 'center' as const }
+      const anchor = calcAnchor(ghostPos, imageBounds, p)
+      const margins: ScreenMargins = {
+        top: settings.popup_margin_top,
+        bottom: settings.popup_margin_bottom,
+        left: settings.popup_margin_left,
+        right: settings.popup_margin_right,
+      }
+      const { screenX, screenY } = calcWindowPosition(
+        anchor.x, anchor.y, width, height, origin as Origin,
+        screenSize.width, screenSize.height, margins,
+      )
+      await moveWindow(win, screenX, screenY)
+
+      // Re-emit with zero offset since the window now matches content size
+      emit('bubble-update', {
+        text: bubble.text,
+        isStreaming: bubble.isStreaming,
+        isVisible: bubble.isVisible,
+        isPinned: bubble.isPinned,
+        timeoutMs: bubble.timeoutMs,
+        finalizedAt: bubble.finalizedAt,
+        bubbleTheme: currentSkin?.bubble_theme ?? null,
+        contentOffsetX: 0,
+        contentOffsetY: 0,
+        origin,
+      })
+    }).then((fn) => { unlisten = fn })
+    return () => unlisten?.()
+  }, [imageBounds, screenSize, currentSkin, settings, bubble])
 
   // Wire streaming response into bubble
   useEffect(() => {
