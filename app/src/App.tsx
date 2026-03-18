@@ -12,6 +12,8 @@ import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
 import { debugLog } from './lib/debugLog'
 
+const FULL_BUBBLE_WINDOW_SIZE = { width: 648, height: 548 }
+
 async function savePositionAndExit() {
   try {
     const win = getCurrentWindow()
@@ -78,6 +80,7 @@ export default function App() {
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
   const chatInputOpenRef = useRef(false)
+  const [bubbleWindowSize, setBubbleWindowSize] = useState(FULL_BUBBLE_WINDOW_SIZE)
   // Anchor point for input window positioning — set once when opened, reused on resize
   const inputAnchorRef = useRef({ centerX: 0, centerY: 0 })
 
@@ -269,6 +272,25 @@ export default function App() {
     }
   }, [reloadSettings, reloadSkins, updateSettings, sendMessage, bubble])
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+
+    listen<{ width: number; height: number }>('bubble-content-sized', (event) => {
+      setBubbleWindowSize({
+        width: Math.max(1, Math.ceil(event.payload.width)),
+        height: Math.max(1, Math.ceil(event.payload.height)),
+      })
+    }).then((fn) => { unlisten = fn })
+
+    return () => unlisten?.()
+  }, [])
+
+  useEffect(() => {
+    if (!bubble.isVisible || bubble.isStreaming) {
+      setBubbleWindowSize(FULL_BUBBLE_WINDOW_SIZE)
+    }
+  }, [bubble.isVisible, bubble.isStreaming])
+
   // Broadcast connection status to popup windows
   useEffect(() => {
     emit('connection-status', connectionStatus)
@@ -295,10 +317,13 @@ export default function App() {
       ;(async () => {
         const win = await getWindowByLabel('bubble')
         if (!win) return
+        await win.setSize(new LogicalSize(bubbleWindowSize.width, bubbleWindowSize.height))
+        const actualSize = await win.outerSize()
+        const scaleFactor = await win.scaleFactor()
+        const actualWidth = actualSize.width / scaleFactor
+        const actualHeight = actualSize.height / scaleFactor
         const ghostPos = await getGhostPos()
         const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, origin: 'center' as const }
-        const bubbleWidth = 648
-        const bubbleHeight = 548
 
         const anchor = calcAnchor(ghostPos, imageBounds, p)
         const margins: ScreenMargins = {
@@ -308,7 +333,7 @@ export default function App() {
           right: settings.popup_margin_right,
         }
         const { screenX, screenY, offsetX, offsetY } = calcWindowPosition(
-          anchor.x, anchor.y, bubbleWidth, bubbleHeight, origin as Origin,
+          anchor.x, anchor.y, actualWidth, actualHeight, origin as Origin,
           screenSize.width, screenSize.height, margins,
         )
 
@@ -325,51 +350,7 @@ export default function App() {
       emitBubbleUpdate()
       hidePopup('bubble')
     }
-  }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, imageBounds, windowPos, screenSize, currentSkin])
-
-  // When BubbleWindow reports its rendered content size, resize the window
-  // then reposition via swaymsg so Sway doesn't re-center it.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined
-    listen<{ width: number; height: number }>('bubble-content-sized', async (event) => {
-      const win = await getWindowByLabel('bubble')
-      if (!win) return
-      const { width, height } = event.payload
-      await win.setSize(new LogicalSize(width, height))
-
-      // Reposition using the same logic as above but with the actual content size
-      const origin = currentSkin?.bubble_placement?.origin ?? 'center'
-      const ghostPos = await getGhostPos()
-      const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, origin: 'center' as const }
-      const anchor = calcAnchor(ghostPos, imageBounds, p)
-      const margins: ScreenMargins = {
-        top: settings.popup_margin_top,
-        bottom: settings.popup_margin_bottom,
-        left: settings.popup_margin_left,
-        right: settings.popup_margin_right,
-      }
-      const { screenX, screenY } = calcWindowPosition(
-        anchor.x, anchor.y, width, height, origin as Origin,
-        screenSize.width, screenSize.height, margins,
-      )
-      await moveWindow(win, screenX, screenY)
-
-      // Re-emit with zero offset since the window now matches content size
-      emit('bubble-update', {
-        text: bubble.text,
-        isStreaming: bubble.isStreaming,
-        isVisible: bubble.isVisible,
-        isPinned: bubble.isPinned,
-        timeoutMs: bubble.timeoutMs,
-        finalizedAt: bubble.finalizedAt,
-        bubbleTheme: currentSkin?.bubble_theme ?? null,
-        contentOffsetX: 0,
-        contentOffsetY: 0,
-        origin,
-      })
-    }).then((fn) => { unlisten = fn })
-    return () => unlisten?.()
-  }, [imageBounds, screenSize, currentSkin, settings, bubble])
+  }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, bubbleWindowSize, imageBounds, screenSize, currentSkin, settings, getGhostPos])
 
   // Wire streaming response into bubble
   useEffect(() => {

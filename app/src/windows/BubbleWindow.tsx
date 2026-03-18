@@ -224,13 +224,24 @@ export function BubbleWindow() {
     return () => document.removeEventListener('keydown', handler)
   }, [data.isVisible])
 
-  // Nudge repaint on finalization (streaming → rendered Markdown) to clear bleed
+  // On finalization (streaming → rendered Markdown), measure content and emit size
+  // so App.tsx can resize the window before repositioning via swaymsg.
   useEffect(() => {
     if (data.isStreaming) {
       wasStreamingRef.current = true
     } else if (wasStreamingRef.current && data.isVisible) {
       wasStreamingRef.current = false
-      requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
+      requestAnimationFrame(() => {
+        const el = wrapperRef.current
+        if (el) {
+          const PADDING = 8
+          emit('bubble-content-sized', {
+            width: el.offsetWidth + PADDING * 2,
+            height: el.offsetHeight + PADDING * 2,
+          })
+        }
+        nudgeWindowRepaint().catch(() => {})
+      })
     }
   }, [data.isStreaming, data.isVisible])
 
