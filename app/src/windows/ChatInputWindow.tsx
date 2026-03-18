@@ -124,7 +124,7 @@ export function ChatInputWindow() {
     height: '100vh',
     background: 'transparent',
     display: 'flex',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   }
 
   const panelStyle: CSSProperties = {

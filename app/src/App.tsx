@@ -77,6 +77,8 @@ export default function App() {
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
   const chatInputOpenRef = useRef(false)
+  // Anchor point for input window positioning — set once when opened, reused on resize
+  const inputAnchorRef = useRef({ centerX: 0, centerY: 0 })
 
   // Query fresh ghost position directly from compositor — avoids stale state
   const getGhostPos = useCallback(async () => {
@@ -134,12 +136,16 @@ export default function App() {
       centerY = ghostPos.y + py
     }
 
+    // Store anchor for reposition on resize
+    inputAnchorRef.current = { centerX, centerY }
+
     debugLog(`[showChatInput] ghostPos=(${ghostPos.x}, ${ghostPos.y}) imageBounds=${JSON.stringify(imageBounds)} placement=${JSON.stringify(p)} center=(${centerX}, ${centerY}) actualSize=${actualWidth}x${actualHeight}`)
 
     let screenX = centerX - actualWidth / 2
-    // Visible content is flex-end anchored at the bottom of the GTK-oversized window.
-    // Position so the bottom of the window aligns with the placement center.
-    let screenY = centerY - actualHeight
+    // Visible content is flex-start anchored at the top of the window.
+    // Position so the top of the window aligns with the placement center;
+    // input grows downward as the user types.
+    let screenY = centerY
     // Clamp to screen with margins
     screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
     screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
@@ -150,43 +156,55 @@ export default function App() {
     await win.setFocus()
   }, [imageBounds, windowPos, screenSize, currentSkin])
 
-  // Reposition input window when it resizes (auto-grow), clamping to screen margins
+  // Reposition input window when it resizes (auto-grow), clamping to screen margins.
+  // On Sway, debounce to once per second to avoid visible jumping from slow IPC.
   useEffect(() => {
     let unlisten: (() => void) | undefined
-    listen<{ width: number; height: number }>('input-resized', async (event) => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let compositorIpc = false
+
+    invoke<boolean>('uses_compositor_ipc').then((v) => { compositorIpc = v })
+
+    const reposition = async () => {
       const win = await getWindowByLabel('chat-input')
       if (!win) return
 
-      const ghostPos = await getGhostPos()
-      const p = currentSkin?.input_placement ?? { x: 0, y: -10, origin: 'center' as const }
-      const s = imageBounds?.scale ?? 1
-      const px = p.x * s
-      const py = p.y * s
+      // Reuse the anchor computed when the input was first shown — avoids
+      // re-querying ghost position via slow compositor IPC and ensures
+      // the same coordinate system as the initial placement.
+      const { centerX, centerY } = inputAnchorRef.current
 
-      let centerX: number
-      let centerY: number
-      if (imageBounds) {
-        centerX = ghostPos.x + imageBounds.centerX + px
-        centerY = ghostPos.y + imageBounds.centerY + py
-      } else {
-        centerX = ghostPos.x + px
-        centerY = ghostPos.y + py
-      }
-
-      // GTK may enforce minimum — query actual size
+      // Query actual window size (GTK may enforce minimum)
       const actualSize = await win.outerSize()
       const scaleFactor = await win.scaleFactor()
       const actualWidth = actualSize.width / scaleFactor
       const actualHeight = actualSize.height / scaleFactor
 
       let screenX = centerX - actualWidth / 2
-      let screenY = centerY - actualHeight
+      let screenY = centerY
       screenX = Math.max(settings.popup_margin_left, Math.min(screenX, screenSize.width - actualWidth - settings.popup_margin_right))
       screenY = Math.max(settings.popup_margin_top, Math.min(screenY, screenSize.height - actualHeight - settings.popup_margin_bottom))
       await moveWindow(win, screenX, screenY)
+    }
+
+    listen<{ width: number; height: number }>('input-resized', () => {
+      if (compositorIpc) {
+        // Sway: trailing debounce — reposition once, 1s after last resize
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null
+          reposition()
+        }, 1000)
+      } else {
+        reposition()
+      }
     }).then((fn) => { unlisten = fn })
-    return () => unlisten?.()
-  }, [imageBounds, screenSize, currentSkin, settings, getGhostPos])
+
+    return () => {
+      unlisten?.()
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
+  }, [screenSize, settings])
 
   // Enter key opens chat input, Ctrl+Q exits
   useEffect(() => {
