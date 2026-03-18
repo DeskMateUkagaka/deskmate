@@ -64,12 +64,12 @@ export function BubbleWindow() {
   const wasStreamingRef = useRef(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 })
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<false | 'full' | 'selection'>(false)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const copyText = () => {
     navigator.clipboard.writeText(data.text)
-    setCopied(true)
+    setCopied('full')
     if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
     copiedTimerRef.current = setTimeout(() => setCopied(false), 1500)
   }
@@ -163,8 +163,17 @@ export function BubbleWindow() {
       if (!data.isVisible) return
       if (e.key === 'x' || e.key === 'Escape') {
         emit('bubble-action', { action: 'dismiss' })
-      } else if (e.key === 'c') {
-        copyText()
+      } else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
+        const selection = window.getSelection()?.toString()
+        if (!selection) {
+          e.preventDefault()
+          copyText()
+        } else {
+          // Let browser handle the copy, then show feedback
+          setCopied('selection')
+          if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+          copiedTimerRef.current = setTimeout(() => setCopied(false), 1500)
+        }
       } else if (e.key === 'p' && !data.isPinned) {
         emit('bubble-action', { action: 'pin' })
       }
@@ -241,6 +250,9 @@ export function BubbleWindow() {
     color: textColor,
     fontFamily,
     wordBreak: 'break-word',
+    userSelect: 'text',
+    WebkitUserSelect: 'text',
+    cursor: 'text',
     maxHeight: maxBubbleHeight,
     overflowY: 'auto',
     // CSS custom properties for highlight.js overrides
@@ -340,7 +352,7 @@ export function BubbleWindow() {
           {!data.isStreaming && (
             <div style={actionsStyle}>
               <button style={primaryPillStyle} onClick={copyText}>
-                {copied ? 'Copied!' : 'Copy (c)'}
+                {copied === 'full' ? 'Copied!' : copied === 'selection' ? 'Selection Copied!' : 'Copy (Ctrl+C)'}
               </button>
               {!data.isPinned && (
                 <button style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'pin' })}>

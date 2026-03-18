@@ -3,6 +3,9 @@
 ## Immediate Product Gaps
 
 - [ ] Copy text from the bubble
+  - [x] Ctrl+C with selection works
+  - [ ] Ctrl+C without selection won't work
+  - [ ] Can't select the code block to copy
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
 - [ ] Add an actual poke reaction for middle-click instead of just logging `poke!`
