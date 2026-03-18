@@ -134,7 +134,7 @@ pub fn run() {
             commands::skin::list_skins,
             commands::skin::get_current_skin,
             commands::skin::switch_skin,
-            commands::skin::get_expression_image,
+            commands::skin::get_emotion_image,
             commands::skin::reload_skins,
             commands::settings::get_settings,
             commands::settings::reload_settings,

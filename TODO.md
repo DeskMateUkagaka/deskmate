@@ -2,6 +2,7 @@
 
 ## Critical — Must Test Before First Real Use
 
+- [ ] Copy text from the bubble
 - [x] Test against live OpenClaw gateway (challenge/nonce handshake, token auth)
 - [x] Test Wayland transparency (`GDK_BACKEND=wayland`) — may need `gtk-layer-shell`
 - [ ] Configure OpenClaw agent system prompt to emit `[expression:X]` tags

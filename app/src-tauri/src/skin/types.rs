@@ -1,16 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub const EXPRESSIONS: &[&str] = &[
-    "happy",
-    "sad",
-    "angry",
-    "disgusted",
-    "condescending",
-    "thinking",
-    "neutral",
-];
-
 /// Bubble visual theme: colors, borders, fonts for the chat bubble.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BubbleTheme {
@@ -73,7 +63,7 @@ pub struct SkinManifest {
     pub name: String,
     pub author: Option<String>,
     pub version: Option<String>,
-    pub expressions: HashMap<String, String>,
+    pub emotions: HashMap<String, String>,
     /// Bubble placement relative to image center
     pub bubble_placement: Option<UiPlacement>,
     /// Chat input placement relative to image center
@@ -90,6 +80,8 @@ pub struct SkinInfo {
     pub author: Option<String>,
     pub version: Option<String>,
     pub path: String,
+    /// Available emotion names from the skin manifest (e.g. ["happy", "sad", "neutral", ...])
+    pub emotions: Vec<String>,
     pub bubble_placement: Option<UiPlacement>,
     pub input_placement: Option<UiPlacement>,
     pub bubble_theme: Option<BubbleTheme>,

@@ -2,7 +2,7 @@ name: Clawra
 author: Ukagaka Dev
 version: 1.0.0
 
-expressions:
+emotions:
   happy: happy.png
   sad: sad.png
   angry: angry.png

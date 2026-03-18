@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import type { Expression } from '../types'
 import { debugLog } from '../lib/debugLog'
 
 export type ChatState = 'idle' | 'sending' | 'streaming' | 'error'
@@ -27,19 +26,14 @@ interface SessionInfo {
   display_name?: string
 }
 
-const VALID_EXPRESSIONS: Expression[] = [
-  'happy', 'sad', 'angry', 'disgusted', 'condescending', 'thinking', 'neutral'
-]
-
-function parseExpression(text: string): Expression {
-  const match = text.match(/\[expression:(\w+)\]/)
+function parseEmotion(text: string): string {
+  const match = text.match(/\[emotion:(\w+)\]/)
   if (!match) return 'neutral'
-  const expr = match[1] as Expression
-  return VALID_EXPRESSIONS.includes(expr) ? expr : 'neutral'
+  return match[1]
 }
 
-function stripExpressionTags(text: string): string {
-  return text.replace(/\[expression:\w+\]/g, '').trim()
+function stripEmotionTags(text: string): string {
+  return text.replace(/\[emotion:\w+\]/g, '').trim()
 }
 
 function extractTextFromMessage(message?: ChatEvent['message']): string {
@@ -54,7 +48,7 @@ export function useOpenClaw() {
   const [chatState, setChatState] = useState<ChatState>('idle')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const [currentResponse, setCurrentResponse] = useState('')
-  const [currentExpression, setCurrentExpression] = useState<Expression>('neutral')
+  const [currentEmotion, setCurrentEmotion] = useState('neutral')
 
   const accumulatedRef = useRef('')
 const sessionKeyRef = useRef<string>('main')
@@ -123,9 +117,10 @@ const sessionKeyRef = useRef<string>('main')
           // Reset thinking timer on each delta
 
 
-          const expr = parseExpression(accumulatedRef.current)
-          const display = stripExpressionTags(accumulatedRef.current)
-          setCurrentExpression(expr)
+          const emotion = parseEmotion(accumulatedRef.current)
+          const display = stripEmotionTags(accumulatedRef.current)
+          debugLog(`[chat-event] delta parsed emotion='${emotion}' display="${display.slice(0, 80)}"`)
+          setCurrentEmotion(emotion)
           setCurrentResponse(display)
           setChatState('streaming')
         } else if (evt.state === 'final') {
@@ -136,11 +131,10 @@ const sessionKeyRef = useRef<string>('main')
             accumulatedRef.current = finalText
           }
 
-
-
-          const expr = parseExpression(accumulatedRef.current)
-          const display = stripExpressionTags(accumulatedRef.current)
-          setCurrentExpression(expr)
+          const emotion = parseEmotion(accumulatedRef.current)
+          const display = stripEmotionTags(accumulatedRef.current)
+          debugLog(`[chat-event] final parsed emotion='${emotion}' display="${display.slice(0, 80)}"`)
+          setCurrentEmotion(emotion)
           setCurrentResponse(display)
           setChatState('idle')
         } else if (evt.state === 'error') {
@@ -170,9 +164,34 @@ const sessionKeyRef = useRef<string>('main')
     if (text.toLowerCase() === 'ack') {
       accumulatedRef.current = 'ACK'
       setCurrentResponse('ACK')
-      setCurrentExpression('neutral')
+      setCurrentEmotion('neutral')
       setChatState('streaming')
       setTimeout(() => setChatState('idle'), 500)
+      return
+    }
+
+    // Debug shortcut: "emo" returns a random non-neutral emotion to test emotion switching
+    if (text.toLowerCase() === 'emo') {
+      try {
+        const skin = await invoke<{ emotions: string[] }>('get_current_skin')
+        const nonNeutral = skin.emotions.filter((e: string) => e !== 'neutral')
+        const picked = nonNeutral.length > 0
+          ? nonNeutral[Math.floor(Math.random() * nonNeutral.length)]
+          : 'neutral'
+        const response = `emotion test [emotion:${picked}]`
+        accumulatedRef.current = response
+        setCurrentResponse(stripEmotionTags(response))
+        setCurrentEmotion(picked)
+        setChatState('streaming')
+        setTimeout(() => setChatState('idle'), 500)
+      } catch (e) {
+        debugLog('[useOpenClaw] emo: failed to get skin emotions:', e)
+        accumulatedRef.current = 'emotion test [emotion:neutral]'
+        setCurrentResponse('emotion test')
+        setCurrentEmotion('neutral')
+        setChatState('streaming')
+        setTimeout(() => setChatState('idle'), 500)
+      }
       return
     }
 
@@ -210,7 +229,7 @@ for i in range(3):
 And a [link](https://example.com) for good measure.`
       accumulatedRef.current = ''
       setCurrentResponse('')
-      setCurrentExpression('thinking')
+      setCurrentEmotion('thinking')
       setChatState('streaming')
       // Stream ~10 chars at a time, ~30ms apart (simulates real gateway deltas)
       const chunkSize = 10
@@ -222,7 +241,7 @@ And a [link](https://example.com) for good measure.`
         setCurrentResponse(partial)
         if (pos >= sample.length) {
           clearInterval(streamInterval)
-          setCurrentExpression('neutral')
+          setCurrentEmotion('neutral')
           setChatState('idle')
         }
       }, 30)
@@ -244,7 +263,7 @@ And a [link](https://example.com) for good measure.`
 
     accumulatedRef.current = ''
     setCurrentResponse('')
-    setCurrentExpression('thinking')
+    setCurrentEmotion('thinking')
     setChatState('sending')
 
     try {
@@ -273,14 +292,19 @@ And a [link](https://example.com) for good measure.`
     setChatState('idle')
   }, [])
 
+  const resetEmotion = useCallback(() => {
+    setCurrentEmotion('neutral')
+  }, [])
+
   const isStreaming = chatState === 'streaming' || chatState === 'sending'
 
   return {
     sendMessage,
     abortChat,
+    resetEmotion,
     connectionStatus,
     currentResponse,
-    currentExpression,
+    currentEmotion,
     isStreaming,
     chatState,
   }

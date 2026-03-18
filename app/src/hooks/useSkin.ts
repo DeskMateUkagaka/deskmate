@@ -1,41 +1,41 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
-import type { SkinInfo, Expression, } from '../types'
-import { ALL_EXPRESSIONS } from '../types'
+import type { SkinInfo } from '../types'
+import { debugLog } from '../lib/debugLog'
 
 interface UseSkinReturn {
   currentSkin: SkinInfo | null
   skins: SkinInfo[]
   switchSkin: (id: string) => Promise<void>
-  getExpressionUrl: (expression: Expression) => string
+  getEmotionUrl: (emotion: string) => string
   reloadSkins: () => void
 }
 
 export function useSkin(): UseSkinReturn {
   const [currentSkin, setCurrentSkin] = useState<SkinInfo | null>(null)
   const [skins, setSkins] = useState<SkinInfo[]>([])
-  const [expressionUrls, setExpressionUrls] = useState<Partial<Record<Expression, string>>>({})
+  const [emotionUrls, setEmotionUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
     invoke<SkinInfo[]>('list_skins').then(setSkins).catch(() => {})
     invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
   }, [])
 
-  // Preload expression images whenever skin changes
+  // Preload emotion images whenever skin changes — uses skin's own emotion list
   useEffect(() => {
     if (!currentSkin) return
 
-    const urls: Partial<Record<Expression, string>> = {}
-    const promises = ALL_EXPRESSIONS.map(async (expr) => {
+    const urls: Record<string, string> = {}
+    const promises = currentSkin.emotions.map(async (emotion) => {
       try {
-        const path = await invoke<string>('get_expression_image', { expression: expr })
-        urls[expr] = convertFileSrc(path)
+        const path = await invoke<string>('get_emotion_image', { emotion })
+        urls[emotion] = convertFileSrc(path)
       } catch {
-        // ignore missing expressions
+        // ignore missing emotions
       }
     })
 
-    Promise.all(promises).then(() => setExpressionUrls({ ...urls }))
+    Promise.all(promises).then(() => setEmotionUrls({ ...urls }))
   }, [currentSkin])
 
   const switchSkin = useCallback(async (id: string) => {
@@ -44,9 +44,13 @@ export function useSkin(): UseSkinReturn {
     setCurrentSkin(skin)
   }, [])
 
-  const getExpressionUrl = useCallback((expression: Expression): string => {
-    return expressionUrls[expression] ?? expressionUrls['neutral'] ?? ''
-  }, [expressionUrls])
+  const getEmotionUrl = useCallback((emotion: string): string => {
+    if (emotionUrls[emotion]) return emotionUrls[emotion]
+    if (emotion !== 'neutral') {
+      debugLog(`[useSkin] Emotion '${emotion}' not found in skin, falling back to neutral`)
+    }
+    return emotionUrls['neutral'] ?? ''
+  }, [emotionUrls])
 
   const reloadSkins = useCallback(async () => {
     await invoke('reload_skins')
@@ -54,5 +58,5 @@ export function useSkin(): UseSkinReturn {
     invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
   }, [])
 
-  return { currentSkin, skins, switchSkin, getExpressionUrl, reloadSkins }
+  return { currentSkin, skins, switchSkin, getEmotionUrl, reloadSkins }
 }

@@ -28,10 +28,10 @@ pub fn reload_skins(skin_manager: State<Mutex<SkinManager>>) {
 }
 
 #[tauri::command]
-pub fn get_expression_image(
-    expression: String,
+pub fn get_emotion_image(
+    emotion: String,
     skin_manager: State<Mutex<SkinManager>>,
 ) -> Result<String, String> {
     let sm = skin_manager.lock().unwrap();
-    sm.get_expression_path(&expression)
+    sm.get_emotion_path(&emotion)
 }

@@ -15,7 +15,7 @@ export interface ImageBounds {
 }
 
 interface GhostProps {
-  expressionOverride?: string
+  emotionOverride?: string
   ghostHeightPixels: number
   onLeftClick?: () => void
   onMiddleClick?: () => void
@@ -26,12 +26,12 @@ interface GhostProps {
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
+export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
   const {
-    expressionImage,
+    emotionImage,
   } = useGhost()
 
-  const imageSrc = expressionOverride || (expressionImage ? convertFileSrc(expressionImage) : '')
+  const imageSrc = emotionOverride || (emotionImage ? convertFileSrc(emotionImage) : '')
 
   const targetHeight = ghostHeightPixels
   const initialLoadDone = useRef(false)
@@ -162,7 +162,7 @@ export function Ghost({ expressionOverride, ghostHeightPixels, onLeftClick, onMi
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
             }
 
-            // Only restore saved position on initial load — expression changes
+            // Only restore saved position on initial load — emotion changes
             // must NOT reposition, as swaymsg can introduce decoration offsets.
             if (!initialLoadDone.current) {
               initialLoadDone.current = true

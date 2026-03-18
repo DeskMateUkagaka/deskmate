@@ -7,8 +7,8 @@ import type { GhostPosition } from '../types'
 export function useGhost() {
   const [position, setPosition] = useState<GhostPosition>({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
-  const [expression, setExpression] = useState<string>('neutral')
-  const [expressionImage, setExpressionImage] = useState<string>('')
+  const [emotion, setEmotion] = useState<string>('neutral')
+  const [emotionImage, setEmotionImage] = useState<string>('')
 
   useEffect(() => {
     invoke<GhostPosition>('get_ghost_position').then((pos) => {
@@ -18,13 +18,13 @@ export function useGhost() {
   }, [])
 
   useEffect(() => {
-    invoke<string>('get_expression_image', { expression }).then((path) => {
-      setExpressionImage(path)
+    invoke<string>('get_emotion_image', { emotion }).then((path) => {
+      setEmotionImage(path)
     }).catch(() => {
       // Fallback: try neutral
-      invoke<string>('get_expression_image', { expression: 'neutral' }).then(setExpressionImage)
+      invoke<string>('get_emotion_image', { emotion: 'neutral' }).then(setEmotionImage)
     })
-  }, [expression])
+  }, [emotion])
 
   const startDrag = useCallback(async () => {
     setIsDragging(true)
@@ -78,9 +78,9 @@ export function useGhost() {
   return {
     position,
     isDragging,
-    expression,
-    expressionImage,
-    setExpression,
+    emotion,
+    emotionImage,
+    setEmotion,
     startDrag,
     handleMouseMove,
     handleMouseLeave,

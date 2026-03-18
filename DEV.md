@@ -49,6 +49,7 @@ cargo add <crate>         # add Rust dependency (from app/src-tauri/)
 Type these into the chat input to test features without a gateway connection:
 
 - **`ack`** — Returns "ACK" after a brief simulated stream. Tests basic bubble display.
+- **`emo`** — Picks a random non-neutral emotion from the current skin and displays it. Tests emotion switching, dismiss→neutral revert, and pin→persist behavior.
 - **`md`** — Returns a rich Markdown sample (headers, bold, code block, list, blockquote, table, link). Tests Markdown rendering, syntax highlighting, and bubble theming.
 
 ## Known Platform Issues
@@ -104,7 +105,7 @@ OpenClaw WS → Rust EventFrame listener → app.emit("chat-event") → useOpenC
 Each skin is a folder under `app/skins/`:
 ```
 skins/<skin-id>/
-  manifest.json     # { name, author, version, expressions: { happy: "happy.png", ... } }
+  manifest.yaml     # { name, author, version, emotions: { happy: "happy.png", ... } }
   happy.png
   sad.png
   angry.png
@@ -115,11 +116,13 @@ skins/<skin-id>/
   neutral.png
 ```
 
-### Expression System
+### Emotion System
 
-Expressions are parsed client-side from AI text using `[expression:X]` tags, then stripped from display. Falls back to `neutral`. The AI agent must be prompted to emit these tags — there is no protocol-native expression field.
+Emotions are parsed client-side from AI text using `[emotion:X]` tags, then stripped from display. Falls back to `neutral`. The AI agent must be prompted to emit these tags — there is no protocol-native emotion field.
 
-Valid expressions: `happy`, `sad`, `angry`, `disgusted`, `condescending`, `thinking`, `uwamezukai`, `neutral`
+Available emotions are **dynamic per skin** — defined in the skin's `manifest.yaml` `emotions` map. The only required emotion is `neutral` (all skins must have it). When the AI sends an unknown emotion, it falls back to `neutral` with a warning logged.
+
+When the bubble is dismissed (manually or by auto-dismiss timer), the ghost reverts to `neutral`. When the bubble is pinned, the ghost stays in the current emotion until the user manually dismisses it.
 
 ### Tauri Capabilities
 

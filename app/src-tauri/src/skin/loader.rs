@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
-use super::types::{SkinInfo, SkinManifest, EXPRESSIONS};
+use super::types::{SkinInfo, SkinManifest};
 
 pub struct SkinManager {
     skins_dir: PathBuf,
@@ -96,17 +96,18 @@ impl SkinManager {
         let manifest: SkinManifest =
             serde_yaml::from_str(&contents).map_err(|e| format!("Invalid manifest YAML: {}", e))?;
 
-        // Validate that all required expressions have PNGs
-        for expr in EXPRESSIONS {
-            let png_name = manifest
-                .expressions
-                .get(*expr)
-                .ok_or_else(|| format!("Missing expression '{}' in manifest", expr))?;
+        // Validate that 'neutral' emotion exists (required for all skins)
+        if !manifest.emotions.contains_key("neutral") {
+            return Err("Missing required emotion 'neutral' in manifest".to_string());
+        }
+
+        // Validate that all declared emotion PNGs exist on disk
+        for (emotion, png_name) in &manifest.emotions {
             let png_path = path.join(png_name);
             if !png_path.exists() {
                 return Err(format!(
-                    "Missing PNG for expression '{}': {}",
-                    expr,
+                    "Missing PNG for emotion '{}': {}",
+                    emotion,
                     png_path.display()
                 ));
             }
@@ -119,6 +120,7 @@ impl SkinManager {
                 author: manifest.author.clone(),
                 version: manifest.version.clone(),
                 path: path.to_string_lossy().to_string(),
+                emotions: manifest.emotions.keys().cloned().collect(),
                 bubble_placement: manifest.bubble_placement.clone(),
                 input_placement: manifest.input_placement.clone(),
                 bubble_theme: manifest.bubble.clone(),
@@ -155,23 +157,28 @@ impl SkinManager {
         Ok(())
     }
 
-    pub fn get_expression_path(&self, expression: &str) -> Result<String, String> {
+    pub fn get_emotion_path(&self, emotion: &str) -> Result<String, String> {
         let skin = self
             .skins
             .get(&self.current_skin_id)
             .ok_or_else(|| format!("Current skin '{}' not loaded", self.current_skin_id))?;
 
-        let expr = if skin.manifest.expressions.contains_key(expression) {
-            expression
+        let resolved = if skin.manifest.emotions.contains_key(emotion) {
+            emotion
         } else {
+            log::warn!(
+                "Emotion '{}' not found in skin '{}', falling back to neutral",
+                emotion,
+                self.current_skin_id
+            );
             "neutral"
         };
 
         let png_name = skin
             .manifest
-            .expressions
-            .get(expr)
-            .ok_or_else(|| format!("Expression '{}' not in manifest", expr))?;
+            .emotions
+            .get(resolved)
+            .ok_or_else(|| format!("Emotion '{}' not in manifest", resolved))?;
 
         let full_path = skin.base_path.join(png_name);
         Ok(full_path.to_string_lossy().to_string())

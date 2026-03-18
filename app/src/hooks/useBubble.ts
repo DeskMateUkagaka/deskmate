@@ -4,10 +4,13 @@ export type BubbleState = 'hidden' | 'streaming' | 'visible' | 'dismissing'
 
 interface UseBubbleOptions {
   timeoutMs?: number
+  onDismiss?: () => void
 }
 
 export function useBubble(options: UseBubbleOptions = {}) {
-  const { timeoutMs = 60000 } = options
+  const { timeoutMs = 60000, onDismiss } = options
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
 
   const [bubbleState, setBubbleState] = useState<BubbleState>('hidden')
   const [text, setText] = useState('')
@@ -28,6 +31,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
     dismissTimerRef.current = setTimeout(() => {
       setBubbleState('hidden')
       finalizedAtRef.current = null
+      onDismissRef.current?.()
     }, timeoutMs)
   }, [timeoutMs, clearDismissTimer])
 
@@ -56,6 +60,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
     setIsPinned(false)
     finalizedAtRef.current = null
     setBubbleState('hidden')
+    onDismissRef.current?.()
   }, [clearDismissTimer])
 
   const pin = useCallback(() => {

@@ -46,16 +46,17 @@ async function hidePopup(label: string) {
 
 export default function App() {
   const { settings, updateSettings, reloadSettings } = useSettings()
-  const { currentSkin, skins, switchSkin, getExpressionUrl, reloadSkins } = useSkin()
+  const { currentSkin, skins, switchSkin, getEmotionUrl, reloadSkins } = useSkin()
   const {
     sendMessage,
     connectionStatus,
     currentResponse,
-    currentExpression,
+    currentEmotion,
+    resetEmotion,
     chatState,
   } = useOpenClaw()
 
-  const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms })
+  const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms, onDismiss: resetEmotion })
 
   // Track window position on screen + monitor size for edge clamping
   // Use both state (for re-renders) and ref (for always-fresh reads in callbacks)
@@ -355,11 +356,11 @@ export default function App() {
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [reloadSkins, reloadSettings])
 
-  const expressionUrl = getExpressionUrl(currentExpression)
+  const emotionUrl = getEmotionUrl(currentEmotion)
 
   return (
     <Ghost
-      expressionOverride={expressionUrl || undefined}
+      emotionOverride={emotionUrl || undefined}
       ghostHeightPixels={settings.ghost_height_pixels}
       onLeftClick={handleGhostClick}
       onMiddleClick={handleMiddleClick}

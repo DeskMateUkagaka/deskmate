@@ -1,22 +1,3 @@
-export type Expression =
-  | 'happy'
-  | 'sad'
-  | 'angry'
-  | 'disgusted'
-  | 'condescending'
-  | 'thinking'
-  | 'neutral'
-
-export const ALL_EXPRESSIONS: Expression[] = [
-  'happy',
-  'sad',
-  'angry',
-  'disgusted',
-  'condescending',
-  'thinking',
-  'neutral',
-]
-
 export interface GhostPosition {
   x: number
   y: number
@@ -51,6 +32,8 @@ export interface SkinInfo {
   author: string | null
   version: string | null
   path: string
+  /** Available emotion names from the skin manifest */
+  emotions: string[]
   bubble_placement: UiPlacement | null
   input_placement: UiPlacement | null
   bubble_theme: BubbleTheme | null
