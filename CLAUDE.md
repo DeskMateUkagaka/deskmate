@@ -207,7 +207,11 @@ Wayland compositors do not allow clients to set window positions programmaticall
 
 ### GTK Minimum Window Size
 
-GTK enforces a minimum window size (~100-150px height). You cannot make a window smaller. Workaround: make the window transparent and use `alignItems: 'flex-end'` in CSS to anchor visible content at the bottom of the oversized transparent window. Always query `win.outerSize()` for the actual size after `setSize()` — don't assume the requested size was honored.
+GTK enforces a minimum window size (~100-150px height). You cannot make a window smaller. Workaround: make the window transparent and use `alignItems: 'flex-end'` in CSS to anchor visible content at the bottom of the oversized transparent window.
+
+### Hidden Window Size Queries
+
+**`win.outerSize()` returns `0x0` for hidden windows** on Wayland/Sway — the compositor doesn't track geometry for windows not in its tree. Similarly, `outerSize()` may return **stale values** immediately after `setSize()` because the compositor hasn't processed the resize yet. For position calculations that depend on window dimensions, use the **requested size** (the value you passed to `setSize()`) rather than querying `outerSize()`. Only use `outerSize()` when you need to know the *actual* size the compositor enforced (e.g., GTK minimum size clamping) and the window is visible and stable.
 
 ### Save-on-Exit Resilience
 

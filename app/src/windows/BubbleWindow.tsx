@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import type { BubbleTheme, PlacementOrigin } from '../types'
+import { debugLog } from '../lib/debugLog'
 import type { BubbleItem } from '../hooks/useBubble'
 
 interface BubbleData {
@@ -82,6 +83,8 @@ async function nudgeWindowRepaint() {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
   await win.setSize(new PhysicalSize(size.width, size.height))
   await win.setPosition(new PhysicalPosition(pos.x, pos.y))
+  // Wait for compositor to process the restore before caller measures content
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
 }
 
 function BubbleCard({
@@ -309,6 +312,7 @@ export function BubbleWindow() {
     prevVisibleRef.current = data.isVisible
 
     if (data.isVisible && !wasVisible) {
+      debugLog(`[BubbleWindow] becoming visible, items=${data.items.length}`)
       win.show().catch(() => {})
       requestAnimationFrame(() => nudgeWindowRepaint().catch(() => {}))
     } else if (!data.isVisible && wasVisible) {
@@ -409,20 +413,23 @@ export function BubbleWindow() {
   useEffect(() => {
     if (!data.isVisible) return
 
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       const el = wrapperRef.current
       const hasStreaming = data.items.some((item) => item.isStreaming)
 
-      if (el && !hasStreaming) {
-        const PADDING = 8
-        emit('bubble-content-sized', {
-          width: el.offsetWidth + PADDING * 2,
-          height: el.offsetHeight + PADDING * 2,
-        })
+      // Nudge first to clear WebKitGTK bleed, THEN emit content-sized.
+      // If content-sized fires before the nudge completes, App.tsx resizes
+      // the window while the nudge is still restoring the old size — race.
+      if (!hasStreaming || data.items.length !== 1 || !data.items[0]?.isStreaming) {
+        await nudgeWindowRepaint().catch(() => {})
       }
 
-      if (!hasStreaming || data.items.length !== 1 || !data.items[0]?.isStreaming) {
-        nudgeWindowRepaint().catch(() => {})
+      if (el && !hasStreaming) {
+        const PADDING = 8
+        const w = el.offsetWidth + PADDING * 2
+        const h = el.offsetHeight + PADDING * 2
+        debugLog(`[BubbleWindow] content-sized: ${w}x${h}, wrapper=${el.offsetWidth}x${el.offsetHeight}, window=${window.innerWidth}x${window.innerHeight}`)
+        emit('bubble-content-sized', { width: w, height: h })
       }
     })
   }, [data.isVisible, itemSignature])
