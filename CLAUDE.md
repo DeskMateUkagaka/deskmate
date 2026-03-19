@@ -207,11 +207,33 @@ Wayland compositors do not allow clients to set window positions programmaticall
 
 ### GTK Minimum Window Size
 
-GTK enforces a minimum window size (~100-150px height). You cannot make a window smaller. Workaround: make the window transparent and use `alignItems: 'flex-end'` in CSS to anchor visible content at the bottom of the oversized transparent window.
+GTK enforces a minimum window size (200px height on current system, defined as `PLATFORM_MIN_WINDOW_HEIGHT` in `app/src/lib/resizeWindow.ts`). You cannot make a window smaller. Workaround: make the window transparent and use `alignItems: 'flex-end'` in CSS to anchor visible content at the bottom of the oversized transparent window.
 
-### Hidden Window Size Queries
+### Window Resize Abstraction (`resizeWindow`)
 
-**`win.outerSize()` returns `0x0` for hidden windows** on Wayland/Sway — the compositor doesn't track geometry for windows not in its tree. Similarly, `outerSize()` may return **stale values** immediately after `setSize()` because the compositor hasn't processed the resize yet. For position calculations that depend on window dimensions, use the **requested size** (the value you passed to `setSize()`) rather than querying `outerSize()`. Only use `outerSize()` when you need to know the *actual* size the compositor enforced (e.g., GTK minimum size clamping) and the window is visible and stable.
+Always use `resizeWindow(win, w, h)` from `app/src/lib/resizeWindow.ts` instead of `win.setSize()` directly. It:
+1. Calls `setSize()` and waits for the compositor to process it (2 rAFs)
+2. Queries `outerSize()` to get the **actual** size after GTK clamping
+3. Returns `{ width, height }` in logical pixels
+4. Warns when requested height is below `PLATFORM_MIN_WINDOW_HEIGHT`
+
+**Always use the returned actual size for position calculations**, not the requested size — GTK clamping means the window may be larger than requested.
+
+### Bubble Window Event Sequencing (Critical)
+
+The bubble window lifecycle involves multiple async operations that must be carefully sequenced to avoid races:
+
+1. **`nudgeWindowRepaint()`** (BubbleWindow) — reads `outerSize`, bumps +1px, waits, restores. Must fully complete before any content measurement, otherwise it overwrites subsequent `setSize` calls.
+2. **`bubble-content-sized`** event (BubbleWindow → App) — measures visible content size. Must fire AFTER nudge completes (nudge restores the window to its pre-nudge size, and measurement reads `window.innerWidth/Height`).
+3. **`resizeWindow` + `moveWindow`** (App positioning effect) — resizes to content size and repositions. Must use actual size from `resizeWindow` return value.
+
+**Sequencing rule:** nudge → measure → emit content-sized → resize → reposition. Breaking this order causes the window to appear at wrong positions or sizes.
+
+**Split effects rule:** The bubble popup has two separate effects in App.tsx:
+- **Data emit effect** (synchronous): sends bubble data (items, theme, streaming state) to BubbleWindow via `bubble-update` event. Fires on every data change. Uses cached offsets from last positioning.
+- **Positioning effect** (async): resizes and repositions the window. Only fires when `bubbleWindowSize` or `bubble.isVisible` changes. Stores computed offsets in a ref for the data effect to use.
+
+Mixing async positioning into the data effect causes races — when multiple deps change in quick succession (e.g., streaming ends + content-sized arrives), multiple async IIFEs run concurrently and the last to finish wins, which may be a stale one.
 
 ### Save-on-Exit Resilience
 

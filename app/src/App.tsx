@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { moveWindow, getWindowPosition } from './lib/moveWindow'
+import { resizeWindow } from './lib/resizeWindow'
 import { calcWindowPosition, calcAnchor, type Origin, type ScreenMargins } from './lib/windowPosition'
 import { Ghost, type ImageBounds } from './components/Ghost'
 import type { BubbleTheme } from './types'
@@ -351,10 +352,8 @@ export default function App() {
     ;(async () => {
       const win = await getWindowByLabel('bubble')
       if (!win) return
-      await win.setSize(new LogicalSize(bubbleWindowSize.width, bubbleWindowSize.height))
-      // Wait for compositor to process the resize before positioning
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-      debugLog(`[App] bubble setSize requested=${bubbleWindowSize.width}x${bubbleWindowSize.height}`)
+      const actual = await resizeWindow(win, bubbleWindowSize.width, bubbleWindowSize.height)
+      debugLog(`[App] bubble setSize requested=${bubbleWindowSize.width}x${bubbleWindowSize.height}, actual=${actual.width}x${actual.height}`)
       const ghostPos = await getGhostPos()
       const p = currentSkin?.bubble_placement ?? { x: 0, y: -20, origin: 'center' as const }
 
@@ -365,8 +364,9 @@ export default function App() {
         left: settings.popup_margin_left,
         right: settings.popup_margin_right,
       }
+      // Use actual size (GTK may clamp to minimum) for correct positioning
       const { screenX, screenY, offsetX, offsetY } = calcWindowPosition(
-        anchor.x, anchor.y, bubbleWindowSize.width, bubbleWindowSize.height, origin as Origin,
+        anchor.x, anchor.y, actual.width, actual.height, origin as Origin,
         screenSize.width, screenSize.height, margins,
       )
 
