@@ -226,13 +226,17 @@ export default function App() {
         savePositionAndExit()
         return
       }
+      if ((e.key === 'x' || e.key === 'Escape') && bubble.isVisible) {
+        bubble.dismiss()
+        return
+      }
       if (e.key === 'Enter') {
         showChatInput()
       }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [showChatInput])
+  }, [showChatInput, bubble.isVisible, bubble.dismiss])
 
   // Listen for events from popup windows
   useEffect(() => {
