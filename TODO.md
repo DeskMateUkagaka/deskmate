@@ -2,7 +2,6 @@
 
 ## Immediate Product Gaps
 
-- [ ] Invisible bubble blocks my clicking (markdown + resize)
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
 - [ ] Add an actual poke reaction for middle-click instead of just logging `poke!`
@@ -156,3 +155,4 @@
   - [x] Ctrl+C without selection won't work
   - [x] Can't select the code block to copy - progress bar rendering deselects it
   - [x] Copy button in the code blocks (Markdown)
+- [x] Invisible bubble blocks my clicking - bubbles window sizes must match that of the visible size

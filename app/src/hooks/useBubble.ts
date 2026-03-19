@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-export type BubbleState = 'hidden' | 'streaming' | 'visible' | 'dismissing'
+export interface BubbleItem {
+  id: string
+  text: string
+  isStreaming: boolean
+  isPinned: boolean
+  finalizedAt: number | null
+}
 
 interface UseBubbleOptions {
   timeoutMs?: number
@@ -12,93 +18,114 @@ export function useBubble(options: UseBubbleOptions = {}) {
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
 
-  const [bubbleState, setBubbleState] = useState<BubbleState>('hidden')
-  const [text, setText] = useState('')
-  const [isPinned, setIsPinned] = useState(false)
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const finalizedAtRef = useRef<number | null>(null)
+  const [items, setItems] = useState<BubbleItem[]>([])
+  const nextIdRef = useRef(1)
+  const activeBubbleIdRef = useRef<string | null>(null)
+  const dismissTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  const clearDismissTimer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = null
-    }
+  const clearDismissTimer = useCallback((id: string) => {
+    const timer = dismissTimersRef.current.get(id)
+    if (!timer) return
+    clearTimeout(timer)
+    dismissTimersRef.current.delete(id)
   }, [])
 
-  const startDismissTimer = useCallback(() => {
-    clearDismissTimer()
-    finalizedAtRef.current = Date.now()
-    dismissTimerRef.current = setTimeout(() => {
-      setBubbleState('hidden')
-      finalizedAtRef.current = null
-      onDismissRef.current?.()
+  const notifyIfEmpty = useCallback((nextItems: BubbleItem[]) => {
+    if (nextItems.length === 0) onDismissRef.current?.()
+  }, [])
+
+  const dismissById = useCallback((id: string) => {
+    clearDismissTimer(id)
+    if (activeBubbleIdRef.current === id) activeBubbleIdRef.current = null
+    setItems((prev) => {
+      const next = prev.filter((item) => item.id !== id)
+      notifyIfEmpty(next)
+      return next
+    })
+  }, [clearDismissTimer, notifyIfEmpty])
+
+  const startDismissTimer = useCallback((id: string) => {
+    clearDismissTimer(id)
+    const timer = setTimeout(() => {
+      dismissById(id)
     }, timeoutMs)
-  }, [timeoutMs, clearDismissTimer])
+    dismissTimersRef.current.set(id, timer)
+  }, [timeoutMs, clearDismissTimer, dismissById])
 
-  // Called when streaming starts
   const startStreaming = useCallback((initialText: string) => {
-    clearDismissTimer()
-    setText(initialText)
-    setIsPinned(false)
-    finalizedAtRef.current = null
-    setBubbleState('streaming')
-  }, [clearDismissTimer])
-
-  // Called with each new chunk
-  const updateText = useCallback((newText: string) => {
-    setText(newText)
+    const id = String(nextIdRef.current++)
+    activeBubbleIdRef.current = id
+    setItems((prev) => [...prev, {
+      id,
+      text: initialText,
+      isStreaming: true,
+      isPinned: false,
+      finalizedAt: null,
+    }])
   }, [])
 
-  // Called when response is final
+  const updateText = useCallback((newText: string) => {
+    const activeId = activeBubbleIdRef.current
+    if (!activeId) return
+    setItems((prev) => prev.map((item) => (
+      item.id === activeId ? { ...item, text: newText } : item
+    )))
+  }, [])
+
   const finalize = useCallback(() => {
-    setBubbleState('visible')
-    startDismissTimer()
+    const activeId = activeBubbleIdRef.current
+    if (!activeId) return
+    const finalizedAt = Date.now()
+    setItems((prev) => prev.map((item) => (
+      item.id === activeId
+        ? { ...item, isStreaming: false, finalizedAt }
+        : item
+    )))
+    startDismissTimer(activeId)
+    activeBubbleIdRef.current = null
   }, [startDismissTimer])
 
-  const dismiss = useCallback(() => {
-    clearDismissTimer()
-    setIsPinned(false)
-    finalizedAtRef.current = null
-    setBubbleState('hidden')
-    onDismissRef.current?.()
-  }, [clearDismissTimer])
+  const dismiss = useCallback((id?: string) => {
+    const targetId = id ?? items[items.length - 1]?.id
+    if (!targetId) return
+    dismissById(targetId)
+  }, [dismissById, items])
 
-  const pin = useCallback(() => {
-    setIsPinned(true)
-    clearDismissTimer()
-    finalizedAtRef.current = null
-  }, [clearDismissTimer])
+  const pin = useCallback((id?: string) => {
+    const targetId = id ?? items[items.length - 1]?.id
+    if (!targetId) return
+    clearDismissTimer(targetId)
+    setItems((prev) => prev.map((item) => (
+      item.id === targetId
+        ? { ...item, isPinned: true, finalizedAt: null }
+        : item
+    )))
+  }, [clearDismissTimer, items])
 
-  // Dismiss on 'x' key
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.key === 'x' || e.key === 'Escape') && bubbleState !== 'hidden') {
-        dismiss()
+    return () => {
+      for (const timer of dismissTimersRef.current.values()) {
+        clearTimeout(timer)
       }
+      dismissTimersRef.current.clear()
     }
-    document.addEventListener('keyup', handler)
-    return () => document.removeEventListener('keyup', handler)
-  }, [bubbleState, dismiss])
+  }, [])
 
-  useEffect(() => {
-    return () => clearDismissTimer()
-  }, [clearDismissTimer])
-
-  const isVisible = bubbleState !== 'hidden'
-  const isStreaming = bubbleState === 'streaming'
+  const isVisible = items.length > 0
+  const currentItem = items[items.length - 1] ?? null
+  const isStreaming = currentItem?.isStreaming ?? false
 
   return {
+    items,
+    currentItem,
     isVisible,
-    text,
     isStreaming,
-    isPinned,
-    bubbleState,
     timeoutMs,
-    finalizedAt: finalizedAtRef.current,
     startStreaming,
     updateText,
     finalize,
     dismiss,
+    dismissById,
     pin,
   }
 }

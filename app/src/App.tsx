@@ -6,13 +6,25 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { moveWindow, getWindowPosition } from './lib/moveWindow'
 import { calcWindowPosition, calcAnchor, type Origin, type ScreenMargins } from './lib/windowPosition'
 import { Ghost, type ImageBounds } from './components/Ghost'
+import type { BubbleTheme } from './types'
 import { useOpenClaw } from './hooks/useOpenClaw'
+import type { BubbleItem } from './hooks/useBubble'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
 import { debugLog } from './lib/debugLog'
 
 const FULL_BUBBLE_WINDOW_SIZE = { width: 648, height: 548 }
+
+interface BubbleWindowData {
+  items: BubbleItem[]
+  isVisible: boolean
+  timeoutMs: number
+  bubbleTheme: BubbleTheme | null
+  contentOffsetX: number
+  contentOffsetY: number
+  origin: Origin
+}
 
 async function savePositionAndExit() {
   try {
@@ -253,15 +265,26 @@ export default function App() {
       unlisten.push(u3)
 
       // Listen for bubble actions from the popup bubble window
-      const u4 = await listen<{ action: string }>('bubble-action', (event) => {
+      const u4 = await listen<{ action: string; id?: string }>('bubble-action', (event) => {
         if (cancelled) return
         switch (event.payload.action) {
-          case 'dismiss': bubble.dismiss(); break
-          case 'pin': bubble.pin(); break
+          case 'dismiss': bubble.dismiss(event.payload.id); break
+          case 'pin': bubble.pin(event.payload.id); break
         }
       })
       if (cancelled) { u4(); return }
       unlisten.push(u4)
+
+      const u5 = await listen<{ key: string }>('bubble-pass-through-key', (event) => {
+        if (cancelled) return
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+          key: event.payload.key,
+          bubbles: true,
+          cancelable: true,
+        }))
+      })
+      if (cancelled) { u5(); return }
+      unlisten.push(u5)
     }
 
     setup()
@@ -270,7 +293,7 @@ export default function App() {
       cancelled = true
       unlisten.forEach((fn) => fn())
     }
-  }, [reloadSettings, reloadSkins, updateSettings, sendMessage, bubble])
+  }, [reloadSettings, reloadSkins, updateSettings, sendMessage, bubble, showChatInput])
 
   useEffect(() => {
     let unlisten: (() => void) | undefined
@@ -300,13 +323,10 @@ export default function App() {
   useEffect(() => {
     const origin = currentSkin?.bubble_placement?.origin ?? 'center'
     const emitBubbleUpdate = (contentOffsetX = 0, contentOffsetY = 0) =>
-      emit('bubble-update', {
-        text: bubble.text,
-        isStreaming: bubble.isStreaming,
+      emit<BubbleWindowData>('bubble-update', {
+        items: bubble.items,
         isVisible: bubble.isVisible,
-        isPinned: bubble.isPinned,
         timeoutMs: bubble.timeoutMs,
-        finalizedAt: bubble.finalizedAt,
         bubbleTheme: currentSkin?.bubble_theme ?? null,
         contentOffsetX,
         contentOffsetY,
@@ -350,7 +370,7 @@ export default function App() {
       emitBubbleUpdate()
       hidePopup('bubble')
     }
-  }, [bubble.text, bubble.isStreaming, bubble.isVisible, bubble.isPinned, bubble.finalizedAt, bubble.timeoutMs, bubbleWindowSize, imageBounds, screenSize, currentSkin, settings, getGhostPos])
+  }, [bubble.items, bubble.isStreaming, bubble.isVisible, bubble.timeoutMs, bubbleWindowSize, imageBounds, screenSize, currentSkin, settings, getGhostPos])
 
   // Wire streaming response into bubble
   useEffect(() => {
