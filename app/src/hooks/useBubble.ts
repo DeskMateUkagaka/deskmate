@@ -86,9 +86,11 @@ export function useBubble(options: UseBubbleOptions = {}) {
   }, [startDismissTimer])
 
   const dismiss = useCallback((id?: string) => {
-    const targetId = id ?? items[0]?.id
-    if (!targetId) return
-    dismissById(targetId)
+    if (id) { dismissById(id); return }
+    // Dismiss unpinned items first (FIFO), then pinned items (FIFO)
+    const target = items.find((item) => !item.isPinned) ?? items[0]
+    if (!target) return
+    dismissById(target.id)
   }, [dismissById, items])
 
   const pin = useCallback((id?: string) => {
