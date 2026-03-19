@@ -4,12 +4,11 @@ version: 1.0.0
 
 emotions:
   happy: happy.png
-  sad: sad.png
-  angry: angry.png
-  disgusted: disgusted.png
-  condescending: condescending.png
-  thinking: thinking.png
   neutral: neutral.png
+  oopsie: oopsie.png
+  sad: sad.png
+  surprise: surprise.png
+  thinking: thinking.png
 
 bubble_placement:
   x: -70
