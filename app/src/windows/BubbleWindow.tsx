@@ -350,11 +350,12 @@ export function BubbleWindow() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const current = dataRef.current
+      const oldest = current.items[0]
       const latest = current.items[current.items.length - 1]
-      if (!current.isVisible || !latest) return
+      if (!current.isVisible || !oldest || !latest) return
 
       if (e.key === 'x' || e.key === 'Escape') {
-        emit('bubble-action', { action: 'dismiss', id: latest.id })
+        emit('bubble-action', { action: 'dismiss', id: oldest.id })
         return
       }
 

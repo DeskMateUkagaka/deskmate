@@ -86,7 +86,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
   }, [startDismissTimer])
 
   const dismiss = useCallback((id?: string) => {
-    const targetId = id ?? items[items.length - 1]?.id
+    const targetId = id ?? items[0]?.id
     if (!targetId) return
     dismissById(targetId)
   }, [dismissById, items])
