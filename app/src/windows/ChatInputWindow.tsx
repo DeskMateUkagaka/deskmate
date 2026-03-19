@@ -33,8 +33,9 @@ export function ChatInputWindow() {
     let unlisten: (() => void) | undefined
     win.onFocusChanged(({ payload: focused }) => {
       if (focused) {
-        setValue('')
         textareaRef.current?.focus()
+      } else if (!textareaRef.current?.value) {
+        win.hide()
       }
     }).then((fn) => { unlisten = fn })
     setTimeout(() => textareaRef.current?.focus(), 50)
@@ -59,10 +60,10 @@ export function ChatInputWindow() {
     return () => unlisten?.()
   }, [])
 
-  // ESC to close
+  // ESC to close (only when input is empty)
   useEffect(() => {
     const handleKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') win.hide()
+      if (e.key === 'Escape' && !textareaRef.current?.value) win.hide()
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
@@ -111,8 +112,10 @@ export function ChatInputWindow() {
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      emit('chat-send', { text: value.trim() })
-      setValue('')
+      if (value.trim()) {
+        emit('chat-send', { text: value.trim() })
+        setValue('')
+      }
       win.hide()
     }
   }
