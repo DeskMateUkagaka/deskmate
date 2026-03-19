@@ -45,6 +45,7 @@ export function useSkin(): UseSkinReturn {
   }, [])
 
   const getEmotionUrl = useCallback((emotion: string): string => {
+    debugLog(`[useSkin] getEmotionUrl('${emotion}') available=[${Object.keys(emotionUrls).join(',')}]`)
     if (emotionUrls[emotion]) return emotionUrls[emotion]
     if (emotion !== 'neutral') {
       debugLog(`[useSkin] Emotion '${emotion}' not found in skin, falling back to neutral`)

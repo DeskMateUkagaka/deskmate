@@ -469,6 +469,7 @@ export default function App() {
   }, [reloadSkins, reloadSettings])
 
   const emotionUrl = getEmotionUrl(currentEmotion)
+  debugLog(`[App] currentEmotion='${currentEmotion}' emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
 
   return (
     <Ghost

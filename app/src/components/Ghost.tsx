@@ -32,6 +32,7 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddl
   } = useGhost()
 
   const imageSrc = emotionOverride || (emotionImage ? convertFileSrc(emotionImage) : '')
+  debugLog(`[Ghost] emotionOverride='${emotionOverride ? emotionOverride.slice(-60) : '(none)'}' emotionImage='${emotionImage ? emotionImage.slice(-60) : '(none)'}' imageSrc='${imageSrc ? imageSrc.slice(-60) : '(empty)'}'`)
 
   const targetHeight = ghostHeightPixels
   const initialLoadDone = useRef(false)
