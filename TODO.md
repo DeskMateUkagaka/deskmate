@@ -11,6 +11,7 @@
 - [ ] Add a session picker UI backed by `list_sessions`
 - [ ] Add command autocomplete in the chat input
 - [ ] Turn the existing token field into a proper first-run setup flow
+- [ ] Reconnect websocket - show "thinking" ghost while connecting
 
 ## Runtime Verification
 

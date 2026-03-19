@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize, PhysicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { useGhost } from '../hooks/useGhost'
 import { restoreWindowPosition, getWindowPosition } from '../lib/moveWindow'
@@ -36,6 +36,23 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddl
 
   const targetHeight = ghostHeightPixels
   const initialLoadDone = useRef(false)
+  const prevImageSrc = useRef(imageSrc)
+
+  // Nudge window size to force WebKitGTK compositor repaint on expression change.
+  // Without this, old expression pixels bleed through transparent regions.
+  useEffect(() => {
+    if (prevImageSrc.current === imageSrc) return
+    prevImageSrc.current = imageSrc
+    if (!initialLoadDone.current) return
+
+    const win = getCurrentWindow()
+    ;(async () => {
+      const size = await win.outerSize()
+      await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      await win.setSize(new PhysicalSize(size.width, size.height))
+    })().catch(() => {})
+  }, [imageSrc])
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)

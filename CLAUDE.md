@@ -151,7 +151,7 @@ This two-stage approach keeps the visible bubble aligned to the ghost even when 
 
 ### WebKitGTK Transparent Window Limitations (Linux)
 
-WebKitGTK has a compositor bug where transparent windows leave ghost artifacts ("bleed") when DOM elements are removed or hidden. The upstream bug ([tauri#12800](https://github.com/tauri-apps/tauri/issues/12800)) was reportedly fixed in WebKitGTK 2.48.0, but bleed still occurs on WebKitGTK 2.50.5 with Sway/Wayland.
+WebKitGTK has a compositor bug where transparent windows leave ghost artifacts ("bleed") when DOM elements are removed or hidden. The upstream bug ([tauri#12800](https://github.com/tauri-apps/tauri/issues/12800)) was reportedly fixed in WebKitGTK 2.48.0, but bleed still occurs on WebKitGTK 2.50.5. This affects both X11 (i3) and Wayland (Sway) — it is a WebKitGTK issue, not compositor-specific.
 
 **What works and what doesn't:**
 - Text content changes during streaming DO trigger repaints (chat bubble text updates fine)
