@@ -41,7 +41,7 @@ pub fn exit_app(app: tauri::AppHandle) {
 #[tauri::command]
 pub fn debug_log(content: String) {
     use std::fs::OpenOptions;
-    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("/tmp/debug.log") {
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("/tmp/ukagaka.log") {
         let _ = f.write_all(content.as_bytes());
     }
 }
