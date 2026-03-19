@@ -14,7 +14,7 @@ import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
 import { debugLog } from './lib/debugLog'
 
-const FULL_BUBBLE_WINDOW_SIZE = { width: 648, height: 548 }
+const FULL_BUBBLE_WINDOW_WIDTH = 648
 
 interface BubbleWindowData {
   items: BubbleItem[]
@@ -92,7 +92,8 @@ export default function App() {
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
   const chatInputOpenRef = useRef(false)
-  const [bubbleWindowSize, setBubbleWindowSize] = useState(FULL_BUBBLE_WINDOW_SIZE)
+  const fullBubbleHeight = screenSize.height - settings.popup_margin_top - settings.popup_margin_bottom
+  const [bubbleWindowSize, setBubbleWindowSize] = useState({ width: FULL_BUBBLE_WINDOW_WIDTH, height: fullBubbleHeight })
   // Anchor point for input window positioning — set once when opened, reused on resize
   const inputAnchorRef = useRef({ centerX: 0, centerY: 0 })
 
@@ -310,7 +311,7 @@ export default function App() {
 
   useEffect(() => {
     if (!bubble.isVisible || bubble.isStreaming) {
-      setBubbleWindowSize(FULL_BUBBLE_WINDOW_SIZE)
+      setBubbleWindowSize({ width: FULL_BUBBLE_WINDOW_WIDTH, height: fullBubbleHeight })
     }
   }, [bubble.isVisible, bubble.isStreaming])
 

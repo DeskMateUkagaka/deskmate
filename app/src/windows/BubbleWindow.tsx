@@ -126,8 +126,6 @@ function BubbleCard({
   const codeText = themeVal(theme, 'code_text_color', DEFAULTS.codeTextColor)
   const fontSize = themeVal(theme, 'font_size', DEFAULTS.fontSize)
   const fontFamily = theme?.font_family ?? undefined
-  const maxBubbleHeight = theme?.max_bubble_height ?? 540
-
   const copyText = () => {
     navigator.clipboard.writeText(item.text)
     setCopied(item.id)
@@ -187,7 +185,6 @@ function BubbleCard({
     userSelect: 'text',
     WebkitUserSelect: 'text',
     cursor: 'text',
-    maxHeight: maxBubbleHeight,
     overflowY: 'auto',
     '--code-bg': codeBg,
     '--code-text': codeText,
