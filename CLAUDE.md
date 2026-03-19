@@ -235,6 +235,8 @@ The bubble window lifecycle involves multiple async operations that must be care
 
 Mixing async positioning into the data effect causes races — when multiple deps change in quick succession (e.g., streaming ends + content-sized arrives), multiple async IIFEs run concurrently and the last to finish wins, which may be a stale one.
 
+**Known limitation: ack bubble flash.** Non-streaming (instant) responses cause the bubble to flash at 648x548 then shrink to content size ~500ms later when `bubble-content-sized` arrives. This is cosmetic and only affects non-streaming responses. Real LLM backends always stream, so the 648x548 window is correct — text fills it as it arrives. Not worth fixing.
+
 ### Save-on-Exit Resilience
 
 When saving state before exit (e.g., window position), always wrap the save in a try-catch so the app exits even if saving fails (disk full, permissions, etc.). The Rust tray exit handler is safe because `app.exit(0)` runs unconditionally. The frontend `savePositionAndExit()` must catch errors from `invoke('set_ghost_position')`.
@@ -254,4 +256,4 @@ See `TODO.md` for the full list. Key items:
 
 ## Debugging
 
-**Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/debug.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.
+**Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/ukagaka.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.
