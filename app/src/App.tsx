@@ -3,7 +3,7 @@ import { getCurrentWindow, getAllWindows, LogicalPosition, LogicalSize } from '@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
-import { moveWindow, getWindowPosition } from './lib/moveWindow'
+import { moveWindow, showWindowAt, getWindowPosition } from './lib/moveWindow'
 import { resizeWindow } from './lib/resizeWindow'
 import { calcWindowPosition, calcAnchor, type Origin, type ScreenMargins } from './lib/windowPosition'
 import { Ghost, type ImageBounds } from './components/Ghost'
@@ -47,10 +47,11 @@ async function getWindowByLabel(label: string) {
 async function showPopup(label: string, x?: number, y?: number) {
   const win = await getWindowByLabel(label)
   if (!win) return
-  await win.show()
   if (x !== undefined && y !== undefined) {
     debugLog(`[showPopup] ${label} at (${x}, ${y})`)
-    await moveWindow(win, x, y)
+    await showWindowAt(win, x, y)
+  } else {
+    await win.show()
   }
   await win.setFocus()
 }
@@ -158,10 +159,7 @@ export default function App() {
       anchor.x, anchor.y, actualWidth, actualHeight, 'top-center',
       screenSize.width, screenSize.height, margins,
     )
-    // Must show before moveWindow on Sway — hidden windows aren't in the
-    // compositor tree so swaymsg can't target them.
-    await win.show()
-    await moveWindow(win, screenX, screenY)
+    await showWindowAt(win, screenX, screenY)
     await win.setFocus()
   }, [imageBounds, windowPos, screenSize, currentSkin])
 
@@ -384,10 +382,7 @@ export default function App() {
         origin,
       })
 
-      // Must show before moveWindow on Sway — hidden windows aren't in the
-      // compositor tree so swaymsg can't target them.
-      await win.show()
-      await moveWindow(win, screenX, screenY)
+      await showWindowAt(win, screenX, screenY)
       debugLog(`[App] bubble moved to (${screenX},${screenY}), requested=${bubbleWindowSize.width}x${bubbleWindowSize.height}`)
     })()
   }, [bubbleWindowSize, bubble.isVisible, imageBounds, screenSize, currentSkin, settings, getGhostPos])

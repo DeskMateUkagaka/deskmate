@@ -70,6 +70,22 @@ export async function getWindowPosition(win: Window): Promise<{ x: number; y: nu
   return { x: outer.x, y: outer.y }
 }
 
+/**
+ * Show a hidden window at (x, y), handling compositor differences:
+ * - Sway/Wayland: must show() first (hidden windows aren't in compositor tree)
+ * - X11/fallback: moveWindow first, then show() (avoids visible flash)
+ */
+export async function showWindowAt(win: Window, x: number, y: number): Promise<void> {
+  const compositorIpc = await invoke<boolean>('uses_compositor_ipc')
+  if (compositorIpc) {
+    await win.show()
+    await moveWindow(win, x, y)
+  } else {
+    await moveWindow(win, x, y)
+    await win.show()
+  }
+}
+
 // Window title map matching tauri.conf.json
 const WINDOW_TITLES: Record<string, string> = {
   'main': 'ukagaka-ghost',
