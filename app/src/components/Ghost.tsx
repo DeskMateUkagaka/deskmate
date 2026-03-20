@@ -35,23 +35,8 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
 
   const targetHeight = ghostHeightPixels
   const initialLoadDone = useRef(false)
-  const prevImageSrc = useRef(imageSrc)
-
-  // Nudge window size to force WebKitGTK compositor repaint on expression change.
-  // Without this, old expression pixels bleed through transparent regions.
-  useEffect(() => {
-    if (prevImageSrc.current === imageSrc) return
-    prevImageSrc.current = imageSrc
-    if (!initialLoadDone.current) return
-
-    const win = getCurrentWindow()
-    ;(async () => {
-      const size = await win.outerSize()
-      await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-      await win.setSize(new PhysicalSize(size.width, size.height))
-    })().catch(() => {})
-  }, [imageSrc])
+  // Nudge is done in the onLoad handler — nudging on src change is too
+  // early because the old image pixels are still rendered when the nudge fires.
 
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
@@ -165,6 +150,16 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
               const aspectRatio = img.naturalWidth / img.naturalHeight
               const targetWidth = Math.round(targetHeight * aspectRatio)
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
+            }
+
+            // Nudge after expression image loads to clear WebKitGTK bleed.
+            // Must happen after onLoad (not on src change) so the new image
+            // is rendered before the compositor repaint.
+            if (initialLoadDone.current) {
+              const size = await win.outerSize()
+              await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+              await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+              await win.setSize(new PhysicalSize(size.width, size.height))
             }
 
             // Only restore saved position on initial load — emotion changes

@@ -67,6 +67,10 @@ Other env vars that may help:
 WEBKIT_DISABLE_DMABUF_RENDERER=1 cargo tauri dev
 ```
 
+### `libayatana-appindicator is deprecated` warning
+
+The tray icon produces a warning: `libayatana-appindicator is deprecated. Please use libayatana-appindicator-glib in newly written code.` This is an upstream issue — Tauri's `tray-icon` crate depends on the `libappindicator` Rust crate (v0.9.0) which binds to the deprecated C library. Until `tray-icon` migrates to `libayatana-appindicator-glib`, this warning cannot be resolved on our side. The tray works fine despite the warning.
+
 ### Sway / Wayland
 
 The app works on Sway with the `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround above. XWayland is used when `GDK_BACKEND=x11` is set (usually enabled in Sway by default).
