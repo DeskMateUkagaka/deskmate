@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-AI-powered desktop companion (Ukagaka) built with Tauri v2. A transparent character sits on the desktop, connected to an OpenClaw AI gateway for chat, expression switching, and skin management.
+AI-powered desktop companion (DeskMate) built with Tauri v2. A transparent character sits on the desktop, connected to an OpenClaw AI gateway for chat, expression switching, and skin management.
 
 ## Prerequisites
 
@@ -184,7 +184,7 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 
 Wayland compositors do not allow clients to set window positions programmatically — the compositor controls placement. To support multiple desktop environments, window positioning is abstracted through `app/src/lib/moveWindow.ts` and the Rust `move_window` command (`app/src-tauri/src/commands/window.rs`).
 
-- **Sway**: Uses `swaymsg '[title="^..."] move position X Y'` to position windows via the compositor. Window titles in `tauri.conf.json` are prefixed with `ukagaka-` to enable unique targeting (e.g., `ukagaka-input`, `ukagaka-bubble`, `ukagaka-ghost`).
+- **Sway**: Uses `swaymsg '[title="^..."] move position X Y'` to position windows via the compositor. Window titles in `tauri.conf.json` are prefixed with `deskmate-` to enable unique targeting (e.g., `deskmate-input`, `deskmate-bubble`, `deskmate-ghost`).
 - **Fallback** (X11, unknown compositors): Falls back to Tauri's built-in `win.setPosition()`.
 - **Adding new compositors**: Add detection (env var check) and positioning logic in `window.rs`. E.g., Hyprland via `hyprctl`, KDE via `kdotool`, etc.
 - Always call `moveWindow(win, x, y)` or `moveWindowPhysical(win, x, y)` instead of `win.setPosition()` directly.
@@ -256,4 +256,4 @@ See `TODO.md` for the full list. Key items:
 
 ## Debugging
 
-**Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/ukagaka.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.
+**Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/deskmate.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.

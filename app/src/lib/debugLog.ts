@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
 /**
- * Log to /tmp/ukagaka.log via Rust backend.
+ * Log to /tmp/deskmate.log via Rust backend.
  * Use this instead of console.log — WebKitGTK transparent windows
  * may not show console output in the web inspector.
  */

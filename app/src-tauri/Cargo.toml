@@ -1,14 +1,14 @@
 [package]
-name = "ukagaka"
+name = "deskmate"
 version = "0.1.0"
-description = "AI-powered desktop companion (Ukagaka) with OpenClaw integration"
+description = "AI-powered desktop companion (DeskMate) with OpenClaw integration"
 authors = ["jdj"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "ukagaka_lib"
+name = "deskmate_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    ukagaka_lib::run();
+    deskmate_lib::run();
 }

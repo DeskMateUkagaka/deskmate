@@ -50,14 +50,14 @@ pub struct ConnectParams {
 }
 
 impl ConnectParams {
-    /// Build a default ConnectParams for the ukagaka UI client.
+    /// Build a default ConnectParams for the DeskMate UI client.
     pub fn new(token: Option<String>) -> Self {
         ConnectParams {
             min_protocol: 3,
             max_protocol: 3,
             client: ClientInfo {
                 id: "gateway-client".to_string(),
-                display_name: Some("Ukagaka".to_string()),
+                display_name: Some("DeskMate".to_string()),
                 version: env!("CARGO_PKG_VERSION").to_string(),
                 platform: std::env::consts::OS.to_string(),
                 device_family: None,

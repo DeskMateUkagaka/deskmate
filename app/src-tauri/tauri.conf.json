@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ukagaka",
+  "productName": "deskmate",
   "version": "0.1.0",
-  "identifier": "ukagaka",
+  "identifier": "deskmate",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "ukagaka-ghost",
+        "title": "deskmate-ghost",
         "width": 355,
         "height": 1178,
         "resizable": true,
@@ -28,7 +28,7 @@
       {
         "label": "settings",
         "url": "index.html?window=settings",
-        "title": "ukagaka-settings",
+        "title": "deskmate-settings",
         "width": 360,
         "height": 460,
         "resizable": false,
@@ -42,7 +42,7 @@
       {
         "label": "chat-input",
         "url": "index.html?window=chat-input",
-        "title": "ukagaka-input",
+        "title": "deskmate-input",
         "width": 280,
         "height": 44,
         "resizable": true,
@@ -56,7 +56,7 @@
       {
         "label": "bubble",
         "url": "index.html?window=bubble",
-        "title": "ukagaka-bubble",
+        "title": "deskmate-bubble",
         "width": 648,
         "height": 548,
         "resizable": false,
@@ -70,7 +70,7 @@
       {
         "label": "skin-picker",
         "url": "index.html?window=skin-picker",
-        "title": "ukagaka-skin-picker",
+        "title": "deskmate-skin-picker",
         "width": 340,
         "height": 440,
         "resizable": false,

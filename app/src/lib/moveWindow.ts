@@ -88,11 +88,11 @@ export async function showWindowAt(win: Window, x: number, y: number): Promise<v
 
 // Window title map matching tauri.conf.json
 const WINDOW_TITLES: Record<string, string> = {
-  'main': 'ukagaka-ghost',
-  'settings': 'ukagaka-settings',
-  'chat-input': 'ukagaka-input',
-  'bubble': 'ukagaka-bubble',
-  'skin-picker': 'ukagaka-skin-picker',
+  'main': 'deskmate-ghost',
+  'settings': 'deskmate-settings',
+  'chat-input': 'deskmate-input',
+  'bubble': 'deskmate-bubble',
+  'skin-picker': 'deskmate-skin-picker',
 }
 
 async function getWindowTitle(win: Window): Promise<string> {
