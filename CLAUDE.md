@@ -245,6 +245,10 @@ When saving state before exit (e.g., window position), always wrap the save in a
 
 Permissions are in `app/src-tauri/capabilities/default.json`. If adding new Tauri APIs (e.g., shell, dialog, notification), add the corresponding permission there.
 
+## E2E Tests
+
+Rust integration tests for window positioning and bleed detection on Sway. Uses `swayipc` for compositor queries, `grim` for screenshots, and a green-screen background for bleed detection. See `DEV.md` for full details, design decisions, and how to run them.
+
 ## Remaining Work
 
 See `TODO.md` for the full list. Key items:

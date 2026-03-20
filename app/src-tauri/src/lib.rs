@@ -149,6 +149,7 @@ pub fn run() {
             commands::window::move_window,
             commands::window::get_window_position,
             commands::window::uses_compositor_ipc,
+            commands::e2e::e2e_inject_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

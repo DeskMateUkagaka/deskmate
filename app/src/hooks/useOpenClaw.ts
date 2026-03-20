@@ -21,10 +21,6 @@ interface ChatEvent {
   stopReason?: string
 }
 
-interface SessionInfo {
-  key: string
-  display_name?: string
-}
 
 function parseEmotion(text: string): string {
   const match = text.match(/\[emotion:(\w+)\]/)

@@ -4,7 +4,9 @@
 
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
-- [ ] Add idle animation / neutral variation when the character is not speaking
+- [ ] Add idle animation
+  - [ ] Blink
+  - [ ] Smile then back
 - [ ] Distinguish proactive dialogue visually from normal replies
 - [ ] Add command autocomplete in the chat input
 - [ ] Turn the existing token field into a proper first-run setup flow
@@ -14,6 +16,9 @@
   - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
 - [ ] Steam Workshop skin upload/download
 - [ ] AI-decided action buttons via protocol extension
+- Claude Code Channels
+  - [ ] let user choose the ghost engine - openclaw vs claude code
+  - [ ] and let it control the side kick
 
 ## Runtime Verification
 
@@ -137,6 +142,7 @@
 - [ ] Animated expression transitions
 - [ ] Sidekick / kero character
 - [ ] Voice output / TTS
+- [ ] Bubble config - e.g., font and size
 
 ## Already Landed In Code
 

@@ -128,6 +128,69 @@ When the bubble is dismissed (manually or by auto-dismiss timer), the ghost reve
 
 Permissions are in `app/src-tauri/capabilities/default.json`. If adding new Tauri APIs (e.g., shell, dialog, notification), add the corresponding permission there.
 
+## E2E Tests (Window Positioning & Bleed Detection)
+
+Automated integration tests that launch the real app on Sway Wayland and verify window positioning correctness and transparency bleed absence. These are **not unit tests** — they interact with the live compositor.
+
+### Design Decisions
+
+- **Rust integration tests** (`app/src-tauri/tests/`) using `swayipc` for compositor queries and `grim` for screenshots. No browser automation (Playwright/Cypress) — the testable behavior is at the compositor level, not the DOM.
+- **Bleed detection** via screenshot comparison: a green `(0,255,0)` background is rendered via `swaybg` on the wallpaper layer. After hiding UI elements, the region is screenshotted and all pixels are verified to be green within ±5 per RGB channel. Non-green pixels = stale bleed artifacts.
+- **Position verification** via `swayipc::get_tree()`: query the compositor for actual window coordinates, compare against expected within ±5px. No screenshot alignment or template matching needed.
+- **Sway only** for now — the only platform with compositor IPC implemented. Tests skip automatically on non-Sway environments.
+- **Sequential execution** (`--test-threads=1`) because tests manipulate global compositor state.
+
+### System Dependencies
+
+```bash
+# Arch Linux
+sudo pacman -S grim swaybg wtype
+```
+
+- `grim` — Wayland screenshot tool
+- `swaybg` — solid-color wallpaper for green-screen bleed detection
+- `wtype` — Wayland keyboard simulation (replaces xdotool)
+
+### Running
+
+```bash
+# 1. Build the app binary (once)
+cd app && cargo tauri build --debug
+
+# 2. Run E2E tests (must be on a Sway session)
+cd app/src-tauri && cargo test --test e2e -- --test-threads=1
+```
+
+Tests skip with a message if `SWAYSOCK` is not set (i.e., not on Sway).
+
+### Test Scenarios
+
+| File | Tests | What it verifies |
+|------|-------|-----------------|
+| `ghost_window.rs` | Ghost renders, transparent background, position save/restore | Ghost appears in Sway tree, corners are transparent (green), Ctrl+Q saves position and relaunch restores it |
+| `popup_position.rs` | Input/bubble positioned near ghost, show-before-move regression | Popups appear near the ghost (not at 0,0), catching the "hidden windows can't be moved on Sway" bug |
+| `bleed.rs` | No bleed after bubble hide, no bleed after input hide | After dismissing a popup, screenshot its former region — all pixels must be green (no stale artifacts) |
+| `keyboard.rs` | Focus returns after input close | After closing the chat input with Escape, ghost window gets focus back |
+
+### Test Infrastructure
+
+```
+app/src-tauri/tests/
+  e2e.rs                    # entry point
+  helpers/
+    app.rs                  # launch/kill app binary (DESKMATE_TEST_MODE=1, isolated data dir)
+    sway.rs                 # swayipc wrappers: find_window, wait_for_window, assert_position_near, send_key
+    screenshot.rs           # grim capture + green pixel verification
+    green_screen.rs         # swaybg launcher (green wallpaper), killed on Drop
+  tests/
+    ghost_window.rs
+    popup_position.rs
+    bleed.rs
+    keyboard.rs
+```
+
+The `DESKMATE_TEST_MODE=1` env var enables `e2e_inject_event` — a Tauri command that emits arbitrary events, allowing tests to simulate chat responses without a gateway connection.
+
 ### Asset Protocol
 
 Local files (skin PNGs) are served to the webview via Tauri's asset protocol. Configured in `tauri.conf.json` under `app.security.assetProtocol`. The scope must cover the paths returned by the skin loader. In dev mode, skins are at an absolute filesystem path; in production, they're under `$RESOURCE/skins/`.

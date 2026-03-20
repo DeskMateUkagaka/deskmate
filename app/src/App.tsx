@@ -64,7 +64,7 @@ async function hidePopup(label: string) {
 
 export default function App() {
   const { settings, updateSettings, reloadSettings } = useSettings()
-  const { currentSkin, skins, switchSkin, getEmotionUrl, reloadSkins } = useSkin()
+  const { currentSkin, skins: _skins, switchSkin: _switchSkin, getEmotionUrl, reloadSkins } = useSkin()
   const {
     sendMessage,
     connectionStatus,
@@ -421,8 +421,8 @@ export default function App() {
     const win = getCurrentWindow()
     const toggleItem = await MenuItem.new({
       text: 'Show / Hide',
-      action: () => {
-        if (win.isVisible()) {
+      action: async () => {
+        if (await win.isVisible()) {
           win.hide()
         } else {
           win.show()
