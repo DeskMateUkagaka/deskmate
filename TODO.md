@@ -139,6 +139,7 @@
 
 ## Later / v2
 
+- [ ] Actually make the e2e tests work
 - [ ] Animated expression transitions
 - [ ] Sidekick / kero character
 - [ ] Voice output / TTS
