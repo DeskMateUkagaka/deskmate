@@ -18,7 +18,6 @@ interface GhostProps {
   emotionOverride?: string
   ghostHeightPixels: number
   onLeftClick?: () => void
-  onMiddleClick?: () => void
   onRightClick?: (x: number, y: number) => void
   onImageBounds?: (bounds: ImageBounds) => void
   onPositionChange?: (pos: { x: number; y: number }) => void
@@ -26,7 +25,7 @@ interface GhostProps {
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddleClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
+export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
   const {
     emotionImage,
   } = useGhost()
@@ -113,12 +112,8 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddl
     if (e.button === 0) {
       mouseDownPos.current = null
       didDrag.current = false
-    } else if (e.button === 1) {
-      debugLog('[Ghost] middle click fired (via mouseup)')
-      e.preventDefault()
-      onMiddleClick?.()
     }
-  }, [onMiddleClick])
+  }, [])
 
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     debugLog('[Ghost] click event, button:', e.button, 'didDrag:', didDrag.current)
@@ -134,13 +129,6 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddl
     onRightClick?.(e.clientX, e.clientY)
   }, [onRightClick])
 
-  const handleAuxClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    debugLog('[Ghost] auxclick button:', e.button)
-    if (e.button === 1) {
-      e.preventDefault()
-    }
-  }, [])
-
   return (
     <div
       className="ghost-container"
@@ -152,7 +140,6 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onMiddl
         mouseDownPos.current = null
       }}
       onContextMenu={handleContextMenu}
-      onAuxClick={handleAuxClick}
       style={{
         width: '100%',
         height: '100%',

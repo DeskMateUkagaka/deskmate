@@ -415,10 +415,6 @@ export default function App() {
     showChatInput()
   }, [showChatInput])
 
-  const handleMiddleClick = useCallback(() => {
-    debugLog('poke!')
-  }, [])
-
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
     hidePopup('chat-input')
     chatInputOpenRef.current = false
@@ -443,8 +439,8 @@ export default function App() {
       text: 'Reload Settings',
       action: () => { reloadSkins(); reloadSettings() },
     })
-    const buySkins = await MenuItem.new({
-      text: 'Buy Skins',
+    const getSkins = await MenuItem.new({
+      text: 'Get Skins',
       action: () => { /* TODO: open external URL */ },
     })
     const separator = await PredefinedMenuItem.new({ item: 'Separator' })
@@ -458,7 +454,7 @@ export default function App() {
       action: () => savePositionAndExit(),
     })
     const menu = await Menu.new({
-      items: [toggleItem, separator0, changeSkin, reloadConfigItem, buySkins, separator, settings, separator2, exitItem],
+      items: [toggleItem, separator0, changeSkin, reloadConfigItem, getSkins, separator, settings, separator2, exitItem],
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [reloadSkins, reloadSettings])
@@ -471,7 +467,6 @@ export default function App() {
       emotionOverride={emotionUrl || undefined}
       ghostHeightPixels={settings.ghost_height_pixels}
       onLeftClick={handleGhostClick}
-      onMiddleClick={handleMiddleClick}
       onRightClick={handleRightClick}
       onImageBounds={setImageBounds}
       onPositionChange={handlePositionChange}

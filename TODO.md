@@ -4,14 +4,16 @@
 
 - [ ] Add a conversation history / quake-style terminal window
 - [ ] Add a global shortcut to show/hide the ghost
-- [ ] Add an actual poke reaction for middle-click instead of just logging `poke!`
 - [ ] Add idle animation / neutral variation when the character is not speaking
 - [ ] Distinguish proactive dialogue visually from normal replies
-- [ ] Persist the last-used session key instead of always using `main`
-- [ ] Add a session picker UI backed by `list_sessions`
 - [ ] Add command autocomplete in the chat input
 - [ ] Turn the existing token field into a proper first-run setup flow
 - [ ] Reconnect websocket - show "thinking" ghost while connecting
+- [ ] Some voices (AI generated even!)
+  - [ ] On click + text input open - says something, like RTS unit selection
+  - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
+- [ ] Steam Workshop skin upload/download
+- [ ] AI-decided action buttons via protocol extension
 
 ## Runtime Verification
 
@@ -125,19 +127,15 @@
 
 ## Housekeeping
 
-- [ ] Set the Buy Skins URL
+- [ ] Set the Get Skins URL
 - [ ] Replace the default app icons
 - [ ] Expand the top-level README into a user-facing setup guide
 - [ ] Document skin creation for community authors
 
 ## Later / v2
 
-- [ ] Protocol-native emotion/expression field instead of tag parsing
-- [ ] AI-decided action buttons via protocol extension
-- [ ] Device identity auth (key-pair signing, nonce binding)
 - [ ] Animated expression transitions
 - [ ] Sidekick / kero character
-- [ ] Steam Workshop skin upload/download
 - [ ] Voice output / TTS
 
 ## Already Landed In Code
@@ -157,3 +155,9 @@
   - [x] Can't select the code block to copy - progress bar rendering deselects it
   - [x] Copy button in the code blocks (Markdown)
 - [x] Invisible bubble blocks my clicking - bubbles window sizes must match that of the visible size
+
+## Won't Do
+
+- [x] Persist the last-used session key instead of always using `main`
+  - [ ] Add a session picker UI backed by `list_sessions`
+  - Nay, let's just use main all the time, I have no reason to use other session name for now

@@ -64,12 +64,12 @@ pub fn run() {
             let toggle_item = MenuItem::with_id(handle, "toggle", "Show / Hide", true, None::<&str>)?;
             let sep0 = PredefinedMenuItem::separator(handle)?;
             let change_skin = MenuItem::with_id(handle, "change-skin", "Change Skin", true, None::<&str>)?;
-            let buy_skins = MenuItem::with_id(handle, "buy-skins", "Buy Skins", true, None::<&str>)?;
+            let get_skins = MenuItem::with_id(handle, "get-skins", "Get Skins", true, None::<&str>)?;
             let sep1 = PredefinedMenuItem::separator(handle)?;
             let settings_item = MenuItem::with_id(handle, "settings", "Settings", true, None::<&str>)?;
             let sep2 = PredefinedMenuItem::separator(handle)?;
             let exit_item = MenuItem::with_id(handle, "exit", "Exit", true, None::<&str>)?;
-            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &buy_skins, &sep1, &settings_item, &sep2, &exit_item])?;
+            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &get_skins, &sep1, &settings_item, &sep2, &exit_item])?;
 
             TrayIconBuilder::new()
                 .icon(handle.default_window_icon().unwrap().clone())
@@ -97,7 +97,7 @@ pub fn run() {
                                 let _ = win.set_focus();
                             }
                         }
-                        "buy-skins" => {
+                        "get-skins" => {
                             // TODO: open external URL
                         }
                         "settings" => {

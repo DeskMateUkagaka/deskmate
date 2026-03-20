@@ -63,11 +63,11 @@ export function ContextMenuWindow() {
       </button>
       <button
         style={itemStyle}
-        onClick={() => doAction('buy-skins')}
+        onClick={() => doAction('get-skins')}
         onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        Buy Skins
+        Get Skins
       </button>
       <div style={separatorStyle} />
       <button
