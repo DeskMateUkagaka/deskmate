@@ -152,10 +152,12 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
             }
 
-            // Nudge after expression image loads to clear WebKitGTK bleed.
-            // Must happen after onLoad (not on src change) so the new image
-            // is rendered before the compositor repaint.
+            // Nudge after expression image is fully decoded and painted to clear
+            // WebKitGTK bleed. img.decode() ensures the image is ready to composite,
+            // then we wait for the paint frame before nudging the compositor.
             if (initialLoadDone.current) {
+              await img.decode()
+              await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
               const size = await win.outerSize()
               await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
               await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
