@@ -3,6 +3,7 @@ import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow, PhysicalSize, PhysicalPosition } from '@tauri-apps/api/window'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import type { BubbleTheme, PlacementOrigin } from '../types'
@@ -137,7 +138,7 @@ function BubbleCard({
 
   const markdownContent = useMemo(() => (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkBreaks]}
       rehypePlugins={[rehypeHighlight]}
       components={{
         pre: ({ children, ...props }) => {
