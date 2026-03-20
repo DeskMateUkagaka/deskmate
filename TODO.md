@@ -2,19 +2,16 @@
 
 ## Immediate Product Gaps
 
+- [ ] Steam Workshop skin upload/download
+- [ ] Reconnect websocket - show "thinking" ghost while connecting
 - [ ] Add a conversation history / quake-style terminal window
-- [ ] Add a global shortcut to show/hide the ghost
+  - [ ] Use real terminal? Like, foot terminal?
+  - [ ] How about Mac?
+  - [ ] What happens on Windows?
 - [ ] Add idle animation
   - [ ] Blink
   - [ ] Smile then back
-- [ ] Distinguish proactive dialogue visually from normal replies
 - [ ] Add command autocomplete in the chat input
-- [ ] Turn the existing token field into a proper first-run setup flow
-- [ ] Reconnect websocket - show "thinking" ghost while connecting
-- [ ] Some voices (AI generated even!)
-  - [ ] On click + text input open - says something, like RTS unit selection
-  - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
-- [ ] Steam Workshop skin upload/download
 - [ ] AI-decided action buttons via protocol extension
 - Claude Code Channels
   - [ ] let user choose the ghost engine - openclaw vs claude code
@@ -139,11 +136,17 @@
 
 ## Later / v2
 
+- [ ] Easer Openclaw Setup:
+  - [ ] Turn the existing token field into a proper first-run setup flow
 - [ ] Actually make the e2e tests work
 - [ ] Animated expression transitions
 - [ ] Sidekick / kero character
 - [ ] Voice output / TTS
 - [ ] Bubble config - e.g., font and size
+- [ ] Add a global shortcut to show/hide the ghost
+- [ ] Some voices (AI generated even!)
+  - [ ] On click + text input open - says something, like RTS unit selection
+  - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
 
 ## Already Landed In Code
 
