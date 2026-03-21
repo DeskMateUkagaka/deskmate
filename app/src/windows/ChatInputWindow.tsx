@@ -150,7 +150,10 @@ export function ChatInputWindow() {
     // Add padding (12px left + 12px right + dot 8px + gap 6px + close btn ~20px + gap 6px = ~64px)
     const desiredWidth = Math.max(MIN_WIDTH, Math.min(longestLinePx + 64, config.maxWidth))
     // panel padding top/bottom 6+6=12, border 2, plus textarea height
-    const dropdownHeight = dropdownRef.current?.offsetHeight ?? 0
+    // Calculate dropdown height from item count rather than measuring DOM
+    // (DOM measurement fails on first render when window is still too small)
+    const dropdownItemCount = Math.min(filteredCommands.length, MAX_DROPDOWN_ITEMS)
+    const dropdownHeight = dropdownItemCount > 0 ? dropdownItemCount * 32 + 2 : 0 // +2 for border
     const desiredHeight = Math.max(MIN_HEIGHT, contentHeight + 14 + dropdownHeight)
     const clampedHeight = Math.min(desiredHeight, config.maxHeight)
 
@@ -159,7 +162,7 @@ export function ChatInputWindow() {
     await win.setSize(new LogicalSize(finalWidth, finalHeight))
     // Notify main window so it can reposition with margin clamping
     await emit('input-resized', { width: finalWidth, height: finalHeight })
-  }, [win, config])
+  }, [win, config, filteredCommands.length])
 
   // Resize when value or dropdown visibility changes
   useEffect(() => {

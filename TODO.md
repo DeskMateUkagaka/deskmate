@@ -2,16 +2,12 @@
 
 ## Immediate Product Gaps
 
+- [!] Add command autocomplete in the chat input
 - [!] Make get skins work
 - [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
-- [!] Add idle animation
-  - [!] Blink
-  - [!] Smile then back
-- [!] Add command autocomplete in the chat input
-- [!] AI-decided action buttons via protocol extension
 
 ## Runtime Verification
 
@@ -166,6 +162,8 @@
   - [x] Copy button in the code blocks (Markdown)
 - [x] Invisible bubble blocks my clicking - bubbles window sizes must match that of the visible size
 - [x] Reconnect websocket - show "thinking" ghost while connecting
+- [x] Add idle animation
+- [x] AI-decided action buttons via protocol extension
 
 ## Won't Do
 
