@@ -203,6 +203,7 @@ pub fn run() {
             commands::skin::switch_skin,
             commands::skin::get_emotion_image,
             commands::skin::reload_skins,
+            commands::skin::get_idle_animation_path,
             commands::settings::get_settings,
             commands::settings::reload_settings,
             commands::settings::update_settings,

@@ -35,3 +35,12 @@ pub fn get_emotion_image(
     let sm = skin_manager.lock().unwrap();
     sm.get_emotion_path(&emotion)
 }
+
+#[tauri::command]
+pub fn get_idle_animation_path(
+    filename: String,
+    skin_manager: State<Mutex<SkinManager>>,
+) -> Result<String, String> {
+    let sm = skin_manager.lock().unwrap();
+    sm.get_idle_animation_path(&filename)
+}

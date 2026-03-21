@@ -31,6 +31,11 @@ export interface InputTheme {
   max_height: number | null
 }
 
+export interface IdleAnimation {
+  file: string
+  duration_ms: number
+}
+
 export interface SkinInfo {
   id: string
   name: string
@@ -43,6 +48,10 @@ export interface SkinInfo {
   input_placement: UiPlacement | null
   bubble_theme: BubbleTheme | null
   input_theme: InputTheme | null
+  /** Idle animation clips (empty if skin has none) */
+  idle_animations: IdleAnimation[]
+  /** Seconds between idle animations (default 30) */
+  idle_interval_seconds: number
   source: string          // "bundled" | "community"
   format_version: number  // 1 = static PNGs (current), 2+ = future
 }

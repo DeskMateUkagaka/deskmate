@@ -9,7 +9,7 @@ Legend:
 - [!] Make get skins work
 - [ ] Steam Workshop skin upload/download
 - [ ] Reconnect websocket - show "thinking" ghost while connecting
-- [ ] Add a conversation history / quake-style terminal window
+- [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?

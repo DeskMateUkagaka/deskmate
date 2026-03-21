@@ -13,6 +13,7 @@ import type { BubbleItem } from './hooks/useBubble'
 import { useBubble } from './hooks/useBubble'
 import { useSettings } from './hooks/useSettings'
 import { useSkin } from './hooks/useSkin'
+import { useIdleAnimation } from './hooks/useIdleAnimation'
 import { debugLog } from './lib/debugLog'
 
 const FULL_BUBBLE_WINDOW_WIDTH = 648
@@ -76,6 +77,11 @@ export default function App() {
 
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms, onDismiss: resetEmotion })
 
+  const { idleOverrideUrl, idlePlayCount, resetIdleTimer } = useIdleAnimation({
+    skin: currentSkin,
+    enabled: chatState === 'idle' && !bubble.isVisible,
+  })
+
   // Track window position on screen + monitor size for edge clamping
   // Use both state (for re-renders) and ref (for always-fresh reads in callbacks)
   const [windowPos, setWindowPos] = useState({ x: 0, y: 0 })
@@ -91,7 +97,8 @@ export default function App() {
   const handlePositionChange = useCallback((pos: { x: number; y: number }) => {
     windowPosRef.current = pos
     setWindowPos(pos)
-  }, [])
+    resetIdleTimer()
+  }, [resetIdleTimer])
 
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
   const chatInputOpenRef = useRef(false)
@@ -222,6 +229,7 @@ export default function App() {
   // Enter key opens chat input, Ctrl+Q exits
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      resetIdleTimer()
       if (e.key === 'q' && e.ctrlKey) {
         savePositionAndExit()
         return
@@ -236,7 +244,7 @@ export default function App() {
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [showChatInput, bubble.isVisible, bubble.dismiss])
+  }, [showChatInput, bubble.isVisible, bubble.dismiss, resetIdleTimer])
 
   // Listen for events from popup windows
   useEffect(() => {
@@ -412,10 +420,12 @@ export default function App() {
   }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGhostClick = useCallback(() => {
+    resetIdleTimer()
     showChatInput()
-  }, [showChatInput])
+  }, [showChatInput, resetIdleTimer])
 
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
+    resetIdleTimer()
     hidePopup('chat-input')
     chatInputOpenRef.current = false
     const win = getCurrentWindow()
@@ -457,14 +467,15 @@ export default function App() {
       items: [toggleItem, separator0, changeSkin, reloadConfigItem, getSkins, separator, settings, separator2, exitItem],
     })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
-  }, [reloadSkins, reloadSettings])
+  }, [reloadSkins, reloadSettings, resetIdleTimer])
 
-  const emotionUrl = getEmotionUrl(currentEmotion)
-  debugLog(`[App] currentEmotion='${currentEmotion}' emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
+  const emotionUrl = idleOverrideUrl || getEmotionUrl(currentEmotion)
+  debugLog(`[App] currentEmotion='${currentEmotion}' idleOverride=${!!idleOverrideUrl} emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
 
   return (
     <Ghost
       emotionOverride={emotionUrl || undefined}
+      imageKey={idlePlayCount}
       ghostHeightPixels={settings.ghost_height_pixels}
       onLeftClick={handleGhostClick}
       onRightClick={handleRightClick}

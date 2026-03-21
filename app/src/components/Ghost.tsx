@@ -16,6 +16,8 @@ export interface ImageBounds {
 
 interface GhostProps {
   emotionOverride?: string
+  /** Changing this key forces <img> DOM recreation — used for APNG replay */
+  imageKey?: number
   ghostHeightPixels: number
   onLeftClick?: () => void
   onRightClick?: (x: number, y: number) => void
@@ -25,7 +27,7 @@ interface GhostProps {
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
+export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, onLeftClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
   const {
     emotionImage,
   } = useGhost()
@@ -38,6 +40,7 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
   // Nudge is done in the onLoad handler — nudging on src change is too
   // early because the old image pixels are still rendered when the nudge fires.
 
+  const nudgeInProgress = useRef(false)
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -136,6 +139,7 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
     >
       {imageSrc && (
         <img
+          key={imageKey}
           ref={imgRef}
           src={imageSrc}
           alt="ghost"
@@ -155,13 +159,18 @@ export function Ghost({ emotionOverride, ghostHeightPixels, onLeftClick, onRight
             // Nudge after expression image is fully decoded and painted to clear
             // WebKitGTK bleed. img.decode() ensures the image is ready to composite,
             // then we wait for the paint frame before nudging the compositor.
-            if (initialLoadDone.current) {
-              await img.decode()
-              await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-              const size = await win.outerSize()
-              await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
-              await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-              await win.setSize(new PhysicalSize(size.width, size.height))
+            if (initialLoadDone.current && !nudgeInProgress.current) {
+              nudgeInProgress.current = true
+              try {
+                await img.decode()
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+                const size = await win.outerSize()
+                await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+                await win.setSize(new PhysicalSize(size.width, size.height))
+              } finally {
+                nudgeInProgress.current = false
+              }
             }
 
             // Only restore saved position on initial load — emotion changes

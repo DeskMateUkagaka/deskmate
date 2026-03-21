@@ -131,6 +131,37 @@ impl SkinManager {
             }
         }
 
+        // Validate idle animation files exist on disk and don't escape the skin directory
+        for anim in &manifest.idle_animations {
+            let anim_path = path.join(&anim.file);
+            if !anim_path.exists() {
+                return Err(format!(
+                    "Missing idle animation file '{}': {}",
+                    anim.file, anim_path.display()
+                ));
+            }
+            // Prevent path traversal via manifest (e.g., file: "../../etc/passwd")
+            let canonical = anim_path.canonicalize()
+                .map_err(|e| format!("Cannot resolve idle animation path '{}': {}", anim.file, e))?;
+            let base_canonical = path.canonicalize()
+                .map_err(|e| format!("Cannot resolve skin base path: {}", e))?;
+            if !canonical.starts_with(&base_canonical) {
+                return Err(format!(
+                    "Idle animation '{}' escapes skin directory",
+                    anim.file
+                ));
+            }
+            if anim.duration_ms == 0 {
+                return Err(format!(
+                    "Idle animation '{}' has duration_ms of 0",
+                    anim.file
+                ));
+            }
+        }
+        if !manifest.idle_animations.is_empty() && manifest.idle_interval_seconds < 1.0 {
+            return Err("idle_interval_seconds must be >= 1.0".to_string());
+        }
+
         Ok(LoadedSkin {
             info: SkinInfo {
                 id: id.to_string(),
@@ -143,6 +174,8 @@ impl SkinManager {
                 input_placement: manifest.input_placement.clone(),
                 bubble_theme: manifest.bubble.clone(),
                 input_theme: manifest.input.clone(),
+                idle_animations: manifest.idle_animations.clone(),
+                idle_interval_seconds: manifest.idle_interval_seconds,
                 source: source.to_string(),
                 format_version: manifest.format_version,
             },
@@ -336,6 +369,25 @@ impl SkinManager {
             .filter(|s| s.info.source == "community")
             .map(|s| s.info.id.clone())
             .collect()
+    }
+
+    pub fn get_idle_animation_path(&self, filename: &str) -> Result<String, String> {
+        let skin = self.skins.get(&self.current_skin_id)
+            .ok_or_else(|| format!("Current skin '{}' not loaded", self.current_skin_id))?;
+        // Verify the filename is declared in idle_animations (prevent path traversal)
+        if !skin.manifest.idle_animations.iter().any(|a| a.file == filename) {
+            return Err(format!("'{}' is not a declared idle animation", filename));
+        }
+        let full_path = skin.base_path.join(filename);
+        // Defense-in-depth: verify resolved path stays within skin directory
+        let canonical = full_path.canonicalize()
+            .map_err(|e| format!("Cannot resolve path '{}': {}", filename, e))?;
+        let base_canonical = skin.base_path.canonicalize()
+            .map_err(|e| format!("Cannot resolve skin base: {}", e))?;
+        if !canonical.starts_with(&base_canonical) {
+            return Err(format!("'{}' escapes skin directory", filename));
+        }
+        Ok(canonical.to_string_lossy().to_string())
     }
 
     pub fn user_skins_dir(&self) -> &Path {

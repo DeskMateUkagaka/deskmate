@@ -85,12 +85,28 @@ pub struct SkinManifest {
     /// Input box theme (max dimensions)
     #[serde(default)]
     pub input: Option<InputTheme>,
+    /// Idle animation clips (optional; empty = no idle animations)
+    #[serde(default)]
+    pub idle_animations: Vec<IdleAnimation>,
+    /// Seconds between idle animations (default 30.0, skin-configurable)
+    #[serde(default = "default_idle_interval")]
+    pub idle_interval_seconds: f64,
     /// Skin format version (1 = static PNGs, 2+ = future animated)
     #[serde(default = "default_format_version")]
     pub format_version: u32,
 }
 
 fn default_format_version() -> u32 { 1 }
+fn default_idle_interval() -> f64 { 30.0 }
+
+/// An idle animation clip declared in the skin manifest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdleAnimation {
+    /// Filename relative to skin directory, e.g. "idle-blink.apng"
+    pub file: String,
+    /// Total animation duration in milliseconds
+    pub duration_ms: u32,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkinInfo {
@@ -105,6 +121,10 @@ pub struct SkinInfo {
     pub input_placement: Option<UiPlacement>,
     pub bubble_theme: Option<BubbleTheme>,
     pub input_theme: Option<InputTheme>,
+    /// Idle animation clips (mirrors SkinManifest)
+    pub idle_animations: Vec<IdleAnimation>,
+    /// Seconds between idle animations (mirrors SkinManifest)
+    pub idle_interval_seconds: f64,
     /// Where this skin came from: "bundled" or "community"
     #[serde(default)]
     pub source: String,
