@@ -261,3 +261,9 @@ See `TODO.md` for the full list. Key items:
 ## Debugging
 
 **Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/deskmate.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.
+
+## VCS
+
+* Always use `jj` (jujutsu) and never use `git` directly.
+* After `jj desc` always run `jj new` to prevent changes mixing into the previous revision.
+* When requested, uwe `jj workspace` to crete a separate workspace to work in parallel. (git equivalent of git worktree)

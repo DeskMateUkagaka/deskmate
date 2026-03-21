@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::io::Write;
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::settings::Settings;
 
@@ -35,6 +35,15 @@ pub fn set_ghost_position(
 
 #[tauri::command]
 pub fn exit_app(app: tauri::AppHandle) {
+    // Kill quake terminal if active — use try_state() so this works
+    // even if QuakeTerminalState was never registered (e.g., feature disabled)
+    if let Some(qt_state) = app.try_state::<Arc<Mutex<crate::quake_terminal::QuakeTerminalState>>>() {
+        if let Ok(mut qt) = qt_state.lock() {
+            if let Some(ref mut child) = qt.process {
+                let _ = child.kill();
+            }
+        }
+    }
     app.exit(0);
 }
 

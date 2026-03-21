@@ -23,6 +23,39 @@ pub struct Settings {
     pub popup_margin_left: f64,
     #[serde(default = "default_popup_margin")]
     pub popup_margin_right: f64,
+    #[serde(default)]
+    pub quake_terminal: QuakeTerminalConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuakeTerminalConfig {
+    #[serde(default = "default_quake_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_quake_hotkey")]
+    pub hotkey: String,
+    #[serde(default)]
+    pub terminal_emulator: Option<String>,
+    #[serde(default = "default_quake_command")]
+    pub command: String,
+    #[serde(default = "default_quake_height_percent")]
+    pub height_percent: u32,
+}
+
+fn default_quake_enabled() -> bool { true }
+fn default_quake_hotkey() -> String { "F12".to_string() }
+fn default_quake_command() -> String { "openclaw tui".to_string() }
+fn default_quake_height_percent() -> u32 { 40 }
+
+impl Default for QuakeTerminalConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            hotkey: default_quake_hotkey(),
+            terminal_emulator: None,
+            command: default_quake_command(),
+            height_percent: 40,
+        }
+    }
 }
 
 fn default_ghost_height_pixels() -> u32 { 540 }
@@ -44,6 +77,7 @@ impl Default for Settings {
             popup_margin_bottom: 10.0,
             popup_margin_left: 10.0,
             popup_margin_right: 10.0,
+            quake_terminal: QuakeTerminalConfig::default(),
         }
     }
 }

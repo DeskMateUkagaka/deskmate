@@ -23,6 +23,7 @@
     "core:tray:default",
     "core:webview:allow-create-webview-window",
     "store:default",
-    "log:default"
+    "log:default",
+    "global-shortcut:default"
   ]
 }

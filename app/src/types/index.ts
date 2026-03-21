@@ -89,6 +89,14 @@ export interface SkinDownloadProgress {
   total: number | null
 }
 
+export interface QuakeTerminalConfig {
+  enabled: boolean
+  hotkey: string
+  terminal_emulator: string | null
+  command: string
+  height_percent: number
+}
+
 export interface Settings {
   gateway_url: string
   gateway_token: string
@@ -103,4 +111,5 @@ export interface Settings {
   popup_margin_bottom: number
   popup_margin_left: number
   popup_margin_right: number
+  quake_terminal: QuakeTerminalConfig
 }

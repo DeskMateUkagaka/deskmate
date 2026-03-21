@@ -1,12 +1,13 @@
 mod commands;
 mod ocs;
 mod openclaw;
+mod quake_terminal;
 mod settings;
 mod skin;
 
 use std::sync::{Arc, Mutex};
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 
@@ -59,6 +60,58 @@ pub fn run() {
 
             // Initialize HTTP client for OCS API
             app.manage(reqwest::Client::new());
+
+            // Initialize quake terminal state
+            app.manage(Arc::new(Mutex::new(quake_terminal::QuakeTerminalState::new())));
+
+            // Register global hotkey for quake terminal
+            // All errors are caught and logged — never crash the app on bad hotkey config.
+            'quake: {
+                let qt_config = {
+                    let s = app.state::<std::sync::Mutex<crate::settings::Settings>>();
+                    let guard = s.lock().unwrap();
+                    guard.quake_terminal.clone()
+                };
+
+                if !qt_config.enabled {
+                    break 'quake;
+                }
+
+                if let Err(e) = app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(move |_app, _shortcut, event| {
+                            use tauri_plugin_global_shortcut::ShortcutState;
+                            if event.state == ShortcutState::Pressed {
+                                let qt_state = _app.state::<Arc<Mutex<quake_terminal::QuakeTerminalState>>>();
+                                let settings = _app.state::<std::sync::Mutex<crate::settings::Settings>>();
+                                let config = settings.lock().unwrap().quake_terminal.clone();
+                                let mut state = qt_state.lock().unwrap();
+                                if let Err(e) = quake_terminal::toggle::toggle(&mut state, &config, _app) {
+                                    log::error!("Quake terminal toggle failed: {e}");
+                                    let _ = _app.emit("quake-terminal-error", e);
+                                }
+                            }
+                        })
+                        .build(),
+                ) {
+                    log::error!("Failed to register global shortcut plugin: {e}");
+                    break 'quake;
+                }
+
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                let shortcut: Shortcut = match qt_config.hotkey.parse() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::error!("Invalid quake terminal hotkey '{}': {e}", qt_config.hotkey);
+                        break 'quake;
+                    }
+                };
+                if let Err(e) = app.handle().global_shortcut().register(shortcut) {
+                    log::error!("Failed to register hotkey '{}': {e}", qt_config.hotkey);
+                    break 'quake;
+                }
+                log::info!("Registered quake terminal hotkey: {}", qt_config.hotkey);
+            }
 
             // System tray
             // On Linux (libappindicator), left/right click can't be distinguished —
@@ -114,6 +167,13 @@ pub fn run() {
                             }
                         }
                         "exit" => {
+                            // Kill quake terminal process before exiting
+                            if let Ok(mut qt) = app.state::<Arc<Mutex<quake_terminal::QuakeTerminalState>>>().lock() {
+                                if let Some(ref mut child) = qt.process {
+                                    let _ = child.kill();
+                                    log::info!("Killed quake terminal process on exit");
+                                }
+                            }
                             // Save ghost window position before exiting
                             if let Some(win) = app.get_webview_window("main") {
                                 if let Ok(pos) = win.outer_position() {
@@ -160,6 +220,8 @@ pub fn run() {
             commands::ocs::ocs_browse,
             commands::ocs::ocs_download_skin,
             commands::ocs::get_installed_skin_ids,
+            commands::quake_terminal::toggle_quake_terminal,
+            commands::quake_terminal::get_quake_terminal_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
