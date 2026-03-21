@@ -123,7 +123,9 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
     }
   }, [])
 
-  // Start/stop based on enabled state and skin
+  // Start/stop based on enabled state and skin (including manifest changes on reload)
+  const animCount = skin?.idle_animations.length ?? 0
+  const idleInterval = skin?.idle_interval_seconds ?? 0
   useEffect(() => {
     if (enabled && hasAnimations) {
       setIdlePlayCount(0)
@@ -133,7 +135,7 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
       setIdleOverrideUrl(null)
     }
     return clearTimers
-  }, [enabled, skin?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, skin?.id, animCount, idleInterval]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { idleOverrideUrl, idlePlayCount, resetIdleTimer }
 }
