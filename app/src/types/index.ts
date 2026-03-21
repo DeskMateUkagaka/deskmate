@@ -43,6 +43,50 @@ export interface SkinInfo {
   input_placement: UiPlacement | null
   bubble_theme: BubbleTheme | null
   input_theme: InputTheme | null
+  source: string          // "bundled" | "community"
+  format_version: number  // 1 = static PNGs (current), 2+ = future
+}
+
+export interface OcsContentItem {
+  id: string
+  name: string
+  version: string
+  personid: string
+  created: string
+  changed: string
+  downloads: number
+  score: number
+  summary: string
+  description: string
+  tags: string
+  previewpic1: string
+  smallpreviewpic1: string
+  downloadlink1: string
+  downloadname1: string
+  downloadsize1: number
+  downloadmd5sum1: string
+}
+
+export interface OcsBrowseResult {
+  status: string
+  statuscode: number
+  totalitems: number
+  itemsperpage: number
+  data: OcsContentItem[]
+}
+
+export interface OcsBrowseParams {
+  categories: string
+  tags: string
+  search: string
+  sortmode: string
+  page: number
+  pagesize: number
+}
+
+export interface SkinDownloadProgress {
+  downloaded: number
+  total: number | null
 }
 
 export interface Settings {

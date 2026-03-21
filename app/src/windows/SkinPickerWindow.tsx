@@ -1,6 +1,6 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { emit } from '@tauri-apps/api/event'
+import { emit, listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { SkinInfo } from '../types'
 
@@ -12,6 +12,14 @@ export function SkinPickerWindow() {
   useEffect(() => {
     invoke<SkinInfo[]>('list_skins').then(setSkins)
     invoke<SkinInfo>('get_current_skin').then((s) => setCurrentSkinId(s.id)).catch(() => {})
+  }, [])
+
+  // Auto-refresh when a new skin is installed from Get Skins
+  useEffect(() => {
+    const unlisten = listen('skin-installed', () => {
+      invoke<SkinInfo[]>('list_skins').then(setSkins)
+    })
+    return () => { unlisten.then(fn => fn()) }
   }, [])
 
   const win = getCurrentWindow()

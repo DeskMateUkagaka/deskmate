@@ -1,4 +1,5 @@
 mod commands;
+mod ocs;
 mod openclaw;
 mod settings;
 mod skin;
@@ -56,6 +57,9 @@ pub fn run() {
             // Initialize proactive dialogue state
             app.manage(Arc::new(Mutex::new(ProactiveState::new())));
 
+            // Initialize HTTP client for OCS API
+            app.manage(reqwest::Client::new());
+
             // System tray
             // On Linux (libappindicator), left/right click can't be distinguished —
             // any click shows the menu. Add "Show / Hide" as first item for Linux.
@@ -98,7 +102,10 @@ pub fn run() {
                             }
                         }
                         "get-skins" => {
-                            // TODO: open external URL
+                            if let Some(win) = app.get_webview_window("get-skins") {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
                         }
                         "settings" => {
                             if let Some(win) = app.get_webview_window("settings") {
@@ -150,6 +157,9 @@ pub fn run() {
             commands::window::get_window_position,
             commands::window::uses_compositor_ipc,
             commands::e2e::e2e_inject_event,
+            commands::ocs::ocs_browse,
+            commands::ocs::ocs_download_skin,
+            commands::ocs::get_installed_skin_ids,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

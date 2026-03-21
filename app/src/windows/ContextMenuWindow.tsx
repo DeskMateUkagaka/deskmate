@@ -63,7 +63,12 @@ export function ContextMenuWindow() {
       </button>
       <button
         style={itemStyle}
-        onClick={() => doAction('get-skins')}
+        onClick={async () => {
+          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+          const gsWin = await WebviewWindow.getByLabel('get-skins')
+          if (gsWin) { await gsWin.show(); await gsWin.setFocus() }
+          win.hide()
+        }}
         onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >

@@ -80,10 +80,24 @@
         "skipTaskbar": true,
         "shadow": true,
         "visible": false
+      },
+      {
+        "label": "get-skins",
+        "url": "index.html?window=get-skins",
+        "title": "deskmate-get-skins",
+        "width": 1280,
+        "height": 720,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": true,
+        "visible": false
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost https://images.pling.com https://*.pling.com; style-src 'self' 'unsafe-inline'",
       "assetProtocol": {
         "enable": true,
         "scope": ["**/*"]

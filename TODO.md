@@ -2,6 +2,11 @@
 
 ## Immediate Product Gaps
 
+Legend:
+ * ! - to verify
+ * x - complete
+
+- [!] Make get skins work
 - [ ] Steam Workshop skin upload/download
 - [ ] Reconnect websocket - show "thinking" ghost while connecting
 - [ ] Add a conversation history / quake-style terminal window

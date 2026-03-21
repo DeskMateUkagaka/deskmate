@@ -1,6 +1,7 @@
 pub mod chat;
 pub mod e2e;
 pub mod ghost;
+pub mod ocs;
 pub mod proactive;
 pub mod settings;
 pub mod skin;

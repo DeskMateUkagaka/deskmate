@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import type { SkinInfo } from '../types'
 import { debugLog } from '../lib/debugLog'
 
@@ -58,6 +59,12 @@ export function useSkin(): UseSkinReturn {
     invoke<SkinInfo[]>('list_skins').then(setSkins).catch(() => {})
     invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
   }, [])
+
+  // Auto-reload when a new skin is installed from Get Skins
+  useEffect(() => {
+    const unlisten = listen('skin-installed', () => { reloadSkins() })
+    return () => { unlisten.then(fn => fn()) }
+  }, [reloadSkins])
 
   return { currentSkin, skins, switchSkin, getEmotionUrl, reloadSkins }
 }

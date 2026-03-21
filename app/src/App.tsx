@@ -441,7 +441,7 @@ export default function App() {
     })
     const getSkins = await MenuItem.new({
       text: 'Get Skins',
-      action: () => { /* TODO: open external URL */ },
+      action: () => showPopup('get-skins'),
     })
     const separator = await PredefinedMenuItem.new({ item: 'Separator' })
     const settings = await MenuItem.new({
