@@ -1,3 +1,8 @@
+export interface SlashCommand {
+  name: string
+  description: string
+}
+
 export interface GhostPosition {
   x: number
   y: number

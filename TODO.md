@@ -13,9 +13,9 @@ Legend:
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
-- [ ] Add idle animation
-  - [ ] Blink
-  - [ ] Smile then back
+- [!] Add idle animation
+  - [!] Blink
+  - [!] Smile then back
 - [ ] Add command autocomplete in the chat input
 - [ ] AI-decided action buttons via protocol extension
 - Claude Code Channels
@@ -39,7 +39,7 @@ Legend:
 - [x] Floating-window rule requirement is documented
 - [x] Bubble repaint nudge workaround is in place for transparency bleed
 - [x] Save/restore ghost position after drag
-- [ ] Bubble stays correctly anchored after repeated drags
+- [ ] Bubble repositions correctly after repeated drags
 
 ### Linux - X11 + i3
 
@@ -47,7 +47,7 @@ Legend:
 - [ ] Ghost drag updates and persists position correctly
 - [ ] Restart restores the saved ghost position
 - [ ] Tauri fallback window positioning behaves correctly on X11
-- [ ] Bubble and chat-input positioning remain correct after multiple drags
+- [ ] Bubble repositions correctly after repeated drags
 
 ### Linux - Hyprland (Wayland)
 
@@ -56,7 +56,7 @@ Legend:
 - [ ] Floating-window rules behave correctly
 - [ ] Ghost drag updates and persists position correctly
 - [ ] Restart restores the saved ghost position
-- [ ] Bubble and chat-input placement work after repeated drags
+- [ ] Bubble repositions correctly after repeated drags
 
 ### Linux - KDE Plasma Wayland
 
@@ -152,6 +152,7 @@ Legend:
 - [ ] Some voices (AI generated even!)
   - [ ] On click + text input open - says something, like RTS unit selection
   - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
+- [ ] Distinguish proactive dialogue visually from normal replies
 
 ## Already Landed In Code
 

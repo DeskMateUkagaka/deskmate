@@ -73,6 +73,7 @@ export default function App() {
     currentEmotion,
     resetEmotion,
     chatState,
+    slashCommands,
   } = useOpenClaw()
 
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms, onDismiss: resetEmotion })
@@ -168,7 +169,13 @@ export default function App() {
     )
     await showWindowAt(win, screenX, screenY)
     await win.setFocus()
-  }, [imageBounds, windowPos, screenSize, currentSkin])
+
+    // Re-emit slash commands — the ChatInputWindow may not have been mounted
+    // when the initial slash-commands event fired (Tauri events are fire-and-forget)
+    if (slashCommands.length > 0) {
+      emit('slash-commands', slashCommands)
+    }
+  }, [imageBounds, windowPos, screenSize, currentSkin, slashCommands])
 
   // Reposition input window when it resizes (auto-grow), clamping to screen margins.
   // On Sway, debounce to once per second to avoid visible jumping from slow IPC.
@@ -332,6 +339,13 @@ export default function App() {
   useEffect(() => {
     emit('connection-status', connectionStatus)
   }, [connectionStatus])
+
+  // Broadcast slash commands to ChatInputWindow
+  useEffect(() => {
+    if (slashCommands.length > 0) {
+      emit('slash-commands', slashCommands)
+    }
+  }, [slashCommands])
 
   // Emit bubble data to BubbleWindow (synchronous — no positioning)
   useEffect(() => {

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { debugLog } from '../lib/debugLog'
+import { parseCommandsResponse } from '../lib/parseCommands'
+import type { SlashCommand } from '../types'
 
 export type ChatState = 'idle' | 'sending' | 'streaming' | 'error'
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -45,11 +47,14 @@ export function useOpenClaw() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const [currentResponse, setCurrentResponse] = useState('')
   const [currentEmotion, setCurrentEmotion] = useState('neutral')
+  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
 
   const accumulatedRef = useRef('')
 const sessionKeyRef = useRef<string>('main')
   const runIdRef = useRef<string>('')
   const unlistenRef = useRef<UnlistenFn | null>(null)
+  const silentFetchRunIdRef = useRef<string | null>(null)
+  const commandsFetchedRef = useRef<boolean>(false)
 
   // Connect on mount
   useEffect(() => {
@@ -100,6 +105,23 @@ const sessionKeyRef = useRef<string>('main')
       const unlisten = await listen<ChatEvent>('chat-event', (event) => {
         if (cancelled) return
         const evt = event.payload
+
+        // Silent /commands fetch interception — this is the PRIMARY defense
+        // against the response leaking into the chat bubble. runIdRef does NOT
+        // protect when it's '' (initial state), so this check is load-bearing.
+        if (evt.runId && evt.runId === silentFetchRunIdRef.current) {
+          if (evt.state === 'final') {
+            const text = extractTextFromMessage(evt.message)
+            const commands = parseCommandsResponse(text)
+            debugLog(`[useOpenClaw] parsed ${commands.length} slash commands from /commands response`)
+            setSlashCommands(commands)
+            silentFetchRunIdRef.current = null
+          } else if (evt.state === 'error' || evt.state === 'aborted') {
+            silentFetchRunIdRef.current = null
+          }
+          // Silently swallow all events (delta, final, error, aborted) for this runId
+          return
+        }
 
         // Only process events for our current run
         if (runIdRef.current && evt.runId !== runIdRef.current) return
@@ -152,6 +174,32 @@ const sessionKeyRef = useRef<string>('main')
       unlistenRef.current?.()
     }
   }, [])
+
+  // Silently fetch /commands to populate slash command autocomplete
+  const fetchCommands = useCallback(async () => {
+    if (commandsFetchedRef.current) return
+    commandsFetchedRef.current = true
+    try {
+      const runId = await invoke<string>('chat_send', {
+        sessionKey: sessionKeyRef.current,
+        message: '/commands',
+      })
+      silentFetchRunIdRef.current = runId
+      debugLog('[useOpenClaw] silent /commands fetch started, runId:', runId)
+    } catch (e) {
+      commandsFetchedRef.current = false
+      debugLog('[useOpenClaw] failed to fetch commands: ' + e)
+    }
+  }, [])
+
+  // Trigger fetch on connect, reset guard on disconnect for reconnect support
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      fetchCommands()
+    } else {
+      commandsFetchedRef.current = false
+    }
+  }, [connectionStatus, fetchCommands])
 
   const sendMessage = useCallback(async (text: string) => {
     debugLog('[useOpenClaw] sendMessage called:', text, 'sessionKey:', sessionKeyRef.current)
@@ -303,5 +351,6 @@ And a [link](https://example.com) for good measure.`
     currentEmotion,
     isStreaming,
     chatState,
+    slashCommands,
   }
 }
