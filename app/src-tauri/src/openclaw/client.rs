@@ -9,6 +9,8 @@ use tokio::time::sleep;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 
+use tauri::{AppHandle, Emitter};
+
 use super::protocol::{EventFrame, GatewayFrame, RequestFrame};
 use super::types::{ConnectParams, HelloOk};
 
@@ -64,7 +66,7 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     /// Start the gateway client actor connecting to `url`.
-    pub fn start(url: String, token: Option<String>) -> Self {
+    pub fn start(url: String, token: Option<String>, app_handle: AppHandle) -> Self {
         let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
         let (event_tx, _) = broadcast::channel(256);
         let inner = Arc::new(Mutex::new(Inner::new()));
@@ -75,6 +77,7 @@ impl GatewayClient {
             cmd_rx,
             inner: Arc::clone(&inner),
             event_tx: event_tx.clone(),
+            app_handle,
         };
 
         tokio::spawn(actor.run());
@@ -124,6 +127,7 @@ struct ClientActor {
     cmd_rx: tokio::sync::mpsc::UnboundedReceiver<ClientCmd>,
     inner: Arc<Mutex<Inner>>,
     event_tx: broadcast::Sender<EventFrame>,
+    app_handle: AppHandle,
 }
 
 impl ClientActor {
@@ -264,11 +268,8 @@ impl ClientActor {
 
         // Connected successfully.
         let tick_interval_ms = hello.policy.tick_interval_ms;
-        {
-            let mut inner = self.inner.lock().unwrap();
-            inner.status = ConnectionStatus::Connected;
-            inner.tick_interval_ms = tick_interval_ms;
-        }
+        self.set_status(ConnectionStatus::Connected);
+        self.inner.lock().unwrap().tick_interval_ms = tick_interval_ms;
         *backoff_ms = 1_000; // reset backoff on successful connect
         log::info!("gateway connected (server {})", hello.server.version);
 
@@ -342,7 +343,13 @@ impl ClientActor {
     }
 
     fn set_status(&self, status: ConnectionStatus) {
-        self.inner.lock().unwrap().status = status;
+        self.inner.lock().unwrap().status = status.clone();
+        let status_str = match &status {
+            ConnectionStatus::Disconnected => "disconnected",
+            ConnectionStatus::Connecting => "connecting",
+            ConnectionStatus::Connected => "connected",
+        };
+        let _ = self.app_handle.emit("connection-status-changed", status_str);
     }
 
     fn flush_pending_errors(&self, msg: &str) {

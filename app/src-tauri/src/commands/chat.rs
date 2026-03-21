@@ -36,7 +36,7 @@ pub async fn connect_gateway(
     }
 
     log::info!("connect_gateway called: url={url}");
-    let client = GatewayClient::start(url, token);
+    let client = GatewayClient::start(url, token, app.clone());
     let mut event_rx = client.subscribe();
 
     // Spawn a task that forwards gateway events to the Tauri frontend.

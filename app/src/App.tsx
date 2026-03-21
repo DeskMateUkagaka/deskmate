@@ -73,6 +73,7 @@ export default function App() {
     currentEmotion,
     resetEmotion,
     chatState,
+    isReconnecting,
     slashCommands,
   } = useOpenClaw()
 
@@ -433,6 +434,26 @@ export default function App() {
     }
   }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Show/hide reconnect bubble based on connection status
+  const prevIsReconnectingRef = useRef(false)
+  useEffect(() => {
+    const wasReconnecting = prevIsReconnectingRef.current
+    prevIsReconnectingRef.current = isReconnecting
+
+    if (isReconnecting && chatState === 'idle') {
+      // Show reconnect bubble if not already showing one
+      if (!wasReconnecting || !bubble.isStreaming) {
+        bubble.startStreaming('Reconnecting...')
+      }
+    } else if (!isReconnecting && wasReconnecting) {
+      // Connection restored — dismiss reconnect bubble
+      if (bubble.isStreaming) {
+        bubble.finalize()
+      }
+      bubble.dismiss()
+    }
+  }, [isReconnecting, chatState]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGhostClick = useCallback(() => {
     resetIdleTimer()
     showChatInput()
@@ -483,8 +504,10 @@ export default function App() {
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [reloadSkins, reloadSettings, resetIdleTimer])
 
-  const emotionUrl = idleOverrideUrl || getEmotionUrl(currentEmotion)
-  debugLog(`[App] currentEmotion='${currentEmotion}' idleOverride=${!!idleOverrideUrl} emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
+  // Override emotion to 'thinking' during reconnect when idle
+  const effectiveEmotion = (isReconnecting && chatState === 'idle') ? 'thinking' : currentEmotion
+  const emotionUrl = idleOverrideUrl || getEmotionUrl(effectiveEmotion)
+  debugLog(`[App] currentEmotion='${currentEmotion}' effectiveEmotion='${effectiveEmotion}' isReconnecting=${isReconnecting} idleOverride=${!!idleOverrideUrl} emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
 
   return (
     <Ghost

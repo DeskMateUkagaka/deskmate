@@ -7,8 +7,7 @@ Legend:
  * x - complete
 
 - [!] Make get skins work
-- [ ] Steam Workshop skin upload/download
-- [ ] Reconnect websocket - show "thinking" ghost while connecting
+- [!] Reconnect websocket - show "thinking" ghost while connecting
 - [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
@@ -16,7 +15,7 @@ Legend:
 - [!] Add idle animation
   - [!] Blink
   - [!] Smile then back
-- [ ] Add command autocomplete in the chat input
+- [!] Add command autocomplete in the chat input
 - [ ] AI-decided action buttons via protocol extension
 - Claude Code Channels
   - [ ] let user choose the ghost engine - openclaw vs claude code

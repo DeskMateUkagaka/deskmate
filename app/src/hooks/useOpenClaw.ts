@@ -55,6 +55,7 @@ const sessionKeyRef = useRef<string>('main')
   const unlistenRef = useRef<UnlistenFn | null>(null)
   const silentFetchRunIdRef = useRef<string | null>(null)
   const commandsFetchedRef = useRef<boolean>(false)
+  const hasEverConnectedRef = useRef(false)
 
   // Connect on mount
   useEffect(() => {
@@ -80,20 +81,34 @@ const sessionKeyRef = useRef<string>('main')
 
     connect()
 
-    // Poll connection status
+    // Listen for reactive connection status events from Rust
+    let statusUnlisten: UnlistenFn | null = null
+    listen<string>('connection-status-changed', (event) => {
+      if (!cancelled) {
+        const status = event.payload as ConnectionStatus
+        setConnectionStatus(status)
+        if (status === 'connected') hasEverConnectedRef.current = true
+      }
+    }).then((fn) => { statusUnlisten = fn })
+
+    // Poll connection status as fallback safety net
     const interval = setInterval(async () => {
       if (cancelled) return
       try {
         const status = await invoke<string>('get_connection_status')
-        if (!cancelled) setConnectionStatus(status as ConnectionStatus)
+        if (!cancelled) {
+          setConnectionStatus(status as ConnectionStatus)
+          if (status === 'connected') hasEverConnectedRef.current = true
+        }
       } catch {
         // ignore
       }
-    }, 5000)
+    }, 2000)
 
     return () => {
       cancelled = true
       clearInterval(interval)
+      statusUnlisten?.()
     }
   }, [])
 
@@ -191,6 +206,18 @@ const sessionKeyRef = useRef<string>('main')
       debugLog('[useOpenClaw] failed to fetch commands: ' + e)
     }
   }, [])
+
+  // Handle mid-stream disconnect: append [connection lost] to partial response
+  useEffect(() => {
+    if (connectionStatus === 'disconnected') {
+      if (chatState === 'streaming' || chatState === 'sending') {
+        accumulatedRef.current += '\n\n[connection lost]'
+        setCurrentResponse(accumulatedRef.current)
+        setCurrentEmotion('neutral')
+        setChatState('idle')
+      }
+    }
+  }, [connectionStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trigger fetch on connect, reset guard on disconnect for reconnect support
   useEffect(() => {
@@ -341,6 +368,7 @@ And a [link](https://example.com) for good measure.`
   }, [])
 
   const isStreaming = chatState === 'streaming' || chatState === 'sending'
+  const isReconnecting = hasEverConnectedRef.current && (connectionStatus === 'disconnected' || connectionStatus === 'connecting')
 
   return {
     sendMessage,
@@ -350,6 +378,7 @@ And a [link](https://example.com) for good measure.`
     currentResponse,
     currentEmotion,
     isStreaming,
+    isReconnecting,
     chatState,
     slashCommands,
   }
