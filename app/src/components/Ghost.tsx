@@ -19,6 +19,7 @@ interface GhostProps {
   /** Changing this key forces <img> DOM recreation — used for APNG replay */
   imageKey?: number
   ghostHeightPixels: number
+  isConnecting?: boolean
   onLeftClick?: () => void
   onRightClick?: (x: number, y: number) => void
   onImageBounds?: (bounds: ImageBounds) => void
@@ -27,7 +28,7 @@ interface GhostProps {
 
 const DRAG_THRESHOLD = 5 // px before we treat it as a drag
 
-export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, onLeftClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
+export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, isConnecting, onLeftClick, onRightClick, onImageBounds, onPositionChange }: GhostProps) {
   const {
     emotionImage,
   } = useGhost()
@@ -135,8 +136,30 @@ export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, onLeftClic
         alignItems: 'center',
         justifyContent: 'center',
         background: 'transparent',
+        position: 'relative',
       }}
     >
+      {isConnecting && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'rgba(0, 0, 0, 0.75)',
+          borderRadius: 6,
+          padding: '3px 10px',
+          color: '#ff4444',
+          fontSize: 11,
+          fontWeight: 700,
+          fontFamily: 'system-ui, sans-serif',
+          letterSpacing: '0.5px',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}>
+          CONNECTING
+        </div>
+      )}
       {imageSrc && (
         <img
           key={imageKey}

@@ -53,7 +53,7 @@ function extractTextFromMessage(message?: ChatEvent['message']): string {
 
 export function useOpenClaw() {
   const [chatState, setChatState] = useState<ChatState>('idle')
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting')
   const [currentResponse, setCurrentResponse] = useState('')
   const [currentEmotion, setCurrentEmotion] = useState('neutral')
   const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
@@ -65,7 +65,7 @@ const sessionKeyRef = useRef<string>('main')
   const unlistenRef = useRef<UnlistenFn | null>(null)
   const silentFetchRunIdRef = useRef<string | null>(null)
   const commandsFetchedRef = useRef<boolean>(false)
-  const hasEverConnectedRef = useRef(false)
+
 
   // Connect on mount
   useEffect(() => {
@@ -97,7 +97,6 @@ const sessionKeyRef = useRef<string>('main')
       if (!cancelled) {
         const status = event.payload as ConnectionStatus
         setConnectionStatus(status)
-        if (status === 'connected') hasEverConnectedRef.current = true
       }
     }).then((fn) => { statusUnlisten = fn })
 
@@ -108,7 +107,6 @@ const sessionKeyRef = useRef<string>('main')
         const status = await invoke<string>('get_connection_status')
         if (!cancelled) {
           setConnectionStatus(status as ConnectionStatus)
-          if (status === 'connected') hasEverConnectedRef.current = true
         }
       } catch {
         // ignore
@@ -399,7 +397,7 @@ And a [link](https://example.com) for good measure.`
   }, [])
 
   const isStreaming = chatState === 'streaming' || chatState === 'sending'
-  const isReconnecting = hasEverConnectedRef.current && (connectionStatus === 'disconnected' || connectionStatus === 'connecting')
+  const isConnecting = connectionStatus === 'disconnected' || connectionStatus === 'connecting'
 
   return {
     sendMessage,
@@ -410,7 +408,7 @@ And a [link](https://example.com) for good measure.`
     currentEmotion,
     currentButtons,
     isStreaming,
-    isReconnecting,
+    isConnecting,
     chatState,
     slashCommands,
   }

@@ -82,7 +82,7 @@ Reference implementations in `openclaw/`:
 
 `ChatEventSchema` has NO `expression` field (`additionalProperties: false`). Expressions are parsed client-side from AI text content using `[expression:X]` tags, then stripped from display. Falls back to `neutral`. This is a known fragility — the AI must be prompted to emit these tags.
 
-Valid expressions: `happy`, `sad`, `angry`, `disgusted`, `condescending`, `thinking`, `neutral`
+Valid expressions: `happy`, `sad`, `angry`, `disgusted`, `condescending`, `thinking`, `neutral`, `connecting`
 
 ### Action Buttons
 
@@ -261,6 +261,17 @@ See `TODO.md` for the full list. Key items:
 ## Debugging
 
 **Always use `debugLog()` instead of `console.log()`** — `console.log` does not appear in WebKitGTK transparent windows even with web inspector open. Use the frontend helper `import { debugLog } from './lib/debugLog'` which writes to `/tmp/deskmate.log` via the Rust `debug_log` Tauri command. The Rust side is in `src-tauri/src/commands/ghost.rs`.
+
+## Feature Documentation
+
+Detailed design docs for implemented features live in `memory/`:
+- `BTN.md` — Dynamic `[btn:msg]` button tags in AI chat responses
+- `CmdAutoComplete.md` — Slash command autocomplete from gateway `/commands`
+- `IDLE.md` — Idle animation system (RTS-style fidget clips)
+- `QUAKE.md` — Quake-style dropdown terminal (F12 toggle, runs `openclaw tui`)
+- `SKINS.md` — Skin format, community distribution, and skin picker
+
+Read these before working on the relevant feature areas.
 
 ## VCS
 

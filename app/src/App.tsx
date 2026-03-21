@@ -74,7 +74,7 @@ export default function App() {
     currentButtons,
     resetEmotion,
     chatState,
-    isReconnecting,
+    isConnecting,
     slashCommands,
   } = useOpenClaw()
 
@@ -451,25 +451,18 @@ export default function App() {
     }
   }, [chatState, currentResponse]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show/hide reconnect bubble based on connection status
-  const prevIsReconnectingRef = useRef(false)
+  // After 3s of continuous disconnection, set flag to show connecting bubble.
+  // Avoids flash+bleed when connection succeeds quickly.
+  const [showConnectingBubble, setShowConnectingBubble] = useState(false)
   useEffect(() => {
-    const wasReconnecting = prevIsReconnectingRef.current
-    prevIsReconnectingRef.current = isReconnecting
-
-    if (isReconnecting && chatState === 'idle') {
-      // Show reconnect bubble if not already showing one
-      if (!wasReconnecting || !bubble.isStreaming) {
-        bubble.startStreaming('Reconnecting...')
-      }
-    } else if (!isReconnecting && wasReconnecting) {
-      // Connection restored — dismiss reconnect bubble
-      if (bubble.isStreaming) {
-        bubble.finalize()
-      }
-      bubble.dismiss()
+    if (!isConnecting) {
+      setShowConnectingBubble(false)
+      return
     }
-  }, [isReconnecting, chatState]) // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => setShowConnectingBubble(true), 3000)
+    return () => clearTimeout(timer)
+  }, [isConnecting])
+
 
   const handleGhostClick = useCallback(() => {
     resetIdleTimer()
@@ -521,16 +514,18 @@ export default function App() {
     await menu.popup(new LogicalPosition(clientX, clientY), win)
   }, [reloadSkins, reloadSettings, resetIdleTimer])
 
-  // Override emotion to 'thinking' during reconnect when idle
-  const effectiveEmotion = (isReconnecting && chatState === 'idle') ? 'thinking' : currentEmotion
+  // Override emotion to 'connecting' while connecting when idle.
+  // Skins can provide a 'connecting' expression; falls back to 'neutral' if absent.
+  const effectiveEmotion = (isConnecting && chatState === 'idle') ? 'connecting' : currentEmotion
   const emotionUrl = idleOverrideUrl || getEmotionUrl(effectiveEmotion)
-  debugLog(`[App] currentEmotion='${currentEmotion}' effectiveEmotion='${effectiveEmotion}' isReconnecting=${isReconnecting} idleOverride=${!!idleOverrideUrl} emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
+  debugLog(`[App] currentEmotion='${currentEmotion}' effectiveEmotion='${effectiveEmotion}' isConnecting=${isConnecting} idleOverride=${!!idleOverrideUrl} emotionUrl='${emotionUrl ? emotionUrl.slice(-60) : '(empty)'}'`)
 
   return (
     <Ghost
       emotionOverride={emotionUrl || undefined}
       imageKey={idlePlayCount}
       ghostHeightPixels={settings.ghost_height_pixels}
+      isConnecting={showConnectingBubble}
       onLeftClick={handleGhostClick}
       onRightClick={handleRightClick}
       onImageBounds={setImageBounds}

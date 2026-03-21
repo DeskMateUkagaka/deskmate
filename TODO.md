@@ -7,7 +7,6 @@ Legend:
  * x - complete
 
 - [!] Make get skins work
-- [!] Reconnect websocket - show "thinking" ghost while connecting
 - [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
@@ -153,9 +152,9 @@ Legend:
 - [ ] Expand the top-level README into a user-facing setup guide
 - [ ] Document skin creation for community authors
 
-## Already Landed In Code
+## Done
 
-- [x] Tray icon with show/hide, Change Skin, Settings, and Exit
+- [x] Tray icon with context menu
 - [x] Bubble lifetime UX: countdown progress bar, pin, dismiss with `x` / `Escape`
 - [x] Bubble edge clamping with content offset compensation near screen edges
 - [x] Dynamic ghost window sizing from skin image dimensions
@@ -170,6 +169,7 @@ Legend:
   - [x] Can't select the code block to copy - progress bar rendering deselects it
   - [x] Copy button in the code blocks (Markdown)
 - [x] Invisible bubble blocks my clicking - bubbles window sizes must match that of the visible size
+- [x] Reconnect websocket - show "thinking" ghost while connecting
 
 ## Won't Do
 
