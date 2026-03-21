@@ -113,6 +113,40 @@ pub fn run() {
                 log::info!("Registered quake terminal hotkey: {}", qt_config.hotkey);
             }
 
+            // SIGUSR1 handler: toggle quake terminal from external tools.
+            // Wayland compositors don't support global hotkeys via the
+            // global-shortcut plugin, so users can bind a key in their
+            // compositor config to `pkill -USR1 -x deskmate` instead.
+            #[cfg(unix)]
+            {
+                use std::sync::atomic::{AtomicBool, Ordering};
+                static SIGUSR1: AtomicBool = AtomicBool::new(false);
+
+                extern "C" fn sigusr1_handler(_: libc::c_int) {
+                    SIGUSR1.store(true, Ordering::SeqCst);
+                }
+                // SAFETY: handler only sets an atomic bool — async-signal-safe.
+                unsafe { libc::signal(libc::SIGUSR1, sigusr1_handler as libc::sighandler_t); }
+
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if SIGUSR1.swap(false, Ordering::SeqCst) {
+                            log::info!("SIGUSR1 received — toggling quake terminal");
+                            let qt_state = handle.state::<Arc<Mutex<quake_terminal::QuakeTerminalState>>>();
+                            let settings = handle.state::<std::sync::Mutex<crate::settings::Settings>>();
+                            let config = settings.lock().unwrap().quake_terminal.clone();
+                            let mut state = qt_state.lock().unwrap();
+                            if let Err(e) = quake_terminal::toggle::toggle(&mut state, &config, &handle) {
+                                log::error!("Quake terminal toggle (SIGUSR1) failed: {e}");
+                            }
+                        }
+                    }
+                });
+                log::info!("SIGUSR1 handler registered for quake terminal toggle");
+            }
+
             // System tray
             // On Linux (libappindicator), left/right click can't be distinguished —
             // any click shows the menu. Add "Show / Hide" as first item for Linux.

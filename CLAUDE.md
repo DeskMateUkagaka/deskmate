@@ -268,7 +268,7 @@ Detailed design docs for implemented features live in `memory/`:
 - `BTN.md` — Dynamic `[btn:msg]` button tags in AI chat responses
 - `CmdAutoComplete.md` — Slash command autocomplete from gateway `/commands`
 - `IDLE.md` — Idle animation system (RTS-style fidget clips)
-- `QUAKE.md` — Quake-style dropdown terminal (F12 toggle, runs `openclaw tui`)
+- `QUAKE.md` — Quake-style dropdown terminal (Ctrl+Alt+` toggle, runs `openclaw tui`)
 - `SKINS.md` — Skin format, community distribution, and skin picker
 
 Read these before working on the relevant feature areas.

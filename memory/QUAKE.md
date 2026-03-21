@@ -2,7 +2,7 @@
 
 ## What It Is
 
-A quake/yakuake-style dropdown terminal toggled by a global hotkey (default: F12). Spawns an external terminal emulator at the top of the screen, full width, ~40% height. Runs `openclaw tui` by default. The terminal process persists in the background when hidden.
+A quake/yakuake-style dropdown terminal toggled by a global hotkey (default: Ctrl+Alt+`). Spawns an external terminal emulator at the top of the screen, full width, ~40% height. Runs `openclaw tui` by default. The terminal process persists in the background when hidden.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ In `config.yaml` under `quake_terminal:`:
 ```yaml
 quake_terminal:
   enabled: true
-  hotkey: F12
+  hotkey: ctrl+alt+`
   terminal_emulator: null   # null = auto-detect; or "foot", "kitty", etc.
   command: openclaw tui
   height_percent: 40

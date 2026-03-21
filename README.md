@@ -73,12 +73,12 @@ wmctrl -r "deskmate" -b add,sticky,above
 
 ## Quake Terminal (Conversation History)
 
-DeskMate includes a quake-style dropdown terminal (toggled by F12 or via the context menu) that runs `openclaw tui` by default. Configure it in `~/.config/deskmate/config.yaml`:
+DeskMate includes a quake-style dropdown terminal (toggled by Ctrl+Alt+` or via the context menu) that runs `openclaw tui` by default. Configure it in `~/.config/deskmate/config.yaml`:
 
 ```yaml
 quake_terminal:
   enabled: true
-  hotkey: F12
+  hotkey: ctrl+alt+`
   terminal_emulator: null   # null = auto-detect; or "foot", "kitty", etc.
   command: openclaw tui
   height_percent: 40
@@ -91,7 +91,7 @@ If your OpenClaw instance runs on a remote machine, you can point the quake term
 ```yaml
 quake_terminal:
   enabled: true
-  hotkey: F12
+  hotkey: ctrl+alt+`
   command: ssh -t user@remote TERM=xterm-256color bash -li -c 'openclaw tui'
 ```
 
@@ -109,6 +109,32 @@ For tmux/byobu session reattachment:
 - **Missing `-t` flag**: byobu/tmux requires a PTY. Without `-t`, you get `not a terminal` errors.
 - **Command not found**: if you omit `bash -li -c`, SSH runs a non-interactive shell that skips your profile. `-l` sources login files (`.bash_profile`), `-i` sources `.bashrc`. You typically need both.
 - Don't forget to set up your SSH tunnel for the gateway WebSocket too (e.g., `ssh -L 18789:localhost:18789 user@remote`).
+
+### Keyboard Shortcut (Wayland)
+
+Wayland compositors don't support application-level global hotkeys. DeskMate listens for `SIGUSR1` to toggle the quake terminal, so you can bind a key in your compositor config.
+
+**Sway / i3:**
+
+Add to `~/.config/sway/config` (or `~/.config/i3/config`):
+
+```
+bindsym Ctrl+Alt+grave exec pkill -USR1 -x deskmate
+```
+
+(`grave` is the backtick `` ` `` key.)
+
+**Hyprland:**
+
+Add to `~/.config/hypr/hyprland.conf`:
+
+```
+bind = CTRL ALT, grave, exec, pkill -USR1 -x deskmate
+```
+
+**Other compositors / X11:**
+
+Any tool that can bind a key to a shell command works. The command is always `pkill -USR1 -x deskmate`.
 
 ## Development
 

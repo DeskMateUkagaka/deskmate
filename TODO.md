@@ -7,6 +7,7 @@
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
+- [ ] cache /commands - it pollutes conv hist
 
 ## Runtime Verification
 

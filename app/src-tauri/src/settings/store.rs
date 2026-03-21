@@ -42,7 +42,7 @@ pub struct QuakeTerminalConfig {
 }
 
 fn default_quake_enabled() -> bool { true }
-fn default_quake_hotkey() -> String { "F12".to_string() }
+fn default_quake_hotkey() -> String { "ctrl+alt+`".to_string() }
 fn default_quake_command() -> String { "openclaw tui".to_string() }
 fn default_quake_height_percent() -> u32 { 40 }
 
