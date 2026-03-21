@@ -479,6 +479,7 @@ export default function App() {
       'change-skin': () => showPopup('skin-picker'),
       'reload-settings': () => { reloadSkins(); reloadSettings() },
       'get-skins': () => showPopup('get-skins'),
+      'conversation-history': () => { invoke('toggle_quake_terminal').catch(() => {}) },
       'settings': () => showPopup('settings'),
       'exit': () => savePositionAndExit(),
     } as Record<string, () => void>
@@ -509,6 +510,7 @@ export default function App() {
       ['reload-settings', 'Reload Settings'],
       ['get-skins', 'Get Skins'],
       'separator',
+      ['conversation-history', 'Conversation History'],
       ['settings', 'Settings'],
       'separator',
       ['exit', 'Exit'],

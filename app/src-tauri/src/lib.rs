@@ -124,10 +124,11 @@ pub fn run() {
             let reload_item = MenuItem::with_id(handle, "reload-settings", "Reload Settings", true, None::<&str>)?;
             let get_skins = MenuItem::with_id(handle, "get-skins", "Get Skins", true, None::<&str>)?;
             let sep1 = PredefinedMenuItem::separator(handle)?;
+            let history_item = MenuItem::with_id(handle, "conversation-history", "Conversation History", true, None::<&str>)?;
             let settings_item = MenuItem::with_id(handle, "settings", "Settings", true, None::<&str>)?;
             let sep2 = PredefinedMenuItem::separator(handle)?;
             let exit_item = MenuItem::with_id(handle, "exit", "Exit", true, None::<&str>)?;
-            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &reload_item, &get_skins, &sep1, &settings_item, &sep2, &exit_item])?;
+            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &reload_item, &get_skins, &sep1, &history_item, &settings_item, &sep2, &exit_item])?;
 
             TrayIconBuilder::new()
                 .icon(handle.default_window_icon().unwrap().clone())
