@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -120,14 +121,19 @@ impl SkinManager {
         }
 
         // Validate that all declared emotion PNGs exist on disk
-        for (emotion, png_name) in &manifest.emotions {
-            let png_path = path.join(png_name);
-            if !png_path.exists() {
-                return Err(format!(
-                    "Missing PNG for emotion '{}': {}",
-                    emotion,
-                    png_path.display()
-                ));
+        for (emotion, png_names) in &manifest.emotions {
+            if png_names.is_empty() {
+                return Err(format!("Emotion '{}' has no files", emotion));
+            }
+            for png_name in png_names {
+                let png_path = path.join(png_name);
+                if !png_path.exists() {
+                    return Err(format!(
+                        "Missing PNG for emotion '{}': {}",
+                        emotion,
+                        png_path.display()
+                    ));
+                }
             }
         }
 
@@ -228,14 +234,45 @@ impl SkinManager {
             "neutral"
         };
 
-        let png_name = skin
+        let png_names = skin
             .manifest
             .emotions
             .get(resolved)
             .ok_or_else(|| format!("Emotion '{}' not in manifest", resolved))?;
 
+        let png_name = if png_names.len() == 1 {
+            &png_names[0]
+        } else {
+            let idx = rand::rng().random_range(0..png_names.len());
+            &png_names[idx]
+        };
+
         let full_path = skin.base_path.join(png_name);
         Ok(full_path.to_string_lossy().to_string())
+    }
+
+    pub fn get_emotion_paths(&self, emotion: &str) -> Result<Vec<String>, String> {
+        let skin = self
+            .skins
+            .get(&self.current_skin_id)
+            .ok_or_else(|| format!("Current skin '{}' not loaded", self.current_skin_id))?;
+
+        let resolved = if skin.manifest.emotions.contains_key(emotion) {
+            emotion
+        } else {
+            "neutral"
+        };
+
+        let png_names = skin
+            .manifest
+            .emotions
+            .get(resolved)
+            .ok_or_else(|| format!("Emotion '{}' not in manifest", resolved))?;
+
+        Ok(png_names
+            .iter()
+            .map(|name| skin.base_path.join(name).to_string_lossy().to_string())
+            .collect())
     }
 
     const SUPPORTED_FORMAT_VERSION: u32 = 1;

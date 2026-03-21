@@ -100,10 +100,10 @@ OpenClaw WS → Rust EventFrame listener → app.emit("chat-event") → useOpenC
 Each skin is a folder under `app/skins/`:
 ```
 skins/<skin-id>/
-  manifest.yaml     # { name, author, version, expressions: { happy: "happy.png", ... } }
+  manifest.yaml     # { name, author, version, emotions: { happy: ["happy.png", ...], ... } }
   happy.png
   sad.png
-  ... (7 PNGs total)
+  ...               # Each emotion can have multiple variant PNGs (random pick on change)
 ```
 
 ### Popup Window Positioning Coordinates

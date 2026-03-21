@@ -74,7 +74,7 @@ pub struct SkinManifest {
     pub name: String,
     pub author: Option<String>,
     pub version: Option<String>,
-    pub emotions: HashMap<String, String>,
+    pub emotions: HashMap<String, Vec<String>>,
     /// Bubble placement relative to image center
     pub bubble_placement: Option<UiPlacement>,
     /// Chat input placement relative to image center

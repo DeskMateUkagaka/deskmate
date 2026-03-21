@@ -2,10 +2,6 @@
 
 ## Immediate Product Gaps
 
-Legend:
- * ! - to verify
- * x - complete
-
 - [!] Make get skins work
 - [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?

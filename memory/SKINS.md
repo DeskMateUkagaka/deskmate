@@ -22,10 +22,17 @@ version: 1.0.0
 format_version: 1          # 1 = static PNGs (current), 2+ = future (animated, etc.)
 
 emotions:
-  neutral: neutral.png     # Required
-  happy: happy.png
-  sad: sad.png
-  thinking: thinking.png
+  neutral:                   # Required; list of variant PNGs (random pick on each change)
+    - neutral.png
+  happy:
+    - happy.png
+    - happy2.png             # Multiple variants supported
+  sad:
+    - sad.png
+  thinking:
+    - thinking.png
+  connecting:                # Shown during connection attempts; falls back to neutral
+    - thinking.png
   # Any number of custom emotions
 
 # Optional: positioning & theming

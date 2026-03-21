@@ -37,6 +37,15 @@ pub fn get_emotion_image(
 }
 
 #[tauri::command]
+pub fn get_emotion_images(
+    emotion: String,
+    skin_manager: State<Mutex<SkinManager>>,
+) -> Result<Vec<String>, String> {
+    let sm = skin_manager.lock().unwrap();
+    sm.get_emotion_paths(&emotion)
+}
+
+#[tauri::command]
 pub fn get_idle_animation_path(
     filename: String,
     skin_manager: State<Mutex<SkinManager>>,
