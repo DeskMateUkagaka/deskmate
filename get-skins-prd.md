@@ -1,1 +1,0 @@
-.omc/plans/get-skins-prd.md

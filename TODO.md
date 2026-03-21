@@ -16,10 +16,7 @@ Legend:
   - [!] Blink
   - [!] Smile then back
 - [!] Add command autocomplete in the chat input
-- [ ] AI-decided action buttons via protocol extension
-- Claude Code Channels
-  - [ ] let user choose the ghost engine - openclaw vs claude code
-  - [ ] and let it control the side kick
+- [!] AI-decided action buttons via protocol extension
 
 ## Runtime Verification
 
@@ -27,6 +24,24 @@ Legend:
 - [x] Test Wayland transparency (`GDK_BACKEND=wayland`)
 - [x] Verify `[emotion:X]` prompting end-to-end with actual model responses
 - [x] Decide where the `[emotion:X]` contract should be injected: `chat.inject`, agent config, or per-message prelude
+
+## Later
+
+- Claude Code Channels
+  - [ ] let user choose the ghost engine - openclaw vs claude code
+  - [ ] and let it control the side kick
+- [ ] Easer Openclaw Setup:
+  - [ ] Turn the existing token field into a proper first-run setup flow
+- [ ] Actually make the e2e tests work
+- [ ] Sidekick / kero character
+
+## Even Later
+- [ ] Voice output / TTS
+- [ ] Bubble config - e.g., font and size
+- [ ] Some voices (AI generated even!)
+  - [ ] On click + text input open - says something, like RTS unit selection
+  - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
+- [ ] Animated expression transitions
 
 ## Platform Test Matrix
 
@@ -137,21 +152,6 @@ Legend:
 - [ ] Replace the default app icons
 - [ ] Expand the top-level README into a user-facing setup guide
 - [ ] Document skin creation for community authors
-
-## Later / v2
-
-- [ ] Easer Openclaw Setup:
-  - [ ] Turn the existing token field into a proper first-run setup flow
-- [ ] Actually make the e2e tests work
-- [ ] Animated expression transitions
-- [ ] Sidekick / kero character
-- [ ] Voice output / TTS
-- [ ] Bubble config - e.g., font and size
-- [ ] Add a global shortcut to show/hide the ghost
-- [ ] Some voices (AI generated even!)
-  - [ ] On click + text input open - says something, like RTS unit selection
-  - [ ] Too many clicks in a short time window - gets annoyed, Warcraft style
-- [ ] Distinguish proactive dialogue visually from normal replies
 
 ## Already Landed In Code
 

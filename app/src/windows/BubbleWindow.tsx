@@ -258,6 +258,11 @@ function BubbleCard({
         </div>
         {!item.isStreaming && (
           <div style={actionsStyle}>
+            {item.buttons.map((btn, i) => (
+              <button key={i} style={primaryPillStyle} onClick={() => emit('bubble-action', { action: 'button-click', id: item.id, message: btn })}>
+                {btn}
+              </button>
+            ))}
             <button style={primaryPillStyle} onClick={copyText}>
               {copied === item.id ? 'Copied!' : copied === `selection:${item.id}` ? 'Selection Copied!' : 'Copy (Ctrl+C)'}
             </button>
@@ -408,7 +413,7 @@ export function BubbleWindow() {
   }, [])
 
   const itemSignature = useMemo(() => data.items.map((item) => (
-    `${item.id}:${item.isStreaming ? 's' : 'f'}:${item.isPinned ? 'p' : 'u'}:${item.finalizedAt ?? 'n'}`
+    `${item.id}:${item.isStreaming ? 's' : 'f'}:${item.isPinned ? 'p' : 'u'}:${item.finalizedAt ?? 'n'}:b${item.buttons.join(',')}`
   )).join('|'), [data.items])
 
   useEffect(() => {

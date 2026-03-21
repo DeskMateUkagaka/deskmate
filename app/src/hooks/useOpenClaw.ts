@@ -25,13 +25,22 @@ interface ChatEvent {
 
 
 function parseEmotion(text: string): string {
-  const match = text.match(/\[emotion:(\w+)\]/)
-  if (!match) return 'neutral'
-  return match[1]
+  const matches = [...text.matchAll(/\[emotion:(\w+)\]/g)]
+  if (matches.length === 0) return 'neutral'
+  return matches[matches.length - 1][1]
 }
 
 function stripEmotionTags(text: string): string {
   return text.replace(/\[emotion:\w+\]/g, '').trim()
+}
+
+function parseButtons(text: string): string[] {
+  const matches = [...text.matchAll(/\[btn:([^\]]+)\]/g)]
+  return matches.slice(0, 3).map((m) => m[1].trim()).filter(Boolean)
+}
+
+function stripButtonTags(text: string): string {
+  return text.replace(/\[btn:[^\]]+\]/g, '').trim()
 }
 
 function extractTextFromMessage(message?: ChatEvent['message']): string {
@@ -48,6 +57,7 @@ export function useOpenClaw() {
   const [currentResponse, setCurrentResponse] = useState('')
   const [currentEmotion, setCurrentEmotion] = useState('neutral')
   const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
+  const [currentButtons, setCurrentButtons] = useState<string[]>([])
 
   const accumulatedRef = useRef('')
 const sessionKeyRef = useRef<string>('main')
@@ -151,7 +161,7 @@ const sessionKeyRef = useRef<string>('main')
 
 
           const emotion = parseEmotion(accumulatedRef.current)
-          const display = stripEmotionTags(accumulatedRef.current)
+          const display = stripButtonTags(stripEmotionTags(accumulatedRef.current))
           debugLog(`[chat-event] delta parsed emotion='${emotion}' display="${display.slice(0, 80)}"`)
           setCurrentEmotion(emotion)
           setCurrentResponse(display)
@@ -165,9 +175,11 @@ const sessionKeyRef = useRef<string>('main')
           }
 
           const emotion = parseEmotion(accumulatedRef.current)
-          const display = stripEmotionTags(accumulatedRef.current)
-          debugLog(`[chat-event] final parsed emotion='${emotion}' display="${display.slice(0, 80)}"`)
+          const buttons = parseButtons(accumulatedRef.current)
+          const display = stripButtonTags(stripEmotionTags(accumulatedRef.current))
+          debugLog(`[chat-event] final parsed emotion='${emotion}' buttons=${buttons.length} display="${display.slice(0, 80)}"`)
           setCurrentEmotion(emotion)
+          setCurrentButtons(buttons)
           setCurrentResponse(display)
           setChatState('idle')
         } else if (evt.state === 'error') {
@@ -319,6 +331,24 @@ And a [link](https://example.com) for good measure.`
       return
     }
 
+    // Debug shortcut: "btn" tests dynamic button rendering
+    if (text.toLowerCase() === 'btn') {
+      const response = 'Here are some options for you [btn:Tell me more][btn:Thanks][btn:Goodbye] [emotion:happy]'
+      accumulatedRef.current = response
+      const emotion = parseEmotion(response)
+      const display = stripButtonTags(stripEmotionTags(response))
+      setCurrentResponse(display)
+      setCurrentEmotion(emotion)
+      setCurrentButtons([])
+      setChatState('streaming')
+      setTimeout(() => {
+        const buttons = parseButtons(response)
+        setCurrentButtons(buttons)
+        setChatState('idle')
+      }, 500)
+      return
+    }
+
     // Check connection status before sending
     try {
       const status = await invoke<string>('get_connection_status')
@@ -335,6 +365,7 @@ And a [link](https://example.com) for good measure.`
     accumulatedRef.current = ''
     setCurrentResponse('')
     setCurrentEmotion('thinking')
+    setCurrentButtons([])
     setChatState('sending')
 
     try {
@@ -377,6 +408,7 @@ And a [link](https://example.com) for good measure.`
     connectionStatus,
     currentResponse,
     currentEmotion,
+    currentButtons,
     isStreaming,
     isReconnecting,
     chatState,

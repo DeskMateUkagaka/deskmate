@@ -71,6 +71,7 @@ export default function App() {
     connectionStatus,
     currentResponse,
     currentEmotion,
+    currentButtons,
     resetEmotion,
     chatState,
     isReconnecting,
@@ -78,6 +79,8 @@ export default function App() {
   } = useOpenClaw()
 
   const bubble = useBubble({ timeoutMs: settings.bubble_timeout_ms, onDismiss: resetEmotion })
+  const currentButtonsRef = useRef(currentButtons)
+  currentButtonsRef.current = currentButtons
 
   const { idleOverrideUrl, idlePlayCount, resetIdleTimer } = useIdleAnimation({
     skin: currentSkin,
@@ -286,11 +289,19 @@ export default function App() {
       unlisten.push(u3)
 
       // Listen for bubble actions from the popup bubble window
-      const u4 = await listen<{ action: string; id?: string }>('bubble-action', (event) => {
+      const u4 = await listen<{ action: string; id?: string; message?: string }>('bubble-action', (event) => {
         if (cancelled) return
         switch (event.payload.action) {
           case 'dismiss': bubble.dismiss(event.payload.id); break
           case 'pin': bubble.pin(event.payload.id); break
+          case 'button-click':
+            if (event.payload.id) bubble.clearButtons(event.payload.id)
+            if (event.payload.message) {
+              hidePopup('chat-input')
+              chatInputOpenRef.current = false
+              sendMessage(event.payload.message)
+            }
+            break
         }
       })
       if (cancelled) { u4(); return }
@@ -426,7 +437,13 @@ export default function App() {
       // Update text one last time — the final event may have arrived with
       // chatState='idle' in the same render, so Effect 1 above skipped it.
       bubble.updateText(currentResponse)
+      // Capture active bubble ID before finalize() clears it
+      const activeId = bubble.getActiveBubbleId()
       bubble.finalize()
+      const buttons = currentButtonsRef.current
+      if (activeId && buttons.length > 0) {
+        bubble.setButtons(activeId, buttons)
+      }
     }
     if (chatState === 'error') {
       bubble.updateText(currentResponse)

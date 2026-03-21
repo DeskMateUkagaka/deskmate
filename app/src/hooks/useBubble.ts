@@ -6,6 +6,7 @@ export interface BubbleItem {
   isStreaming: boolean
   isPinned: boolean
   finalizedAt: number | null
+  buttons: string[]
 }
 
 interface UseBubbleOptions {
@@ -61,6 +62,7 @@ export function useBubble(options: UseBubbleOptions = {}) {
       isStreaming: true,
       isPinned: false,
       finalizedAt: null,
+      buttons: [],
     }])
   }, [])
 
@@ -69,6 +71,18 @@ export function useBubble(options: UseBubbleOptions = {}) {
     if (!activeId) return
     setItems((prev) => prev.map((item) => (
       item.id === activeId ? { ...item, text: newText } : item
+    )))
+  }, [])
+
+  const setButtons = useCallback((id: string, buttons: string[]) => {
+    setItems((prev) => prev.map((item) => (
+      item.id === id ? { ...item, buttons } : item
+    )))
+  }, [])
+
+  const clearButtons = useCallback((id: string) => {
+    setItems((prev) => prev.map((item) => (
+      item.id === id ? { ...item, buttons: [] } : item
     )))
   }, [])
 
@@ -117,6 +131,8 @@ export function useBubble(options: UseBubbleOptions = {}) {
   const currentItem = items[items.length - 1] ?? null
   const isStreaming = currentItem?.isStreaming ?? false
 
+  const getActiveBubbleId = useCallback(() => activeBubbleIdRef.current, [])
+
   return {
     items,
     currentItem,
@@ -129,5 +145,8 @@ export function useBubble(options: UseBubbleOptions = {}) {
     dismiss,
     dismissById,
     pin,
+    setButtons,
+    clearButtons,
+    getActiveBubbleId,
   }
 }
