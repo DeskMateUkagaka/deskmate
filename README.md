@@ -71,6 +71,45 @@ For any X11 window manager, `wmctrl` or `xdotool` can set sticky + always-on-top
 wmctrl -r "deskmate" -b add,sticky,above
 ```
 
+## Quake Terminal (Conversation History)
+
+DeskMate includes a quake-style dropdown terminal (toggled by F12 or via the context menu) that runs `openclaw tui` by default. Configure it in `~/.config/deskmate/config.yaml`:
+
+```yaml
+quake_terminal:
+  enabled: true
+  hotkey: F12
+  terminal_emulator: null   # null = auto-detect; or "foot", "kitty", etc.
+  command: openclaw tui
+  height_percent: 40
+```
+
+### Remote OpenClaw via SSH
+
+If your OpenClaw instance runs on a remote machine, you can point the quake terminal at it over SSH. Use `ssh -t` to force PTY allocation (required by terminal multiplexers like byobu/tmux):
+
+```yaml
+quake_terminal:
+  enabled: true
+  hotkey: F12
+  command: ssh -t user@remote TERM=xterm-256color bash -li -c 'openclaw tui'
+```
+
+- `TERM=xterm-256color` ensures the remote side knows to use 256-color output. Without this, colors may be missing if the remote doesn't have the local terminal's terminfo entry (common with foot, kitty, alacritty).
+- `bash -li -c '...'` runs an interactive login shell that sources your full profile (`.bash_profile`, `.bashrc`, etc.). This ensures commands installed in user-local paths (`~/.local/bin`, `~/.cargo/bin`) are in PATH.
+
+For tmux/byobu session reattachment:
+
+```yaml
+  command: ssh -t user@remote TERM=xterm-256color bash -li -c 'byobu a -t session-name'
+```
+
+**Common pitfalls:**
+
+- **Missing `-t` flag**: byobu/tmux requires a PTY. Without `-t`, you get `not a terminal` errors.
+- **Command not found**: if you omit `bash -li -c`, SSH runs a non-interactive shell that skips your profile. `-l` sources login files (`.bash_profile`), `-i` sources `.bashrc`. You typically need both.
+- Don't forget to set up your SSH tunnel for the gateway WebSocket too (e.g., `ssh -L 18789:localhost:18789 user@remote`).
+
 ## Development
 
 See [CLAUDE.md](CLAUDE.md) for build instructions and architecture details.
