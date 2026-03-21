@@ -27,6 +27,16 @@ Guards:
 - Resets on disconnect so commands are re-fetched on reconnect
 - Handles `error`/`aborted` states (cleans up ref, graceful degradation)
 
+### localStorage Cache (24h TTL)
+
+To avoid polluting chat history with `/commands` on every app restart, parsed commands are cached in `localStorage` under the key `deskmate-slash-commands` with a 24-hour TTL.
+
+On connect, `fetchCommands()` checks the cache first:
+1. If cache exists and `Date.now() - timestamp < 24h` and `commands.length > 0` → use cached commands, skip the gateway fetch entirely
+2. Otherwise → send `/commands` as before, and save the parsed result + timestamp to the cache on success
+
+The cache is written in the `chat-event` listener after `parseCommandsResponse()` succeeds (not in `fetchCommands()` — the fetch is async and the response arrives via events).
+
 ### Parsing
 
 The `/commands` response is plain text grouped by category:
@@ -80,7 +90,7 @@ ChatInputWindow is a separate Tauri window — it can't share React state with A
 
 - **No argument autocomplete** — only command names, not their arguments
 - **No category grouping** — dropdown is a flat filtered list
-- **5-second delay** — commands aren't available until the first polling cycle detects `connected` status. Could be eliminated by adding a Rust-side `"gateway-connected"` event that fires immediately after HelloOk.
+- **5-second delay on first launch** — commands aren't available until the first polling cycle detects `connected` status and the gateway responds. Subsequent launches use the localStorage cache (instant).
 - **Parser is fragile** — depends on the `/name  - Description` text format from OpenClaw's `buildCommandsMessage()`. If the format changes, the parser breaks silently (returns empty list, graceful degradation).
 - **Aliases not indexed** — `/think` is autocompleted but its aliases `/thinking` and `/t` are not (they're in parentheses and discarded by the parser).
 

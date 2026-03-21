@@ -22,11 +22,36 @@ app/src-tauri/src/quake_terminal/
 
 `QuakeTerminalState` is managed via `Arc<Mutex<>>` (same pattern as `GatewayState` and `ProactiveState`). Registered in `lib.rs` setup.
 
-### Global Hotkey
+### Keyboard Shortcut (Two-Layer Approach)
 
-Registered via `tauri-plugin-global-shortcut` in `lib.rs` setup closure. The entire registration is wrapped in a labeled block (`'quake: { ... }`) so any error (`plugin init`, `hotkey parse`, `shortcut register`) logs and breaks out without crashing the app. This is critical — a user typo in `config.yaml` must never prevent app startup.
+Wayland compositors don't allow applications to grab global hotkeys — there is no protocol for it. The `tauri-plugin-global-shortcut` plugin relies on X11's `XGrabKey`, which doesn't work on native Wayland sessions (Sway, Hyprland, etc.). This means the `hotkey` field in `config.yaml` only works on X11.
 
-The handler accesses `QuakeTerminalState` and `Settings` from Tauri managed state, clones the config, and calls `toggle::toggle()`.
+**Solution: SIGUSR1 signal handler.** DeskMate registers a Unix signal handler for `SIGUSR1` at startup (`lib.rs`). A background thread polls an `AtomicBool` every 100ms; when the signal is received, it toggles the quake terminal. Users bind a key in their compositor config to send the signal:
+
+```
+# Sway / i3
+bindsym Mod4+grave exec pkill -USR1 -x deskmate
+
+# Hyprland
+bind = SUPER, grave, exec, pkill -USR1 -x deskmate
+```
+
+**Why SIGUSR1 and not sockets/DBus:**
+- Zero dependencies — `libc::signal` is trivial, no runtime or listener setup
+- No port conflicts, no file cleanup on crash
+- `pkill -USR1 -x deskmate` is a one-liner users can bind in any WM
+- The 100ms polling latency is imperceptible
+
+**Why not fix global-shortcut on Wayland:**
+- Wayland has no global hotkey protocol by design (security model)
+- Some compositors have proprietary extensions (Sway has none for this)
+- The signal approach works identically on X11, Wayland, and headless
+
+**Implementation details:**
+- Signal handler (`extern "C" fn`) only sets an `AtomicBool` — async-signal-safe
+- Polling thread sleeps 100ms between checks (negligible CPU)
+- Thread holds a cloned `AppHandle` to access `QuakeTerminalState` and `Settings`
+- The `tauri-plugin-global-shortcut` registration is still attempted (works on X11) and is wrapped in a labeled block (`'quake: { ... }`) so any error logs and breaks out without crashing
 
 ### Config
 
@@ -35,15 +60,15 @@ In `config.yaml` under `quake_terminal:`:
 ```yaml
 quake_terminal:
   enabled: true
-  hotkey: ctrl+alt+`
-  terminal_emulator: null   # null = auto-detect; or "foot", "kitty", etc.
+  hotkey: ctrl+alt+`             # only works on X11; Wayland users bind via compositor
+  terminal_emulator: null         # null = auto-detect; or "foot", "kitty", etc.
   command: openclaw tui
   height_percent: 40
 ```
 
 Rust struct: `settings::QuakeTerminalConfig` (in `settings/store.rs`). TypeScript: `QuakeTerminalConfig` (in `types/index.ts`). Both must stay in sync.
 
-Hotkey format follows `global-hotkey` crate syntax: `F12`, `CommandOrControl+Shift+A`, etc.
+Hotkey format follows `global-hotkey` crate syntax: `ctrl+alt+\``, `CommandOrControl+Shift+A`, etc.
 
 ### Terminal Detection Priority
 
@@ -87,9 +112,7 @@ Terminals are spawned with `--title deskmate-quake` (or equivalent flag). Sway/X
 
 ### Exit Cleanup
 
-Terminal process is killed on app exit in two places:
-1. **Tray menu "exit" handler** in `lib.rs` — uses `app.state::<Arc<Mutex<QuakeTerminalState>>>()`.
-2. **`exit_app` Tauri command** in `commands/ghost.rs` — uses `app.try_state()` (not `State<>` injection) so it works even if the quake feature failed to initialize.
+Terminal process is killed on app exit via the `exit_app` Tauri command in `commands/ghost.rs` — uses `app.try_state()` (not `State<>` injection) so it works even if the quake feature failed to initialize. The tray menu emits a `menu-action` event to the frontend, which calls `savePositionAndExit()` → `invoke('exit_app')`.
 
 Both paths use `child.kill()` wrapped in `let _ =` to ignore errors.
 
@@ -101,7 +124,8 @@ Both paths use `child.kill()` wrapped in `let _ =` to ignore errors.
 
 ### Dependencies Added
 
-- `tauri-plugin-global-shortcut = "2"` in `Cargo.toml`
+- `tauri-plugin-global-shortcut = "2"` in `Cargo.toml` (X11 hotkey, no-op on Wayland)
+- `libc` in `Cargo.toml` (SIGUSR1 signal handler)
 - `"global-shortcut:default"` permission in `capabilities/default.json`
 
 ### Key API Gotchas (tauri-plugin-global-shortcut v2.3.1)

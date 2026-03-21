@@ -7,7 +7,7 @@
   - [ ] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
-- [ ] cache /commands - it pollutes conv hist
+- [ ] Replace the default app icons
 
 ## Runtime Verification
 
@@ -140,7 +140,6 @@
 ## Housekeeping
 
 - [ ] Set the Get Skins URL
-- [ ] Replace the default app icons
 - [ ] Expand the top-level README into a user-facing setup guide
 - [ ] Document skin creation for community authors
 
@@ -165,6 +164,7 @@
 - [x] Add idle animation
 - [x] AI-decided action buttons via protocol extension
 - [x] Add command autocomplete in the chat input
+- [x] cache /commands - it pollutes conv hist
 
 ## Won't Do
 

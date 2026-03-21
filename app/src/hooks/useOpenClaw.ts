@@ -138,6 +138,12 @@ const sessionKeyRef = useRef<string>('main')
             const commands = parseCommandsResponse(text)
             debugLog(`[useOpenClaw] parsed ${commands.length} slash commands from /commands response`)
             setSlashCommands(commands)
+            // Cache for future app starts
+            try {
+              localStorage.setItem('deskmate-slash-commands', JSON.stringify({
+                commands, timestamp: Date.now(),
+              }))
+            } catch { /* ignore storage errors */ }
             silentFetchRunIdRef.current = null
           } else if (evt.state === 'error' || evt.state === 'aborted') {
             silentFetchRunIdRef.current = null
@@ -200,10 +206,29 @@ const sessionKeyRef = useRef<string>('main')
     }
   }, [])
 
-  // Silently fetch /commands to populate slash command autocomplete
+  // Silently fetch /commands to populate slash command autocomplete.
+  // Caches results in localStorage with a 24h TTL to avoid polluting chat history.
+  const COMMANDS_CACHE_KEY = 'deskmate-slash-commands'
+  const COMMANDS_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
+
   const fetchCommands = useCallback(async () => {
     if (commandsFetchedRef.current) return
     commandsFetchedRef.current = true
+
+    // Check localStorage cache
+    try {
+      const cached = localStorage.getItem(COMMANDS_CACHE_KEY)
+      if (cached) {
+        const { commands, timestamp } = JSON.parse(cached)
+        if (Date.now() - timestamp < COMMANDS_CACHE_TTL && commands?.length > 0) {
+          debugLog(`[useOpenClaw] using cached slash commands (${commands.length} commands)`)
+          setSlashCommands(commands)
+          return
+        }
+      }
+    } catch { /* ignore corrupt cache */ }
+
+    // Cache miss or expired — fetch from gateway
     try {
       const runId = await invoke<string>('chat_send', {
         sessionKey: sessionKeyRef.current,
