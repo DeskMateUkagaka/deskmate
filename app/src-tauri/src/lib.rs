@@ -121,12 +121,13 @@ pub fn run() {
             let toggle_item = MenuItem::with_id(handle, "toggle", "Show / Hide", true, None::<&str>)?;
             let sep0 = PredefinedMenuItem::separator(handle)?;
             let change_skin = MenuItem::with_id(handle, "change-skin", "Change Skin", true, None::<&str>)?;
+            let reload_item = MenuItem::with_id(handle, "reload-settings", "Reload Settings", true, None::<&str>)?;
             let get_skins = MenuItem::with_id(handle, "get-skins", "Get Skins", true, None::<&str>)?;
             let sep1 = PredefinedMenuItem::separator(handle)?;
             let settings_item = MenuItem::with_id(handle, "settings", "Settings", true, None::<&str>)?;
             let sep2 = PredefinedMenuItem::separator(handle)?;
             let exit_item = MenuItem::with_id(handle, "exit", "Exit", true, None::<&str>)?;
-            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &get_skins, &sep1, &settings_item, &sep2, &exit_item])?;
+            let tray_menu = Menu::with_items(handle, &[&toggle_item, &sep0, &change_skin, &reload_item, &get_skins, &sep1, &settings_item, &sep2, &exit_item])?;
 
             TrayIconBuilder::new()
                 .icon(handle.default_window_icon().unwrap().clone())
@@ -144,50 +145,10 @@ pub fn run() {
                     }
                 })
                 .on_menu_event(|app, event| {
-                    match event.id.as_ref() {
-                        "toggle" => {
-                            toggle_main_window(app);
-                        }
-                        "change-skin" => {
-                            if let Some(win) = app.get_webview_window("skin-picker") {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
-                        }
-                        "get-skins" => {
-                            if let Some(win) = app.get_webview_window("get-skins") {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
-                        }
-                        "settings" => {
-                            if let Some(win) = app.get_webview_window("settings") {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
-                        }
-                        "exit" => {
-                            // Kill quake terminal process before exiting
-                            if let Ok(mut qt) = app.state::<Arc<Mutex<quake_terminal::QuakeTerminalState>>>().lock() {
-                                if let Some(ref mut child) = qt.process {
-                                    let _ = child.kill();
-                                    log::info!("Killed quake terminal process on exit");
-                                }
-                            }
-                            // Save ghost window position before exiting
-                            if let Some(win) = app.get_webview_window("main") {
-                                if let Ok(pos) = win.outer_position() {
-                                    if let Ok(mut s) = app.state::<std::sync::Mutex<crate::settings::Settings>>().lock() {
-                                        s.ghost_x = pos.x as f64;
-                                        s.ghost_y = pos.y as f64;
-                                        s.save(&app);
-                                    }
-                                }
-                            }
-                            app.exit(0);
-                        }
-                        _ => {}
-                    }
+                    // Forward all tray menu actions to the frontend as events.
+                    // The frontend shares action handling with the ghost context menu.
+                    let action = event.id.as_ref().to_string();
+                    let _ = app.emit("menu-action", &action);
                 })
                 .build(handle)?;
 

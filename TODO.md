@@ -2,7 +2,6 @@
 
 ## Immediate Product Gaps
 
-- [!] Add command autocomplete in the chat input
 - [!] Make get skins work
 - [!] Add a conversation history / quake-style terminal window
   - [ ] Use real terminal? Like, foot terminal?
@@ -164,6 +163,7 @@
 - [x] Reconnect websocket - show "thinking" ghost while connecting
 - [x] Add idle animation
 - [x] AI-decided action buttons via protocol extension
+- [x] Add command autocomplete in the chat input
 
 ## Won't Do
 

@@ -469,50 +469,61 @@ export default function App() {
     showChatInput()
   }, [showChatInput, resetIdleTimer])
 
+  // Shared menu action handlers — used by both ghost context menu and tray menu
+  const menuActionHandlers = useCallback(() => {
+    const win = getCurrentWindow()
+    return {
+      'toggle': async () => {
+        if (await win.isVisible()) { win.hide() } else { win.show(); win.setFocus() }
+      },
+      'change-skin': () => showPopup('skin-picker'),
+      'reload-settings': () => { reloadSkins(); reloadSettings() },
+      'get-skins': () => showPopup('get-skins'),
+      'settings': () => showPopup('settings'),
+      'exit': () => savePositionAndExit(),
+    } as Record<string, () => void>
+  }, [reloadSkins, reloadSettings])
+
+  // Handle tray menu actions forwarded from Rust
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    listen<string>('menu-action', (event) => {
+      const handlers = menuActionHandlers()
+      const handler = handlers[event.payload]
+      if (handler) handler()
+    }).then((fn) => { unlisten = fn })
+    return () => unlisten?.()
+  }, [menuActionHandlers])
+
   const handleRightClick = useCallback(async (clientX: number, clientY: number) => {
     resetIdleTimer()
     hidePopup('chat-input')
     chatInputOpenRef.current = false
+    const handlers = menuActionHandlers()
+
+    // Menu item specs: [id, label] or 'separator'
+    const specs: Array<[string, string] | 'separator'> = [
+      ['toggle', 'Show / Hide'],
+      'separator',
+      ['change-skin', 'Change Skin'],
+      ['reload-settings', 'Reload Settings'],
+      ['get-skins', 'Get Skins'],
+      'separator',
+      ['settings', 'Settings'],
+      'separator',
+      ['exit', 'Exit'],
+    ]
+
+    const items = await Promise.all(specs.map(spec =>
+      spec === 'separator'
+        ? PredefinedMenuItem.new({ item: 'Separator' })
+        : MenuItem.new({ text: spec[1], action: handlers[spec[0]] })
+    ))
+
     const win = getCurrentWindow()
-    const toggleItem = await MenuItem.new({
-      text: 'Show / Hide',
-      action: async () => {
-        if (await win.isVisible()) {
-          win.hide()
-        } else {
-          win.show()
-          win.setFocus()
-        }
-      },
-    })
-    const separator0 = await PredefinedMenuItem.new({ item: 'Separator' })
-    const changeSkin = await MenuItem.new({
-      text: 'Change Skin',
-      action: () => showPopup('skin-picker'),
-    })
-    const reloadConfigItem = await MenuItem.new({
-      text: 'Reload Settings',
-      action: () => { reloadSkins(); reloadSettings() },
-    })
-    const getSkins = await MenuItem.new({
-      text: 'Get Skins',
-      action: () => showPopup('get-skins'),
-    })
-    const separator = await PredefinedMenuItem.new({ item: 'Separator' })
-    const settings = await MenuItem.new({
-      text: 'Settings',
-      action: () => showPopup('settings'),
-    })
-    const separator2 = await PredefinedMenuItem.new({ item: 'Separator' })
-    const exitItem = await MenuItem.new({
-      text: 'Exit',
-      action: () => savePositionAndExit(),
-    })
-    const menu = await Menu.new({
-      items: [toggleItem, separator0, changeSkin, reloadConfigItem, getSkins, separator, settings, separator2, exitItem],
-    })
+    const menu = await Menu.new({ items })
     await menu.popup(new LogicalPosition(clientX, clientY), win)
-  }, [reloadSkins, reloadSettings, resetIdleTimer])
+  }, [menuActionHandlers, resetIdleTimer])
 
   // Override emotion to 'connecting' while connecting when idle.
   // Skins can provide a 'connecting' expression; falls back to 'neutral' if absent.
