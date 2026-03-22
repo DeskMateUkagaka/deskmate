@@ -84,6 +84,13 @@ quake_terminal:
   height_percent: 40
 ```
 
+### Dependencies
+
+- **Sway**: No extra dependencies (uses `swayipc` built into the binary)
+- **X11**: Requires `xdotool` for hiding/showing the terminal window
+  - Arch: `sudo pacman -S xdotool`
+  - Debian/Ubuntu: `sudo apt install xdotool`
+
 ### Remote OpenClaw via SSH
 
 If your OpenClaw instance runs on a remote machine, you can point the quake terminal at it over SSH. Use `ssh -t` to force PTY allocation (required by terminal multiplexers like byobu/tmux):
