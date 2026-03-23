@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::openclaw::chat::ChatSession;
 use crate::openclaw::client::{ConnectionStatus, GatewayClient};
@@ -36,7 +36,11 @@ pub async fn connect_gateway(
     }
 
     log::info!("connect_gateway called: url={url}");
-    let client = GatewayClient::start(url, token, app.clone());
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("failed to resolve app data dir: {e}"))?;
+    let client = GatewayClient::start(url, token, app.clone(), app_data_dir);
     let mut event_rx = client.subscribe();
 
     // Spawn a task that forwards gateway events to the Tauri frontend.

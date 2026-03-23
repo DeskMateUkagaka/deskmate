@@ -399,9 +399,9 @@ And a [link](https://example.com) for good measure.`
       debugLog('[useOpenClaw] chat_send returned runId:', runId)
       runIdRef.current = runId
     } catch (e) {
-      console.error('[useOpenClaw] chat_send failed:', e)
+      debugLog('[useOpenClaw] chat_send failed:', String(e))
       setChatState('error')
-      setCurrentResponse('Failed to send message')
+      setCurrentResponse(`Failed to send message: ${e}`)
     }
   }, [])
 

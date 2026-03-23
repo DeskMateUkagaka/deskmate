@@ -11,6 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use tauri::{AppHandle, Emitter};
 
+use super::device_identity::{load_or_create_device_identity, DeviceIdentity};
 use super::protocol::{EventFrame, GatewayFrame, RequestFrame};
 use super::types::{ConnectParams, HelloOk};
 
@@ -66,10 +67,17 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     /// Start the gateway client actor connecting to `url`.
-    pub fn start(url: String, token: Option<String>, app_handle: AppHandle) -> Self {
+    pub fn start(
+        url: String,
+        token: Option<String>,
+        app_handle: AppHandle,
+        app_data_dir: std::path::PathBuf,
+    ) -> Self {
         let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
         let (event_tx, _) = broadcast::channel(256);
         let inner = Arc::new(Mutex::new(Inner::new()));
+
+        let identity = load_or_create_device_identity(&app_data_dir);
 
         let actor = ClientActor {
             url,
@@ -78,6 +86,7 @@ impl GatewayClient {
             inner: Arc::clone(&inner),
             event_tx: event_tx.clone(),
             app_handle,
+            identity,
         };
 
         tokio::spawn(actor.run());
@@ -128,6 +137,7 @@ struct ClientActor {
     inner: Arc<Mutex<Inner>>,
     event_tx: broadcast::Sender<EventFrame>,
     app_handle: AppHandle,
+    identity: DeviceIdentity,
 }
 
 impl ClientActor {
@@ -212,11 +222,10 @@ impl ClientActor {
             }
         };
 
-        // Send "connect" request with ConnectParams.
+        // Send "connect" request with ConnectParams including device identity.
         log::info!("gateway: got challenge nonce, sending connect request...");
         let connect_id = uuid::Uuid::new_v4().to_string();
-        let connect_params = ConnectParams::new(self.token.clone());
-        let _ = nonce; // nonce stored in server; we just need to have received it
+        let connect_params = ConnectParams::new(self.token.clone(), &self.identity, &nonce);
         let req = RequestFrame::new(
             connect_id.clone(),
             "connect".to_string(),

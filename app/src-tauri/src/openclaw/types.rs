@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::device_identity::{
+    build_device_auth_payload_v3, public_key_base64url, sign_payload, DeviceIdentity,
+};
+
 // ---------------------------------------------------------------------------
 // Connect / Hello
 // ---------------------------------------------------------------------------
@@ -31,6 +35,17 @@ pub struct AuthParams {
     pub password: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceParams {
+    pub id: String,
+    #[serde(rename = "publicKey")]
+    pub public_key: String,
+    pub signature: String,
+    #[serde(rename = "signedAt")]
+    pub signed_at: u64,
+    pub nonce: String,
+}
+
 /// Sent as params for the "connect" method after receiving connect.challenge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectParams {
@@ -46,27 +61,60 @@ pub struct ConnectParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scopes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<DeviceParams>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthParams>,
 }
 
 impl ConnectParams {
-    /// Build a default ConnectParams for the DeskMate UI client.
-    pub fn new(token: Option<String>) -> Self {
+    /// Build ConnectParams with device identity and challenge nonce.
+    pub fn new(token: Option<String>, identity: &DeviceIdentity, nonce: &str) -> Self {
+        let role = "operator";
+        let scopes = vec!["operator.admin".to_string(), "operator.write".to_string()];
+        let client_id = "gateway-client";
+        let client_mode = "ui";
+        let platform = std::env::consts::OS;
+        let signed_at_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let payload = build_device_auth_payload_v3(
+            &identity.device_id,
+            client_id,
+            client_mode,
+            role,
+            &scopes,
+            signed_at_ms,
+            token.as_deref(),
+            nonce,
+            platform,
+            None,
+        );
+        let signature = sign_payload(identity, &payload);
+
         ConnectParams {
             min_protocol: 3,
             max_protocol: 3,
             client: ClientInfo {
-                id: "gateway-client".to_string(),
+                id: client_id.to_string(),
                 display_name: Some("DeskMate".to_string()),
                 version: env!("CARGO_PKG_VERSION").to_string(),
-                platform: std::env::consts::OS.to_string(),
+                platform: platform.to_string(),
                 device_family: None,
-                mode: "ui".to_string(),
+                mode: client_mode.to_string(),
                 instance_id: None,
             },
             caps: Some(vec![]),
-            role: Some("operator".to_string()),
-            scopes: Some(vec!["operator.admin".to_string()]),
+            role: Some(role.to_string()),
+            scopes: Some(scopes),
+            device: Some(DeviceParams {
+                id: identity.device_id.clone(),
+                public_key: public_key_base64url(identity),
+                signature,
+                signed_at: signed_at_ms,
+                nonce: nonce.to_string(),
+            }),
             auth: token.map(|t| AuthParams {
                 token: Some(t),
                 device_token: None,

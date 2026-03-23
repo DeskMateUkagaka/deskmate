@@ -68,8 +68,8 @@ cargo add <crate>
 The gateway is NOT simple request-response. It's a streaming JSON-RPC-over-WebSocket system:
 
 1. Connect → server sends `connect.challenge` with nonce
-2. Client sends `connect` RPC with `ConnectParams` (client ID: `gateway-client`, mode: `ui`, protocol: 3, token auth)
-3. Server responds with `HelloOk`
+2. Client builds a signed device identity payload (v3 format, Ed25519) using the nonce, then sends `connect` RPC with `ConnectParams` (client ID: `gateway-client`, mode: `ui`, protocol: 3, token auth, device identity). Without the device identity, the server strips all scopes and `chat.send` fails with "missing scope: operator.write".
+3. Server responds with `HelloOk`. On first connect, the device must be paired (approved) on the gateway side.
 4. `chat.send` returns immediate ack `{ runId, status: "started" }` — do NOT use `expectFinal`
 5. AI responses stream as separate `chat` EventFrames with `state: delta|final|error|aborted`
 
