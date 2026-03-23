@@ -38,13 +38,62 @@ export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, isConnecti
 
   const targetHeight = ghostHeightPixels
   const initialLoadDone = useRef(false)
-  // Nudge is done in the onLoad handler — nudging on src change is too
-  // early because the old image pixels are still rendered when the nudge fires.
-
   const nudgeInProgress = useRef(false)
+  const nudgeDirty = useRef(false)
+  const lastNudgedSrc = useRef<string>('')
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const didDrag = useRef(false)
   const imgRef = useRef<HTMLImageElement>(null)
+
+  // Nudge the ghost window to clear WebKitGTK bleed artifacts.
+  // img.decode() ensures the new image pixels are ready before we
+  // bump the compositor with a 1px resize cycle.
+  const runNudge = useCallback(async () => {
+    const img = imgRef.current
+    if (!img || !initialLoadDone.current) return
+    if (nudgeInProgress.current) {
+      debugLog('[Ghost] nudge in progress, marking dirty')
+      nudgeDirty.current = true
+      return
+    }
+    nudgeInProgress.current = true
+    debugLog('[Ghost] starting nudge')
+    const win = getCurrentWindow()
+    try {
+      do {
+        nudgeDirty.current = false
+        await img.decode()
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        const size = await win.outerSize()
+        await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        await win.setSize(new PhysicalSize(size.width, size.height))
+        debugLog(`[Ghost] nudge cycle done, dirty=${nudgeDirty.current}`)
+      } while (nudgeDirty.current)
+    } finally {
+      nudgeInProgress.current = false
+      nudgeDirty.current = false
+      lastNudgedSrc.current = img.src
+      debugLog('[Ghost] nudge complete')
+    }
+  }, [])
+
+  // Fallback: when imageSrc changes but onLoad doesn't fire (cached image
+  // in WebKitGTK), trigger the nudge from a useEffect after decode.
+  useEffect(() => {
+    if (!initialLoadDone.current || !imageSrc) return
+    const img = imgRef.current
+    if (!img) return
+    // Give onLoad a chance to fire first (it runs synchronously for cached
+    // images in most engines). If it already nudged this src, skip.
+    const handle = requestAnimationFrame(() => {
+      if (lastNudgedSrc.current !== img.src) {
+        debugLog(`[Ghost] fallback nudge for src=${img.src.slice(-40)}`)
+        runNudge()
+      }
+    })
+    return () => cancelAnimationFrame(handle)
+  }, [imageSrc, runNudge])
 
   // Report image bounds when image loads or window resizes
   useEffect(() => {
@@ -171,6 +220,7 @@ export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, isConnecti
             const img = imgRef.current
             if (!img) return
             const win = getCurrentWindow()
+            debugLog(`[Ghost] onLoad fired, src=${img.src.slice(-40)}, initialLoadDone=${initialLoadDone.current}, nudgeInProgress=${nudgeInProgress.current}`)
 
             // Resize window to match image aspect ratio
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -180,21 +230,8 @@ export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, isConnecti
             }
 
             // Nudge after expression image is fully decoded and painted to clear
-            // WebKitGTK bleed. img.decode() ensures the image is ready to composite,
-            // then we wait for the paint frame before nudging the compositor.
-            if (initialLoadDone.current && !nudgeInProgress.current) {
-              nudgeInProgress.current = true
-              try {
-                await img.decode()
-                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-                const size = await win.outerSize()
-                await win.setSize(new PhysicalSize(size.width + 1, size.height + 1))
-                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-                await win.setSize(new PhysicalSize(size.width, size.height))
-              } finally {
-                nudgeInProgress.current = false
-              }
-            }
+            // WebKitGTK bleed.
+            await runNudge()
 
             // Only restore saved position on initial load — emotion changes
             // must NOT reposition, as swaymsg can introduce decoration offsets.
