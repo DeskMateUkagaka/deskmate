@@ -25,23 +25,32 @@ export function useSkin(): UseSkinReturn {
   // Preload all emotion image variants whenever skin changes
   useEffect(() => {
     if (!currentSkin) return
+    debugLog(`[useSkin] Preloading emotions for skin '${currentSkin.id}', emotions=[${currentSkin.emotions.join(',')}]`)
 
     const urls: Record<string, string[]> = {}
     const promises = currentSkin.emotions.map(async (emotion) => {
       try {
         const paths = await invoke<string[]>('get_emotion_images', { emotion })
         urls[emotion] = paths.map(p => convertFileSrc(p))
+        debugLog(`[useSkin] Loaded ${paths.length} variant(s) for '${emotion}': ${urls[emotion].map(u => u.slice(-60)).join(', ')}`)
       } catch {
-        // ignore missing emotions
+        debugLog(`[useSkin] Failed to load emotion '${emotion}'`)
       }
     })
 
-    Promise.all(promises).then(() => setEmotionUrls({ ...urls }))
+    Promise.all(promises).then(() => {
+      debugLog(`[useSkin] All emotions loaded, setting emotionUrls keys=[${Object.keys(urls).join(',')}]`)
+      // Clear cached pick BEFORE setting new URLs so the re-render picks fresh values
+      lastPickRef.current = { emotion: '', url: '' }
+      setEmotionUrls({ ...urls })
+    })
   }, [currentSkin])
 
   const switchSkin = useCallback(async (id: string) => {
+    debugLog(`[useSkin] switchSkin('${id}')`)
     await invoke('switch_skin', { skinId: id })
     const skin = await invoke<SkinInfo>('get_current_skin')
+    debugLog(`[useSkin] switchSkin got skin: id='${skin.id}' name='${skin.name}' emotions=[${skin.emotions.join(',')}]`)
     setCurrentSkin(skin)
   }, [])
 
@@ -72,9 +81,15 @@ export function useSkin(): UseSkinReturn {
   }, [emotionUrls])
 
   const reloadSkins = useCallback(async () => {
+    debugLog('[useSkin] reloadSkins called')
     await invoke('reload_skins')
-    invoke<SkinInfo[]>('list_skins').then(setSkins).catch(() => {})
-    invoke<SkinInfo>('get_current_skin').then(setCurrentSkin).catch(() => {})
+    const [list, skin] = await Promise.all([
+      invoke<SkinInfo[]>('list_skins'),
+      invoke<SkinInfo>('get_current_skin').catch(() => null),
+    ])
+    debugLog(`[useSkin] reloadSkins: ${list.length} skins, current=${skin?.id ?? '(none)'}`)
+    setSkins(list)
+    if (skin) setCurrentSkin(skin)
   }, [])
 
   // Auto-reload when a new skin is installed from Get Skins

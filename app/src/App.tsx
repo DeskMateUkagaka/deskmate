@@ -271,6 +271,7 @@ export default function App() {
 
       const u2 = await listen<{ id: string }>('skin-selected', (event) => {
         if (!cancelled) {
+          debugLog(`[App] skin-selected event: id='${event.payload.id}'`)
           updateSettings({ current_skin_id: event.payload.id })
           reloadSkins()
         }
