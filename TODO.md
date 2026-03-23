@@ -3,8 +3,8 @@
 ## Immediate Product Gaps
 
 - [!] Make get skins work
-- [!] Add a conversation history / quake-style terminal window
-  - [ ] Use real terminal? Like, foot terminal?
+- [ ] Add a conversation history / quake-style terminal window
+  - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
 - [ ] Replace the default app icons
