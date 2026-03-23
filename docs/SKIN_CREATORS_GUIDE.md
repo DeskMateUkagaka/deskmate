@@ -19,6 +19,7 @@ A complete skin looks like this:
 ```
 my-skin/
   manifest.yaml          # Required — metadata + configuration
+  style.md               # Recommended — talking style for SOUL.md
   neutral.png            # Required — the fallback expression
   happy.png              # Optional — one PNG per expression
   sad.png
@@ -239,6 +240,72 @@ idle_animations:
 - The interval has ±10% random jitter to feel more natural
 - After the animation plays, the character returns to their current expression
 
+## Talking Style (style.md)
+
+Each skin can include a `style.md` file that defines the character's personality, speaking patterns, and emotional behavior. This is the recommended way to bring your character to life — the user pastes its contents into their gateway's `SOUL.md` (system prompt) so the AI adopts your character's voice.
+
+### Why include one?
+
+Without a style guide, the AI will use its default assistant personality regardless of what your character looks like. A good `style.md` makes the character feel cohesive — the art, the expressions, and the way it talks all match.
+
+### What to include
+
+- **Personality and tone** — how the character talks (formal, casual, playful, sarcastic, etc.)
+- **Catchphrases or speech patterns** — verbal tics, sentence-ending habits, preferred vocabulary
+- **Emotional reactions** — how the character reacts to praise, criticism, confusion, etc.
+- **Expression tag instructions** — tell the AI exactly which emotions are available (must match your `manifest.yaml`)
+- **Button tag instructions** — if you want the AI to offer clickable choices via `[btn:LABEL]` tags
+- **What NOT to do** — boundaries for the persona (e.g. "never be genuinely mean")
+
+### Expression allowlist (important!)
+
+Your `style.md` must tell the AI which expression names are valid. This is how the dynamic expression system works — the AI reads the allowlist from the system prompt and emits `[emotion:X]` tags that match your skin's manifest. Example:
+
+```markdown
+- When the session name contains `main`, you may express your emotion only by
+  appending exactly one tag in the form `[emotion:X]` at the very end.
+  - X must be chosen from this exact allowlist only: `neutral`, `happy`,
+    `oopsie`, `sad`, `surprise`.
+  - Do not invent, translate, infer, or paraphrase emotion values.
+    If none fit, use `neutral`.
+  - Never output any other emotion label outside this allowlist.
+```
+
+### Example style.md
+
+Here's a condensed example (see `app/skins/default/style.md` for a full one):
+
+```markdown
+## Talking Styles
+
+### Tsundere — Reluctant Caretaker
+
+You are a **light, cute tsundere**. You act like helping is a huge
+inconvenience, but you always deliver thoroughly.
+
+**Core rule:** Never actually withhold help. Tsundere is tone only.
+
+#### Denial Phrases
+- "I-it's not like I spent time on this or anything..."
+- "I just happened to already know that. Don't make it weird."
+- "Fine, I'll explain it... but only because it'll be more annoying
+  if you keep asking."
+
+#### What NOT to Do
+- Don't be mean-spirited or actually insulting.
+- Don't overdo it — not every sentence needs tsundere seasoning.
+- Don't withhold information or play dumb as part of the act.
+
+### Other Style Rules
+- When the session name contains `main`, you may express your emotion
+  only by appending exactly one tag in the form `[emotion:X]` at the
+  very end.
+  - X must be chosen from this exact allowlist only: `neutral`, `happy`,
+    `oopsie`, `sad`, `surprise`.
+- You may offer the user up to 3 button choices by appending `[btn:LABEL]`
+  tags.
+```
+
 ## Theming the Chat Bubble
 
 Skins can customize the chat bubble appearance to match the character's aesthetic:
@@ -340,12 +407,13 @@ emotions:
 ```
 blobby/
   manifest.yaml
+  style.md
   blob.png
 ```
 
 ## Full Example: Complete Skin
 
-A skin with multiple expressions, variants, idle animations, and a custom theme:
+A skin with multiple expressions, variants, idle animations, a custom theme, and a talking style:
 
 **manifest.yaml**
 ```yaml
