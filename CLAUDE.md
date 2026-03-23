@@ -167,6 +167,13 @@ WebKitGTK has a compositor bug where transparent windows leave ghost artifacts (
 
 **Working fix: window size nudge + wait + restore.** Resizing the window by 1px forces the compositor to repaint. Must wait one animation frame (`requestAnimationFrame`) between resize and restore — without the wait, the compositor doesn't process the change. Then restore original size and position. Must use `PhysicalSize`/`PhysicalPosition` (not Logical) to avoid coordinate mismatch on HiDPI Wayland. There is a slight visible budge. See `useBubble.ts` `nudgeWindowRepaint()`.
 
+**Ghost window nudge requires dual trigger (onLoad + useEffect fallback).** The ghost `<img>` expression change nudge in `Ghost.tsx` cannot be simplified to a single mechanism:
+- **`onLoad`** provides correct paint timing (image is loaded and composited before nudge), but does NOT fire for cached images when `src` changes on the same `<img>` element in WebKitGTK.
+- **`useEffect` on `imageSrc`** catches cached image changes that `onLoad` misses, but a nudge triggered ONLY from `useEffect` (even with `img.decode()` + double rAF) fires before the compositor has actually painted — the nudge repaints stale pixels.
+- **Both are needed:** `onLoad` calls `runNudge()` for fresh loads; `useEffect` with `requestAnimationFrame` wrapper calls `runNudge()` as fallback for cached images, using `lastNudgedSrc` to skip if `onLoad` already handled it.
+- Attempts that failed: `useEffect`-only with `setTimeout(150)`, `useEffect`-only with double rAF, `key={imageSrc}` to force DOM recreation (element destruction causes unfixable bleed), `win.hide()`/`win.show()` cycle.
+- The `nudgeDirty` ref handles expression changes during an in-progress nudge (re-nudge after current cycle completes).
+
 **Constraint: requires floating window.** On tiling WMs (Sway), `setSize` is ignored for tiled windows. The ghost window must be floating (`for_window [app_id="..."] floating enable` in Sway config).
 
 **Why overlays were rejected:** Overlays (DOM within the transparent ghost window) avoid the Wayland positioning problem but require a much larger transparent window to contain the bubble, input, and ghost together. Most of that enlarged window is visually empty, yet it intercepts all clicks — the user clicks what looks like the desktop or another app, but the transparent window swallows the event. `setIgnoreCursorEvents` is all-or-nothing for the entire window, and forwarding click events to the app behind is non-trivial. This is unacceptable UX.
