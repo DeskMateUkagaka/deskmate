@@ -10,6 +10,10 @@ if (win.label === 'context-menu') {
   win.onFocusChanged(({ payload: focused }) => {
     if (!focused) win.hide()
   })
+  win.onCloseRequested((e) => {
+    e.preventDefault()
+    win.hide()
+  })
 }
 
 export function ContextMenuWindow() {

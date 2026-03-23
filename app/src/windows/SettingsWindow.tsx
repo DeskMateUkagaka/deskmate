@@ -40,6 +40,15 @@ function SettingsForm({ initial }: { initial: Settings }) {
     win.hide()
   }
 
+  // Intercept Alt+F4 / window close — hide instead of destroy
+  useEffect(() => {
+    const unlisten = win.onCloseRequested((e) => {
+      e.preventDefault()
+      win.hide()
+    })
+    return () => { unlisten.then(fn => fn()) }
+  }, [])
+
   const handleClose = () => win.hide()
 
   const panelStyle: CSSProperties = {

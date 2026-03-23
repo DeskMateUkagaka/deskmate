@@ -9,20 +9,51 @@ export function SkinPickerWindow() {
   const [skins, setSkins] = useState<SkinInfo[]>([])
   const [currentSkinId, setCurrentSkinId] = useState('')
 
-  useEffect(() => {
-    invoke<SkinInfo[]>('list_skins').then(setSkins)
-    invoke<SkinInfo>('get_current_skin').then((s) => setCurrentSkinId(s.id)).catch(() => {})
-  }, [])
+  const win = getCurrentWindow()
 
-  // Auto-refresh when a new skin is installed from Get Skins
+  // Rescan disk and refresh the skin list
+  const loadSkins = async () => {
+    await invoke('reload_skins')
+    const [list, current] = await Promise.all([
+      invoke<SkinInfo[]>('list_skins'),
+      invoke<SkinInfo>('get_current_skin').catch(() => null),
+    ])
+    setSkins(list)
+    if (current) setCurrentSkinId(current.id)
+  }
+
+  // Reload every time the window gains focus (user may have unzipped new skins)
   useEffect(() => {
-    const unlisten = listen('skin-installed', () => {
-      invoke<SkinInfo[]>('list_skins').then(setSkins)
+    loadSkins()
+    const unlisten = win.onFocusChanged(({ payload: focused }) => {
+      if (focused) loadSkins()
     })
     return () => { unlisten.then(fn => fn()) }
   }, [])
 
-  const win = getCurrentWindow()
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') win.hide()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Intercept Alt+F4 / window close — hide instead of destroy
+  useEffect(() => {
+    const unlisten = win.onCloseRequested((e) => {
+      e.preventDefault()
+      win.hide()
+    })
+    return () => { unlisten.then(fn => fn()) }
+  }, [])
+
+  // Also refresh when a skin is installed from Get Skins
+  useEffect(() => {
+    const unlisten = listen('skin-installed', () => { loadSkins() })
+    return () => { unlisten.then(fn => fn()) }
+  }, [])
 
   const handleSelect = async (id: string) => {
     await invoke('switch_skin', { skinId: id })

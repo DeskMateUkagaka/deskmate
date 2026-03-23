@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type CSSProperties } from 'react'
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useOcsSkins } from '../hooks/useOcsSkins'
 import { debugLog } from '../lib/debugLog'
@@ -23,6 +23,15 @@ export function GetSkinsWindow() {
       search(value)
     }, 300)
   }, [search])
+
+  // Intercept Alt+F4 / window close — hide instead of destroy
+  useEffect(() => {
+    const unlisten = win.onCloseRequested((e) => {
+      e.preventDefault()
+      win.hide()
+    })
+    return () => { unlisten.then(fn => fn()) }
+  }, [])
 
   const handleClose = () => win.hide()
 

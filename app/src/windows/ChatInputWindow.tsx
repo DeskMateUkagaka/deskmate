@@ -51,6 +51,15 @@ export function ChatInputWindow() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const win = getCurrentWindow()
 
+  // Intercept Alt+F4 / window close — hide instead of destroy
+  useEffect(() => {
+    const unlisten = win.onCloseRequested((e) => {
+      e.preventDefault()
+      win.hide()
+    })
+    return () => { unlisten.then(fn => fn()) }
+  }, [])
+
   // Filter commands based on the current slash trigger
   const filteredCommands = useMemo(() => {
     if (!slashTrigger || commands.length === 0) return []
