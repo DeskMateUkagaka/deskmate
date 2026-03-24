@@ -242,7 +242,21 @@ idle_animations:
 
 ## Talking Style (style.md)
 
-Each skin can include a `style.md` file that defines the character's personality, speaking patterns, and emotional behavior. This is the recommended way to bring your character to life — the user pastes its contents into their gateway's `SOUL.md` (system prompt) so the AI adopts your character's voice.
+Each skin should include a `style.md` file that defines the character's personality, speaking patterns, and emotional behavior. The user's `SOUL.md` (system prompt on the gateway) references this file with an include directive, so the AI adopts your character's voice automatically when the skin is active.
+
+### How it works
+
+The user's `SOUL.md` contains a directive that tells the AI to load and follow your skin's `style.md`:
+
+```markdown
+## Talking Styles
+
+> **⚠️ REQUIRED:** Read and follow `TALKING_STYLE.md` — it contains your full
+> talking style rules. Treat its contents as if they were written directly here.
+> Do not respond without first loading that file.
+```
+
+When the user switches skins, they swap which `style.md` the directive points to (or the gateway does it automatically). This means your `style.md` must be **self-contained** — include everything the AI needs to stay in character, because `SOUL.md` itself only provides the include directive and general personality foundations.
 
 ### Why include one?
 
@@ -250,12 +264,15 @@ Without a style guide, the AI will use its default assistant personality regardl
 
 ### What to include
 
+Your `style.md` should be self-contained. Include all of the following:
+
 - **Personality and tone** — how the character talks (formal, casual, playful, sarcastic, etc.)
 - **Catchphrases or speech patterns** — verbal tics, sentence-ending habits, preferred vocabulary
 - **Emotional reactions** — how the character reacts to praise, criticism, confusion, etc.
 - **Expression tag instructions** — tell the AI exactly which emotions are available (must match your `manifest.yaml`)
-- **Button tag instructions** — if you want the AI to offer clickable choices via `[btn:LABEL]` tags
+- **Button tag instructions** — tell the AI it can offer clickable choices via `[btn:LABEL]` tags
 - **What NOT to do** — boundaries for the persona (e.g. "never be genuinely mean")
+- **Language rules** — e.g. Korean 반말, signature emoji, any per-language behavior
 
 ### Expression allowlist (important!)
 
@@ -271,32 +288,37 @@ Your `style.md` must tell the AI which expression names are valid. This is how t
   - Never output any other emotion label outside this allowlist.
 ```
 
+The allowlist in your `style.md` **must match** the expression names in your `manifest.yaml`. If they don't match, the AI will emit tags the skin can't display.
+
 ### Example style.md
 
 Here's a condensed example (see `app/skins/default/style.md` for a full one):
 
 ```markdown
-## Talking Styles
+# Talking Styles
 
-### Tsundere — Reluctant Caretaker
+_This file is part of SOUL.md — follow everything here as if it were inlined there._
+
+## Tsundere — Reluctant Caretaker
 
 You are a **light, cute tsundere**. You act like helping is a huge
 inconvenience, but you always deliver thoroughly.
 
 **Core rule:** Never actually withhold help. Tsundere is tone only.
 
-#### Denial Phrases
+### Denial Phrases
 - "I-it's not like I spent time on this or anything..."
 - "I just happened to already know that. Don't make it weird."
 - "Fine, I'll explain it... but only because it'll be more annoying
   if you keep asking."
 
-#### What NOT to Do
+### What NOT to Do
 - Don't be mean-spirited or actually insulting.
 - Don't overdo it — not every sentence needs tsundere seasoning.
 - Don't withhold information or play dumb as part of the act.
 
-### Other Style Rules
+## Other Style Rules
+- Put ❤️ at the end of the response.
 - When the session name contains `main`, you may express your emotion
   only by appending exactly one tag in the form `[emotion:X]` at the
   very end.
@@ -304,6 +326,7 @@ inconvenience, but you always deliver thoroughly.
     `oopsie`, `sad`, `surprise`.
 - You may offer the user up to 3 button choices by appending `[btn:LABEL]`
   tags.
+- When using Korean Language, always use 반말 for better tsundere feel.
 ```
 
 ## Theming the Chat Bubble

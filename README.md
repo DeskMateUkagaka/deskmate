@@ -143,6 +143,25 @@ bind = CTRL ALT, grave, exec, pkill -USR1 -x deskmate
 
 Any tool that can bind a key to a shell command works. The command is always `pkill -USR1 -x deskmate`.
 
+## Personality & Talking Style
+
+DeskMate's personality is controlled by two files on the gateway's system prompt:
+
+- **`SOUL.md`** — Core personality foundations (helpfulness, boundaries, continuity). Contains an include directive that loads the active skin's talking style.
+- **`style.md`** (per skin) — The character's talking style, speech patterns, emotional reactions, and expression allowlist. Each skin ships its own `style.md`.
+
+When you switch skins, swap which `style.md` the SOUL.md directive points to. Your `SOUL.md` should include something like:
+
+```markdown
+## Talking Styles
+
+> **⚠️ REQUIRED:** Read and follow `TALKING_STYLE.md` — it contains your full
+> talking style rules. Treat its contents as if they were written directly here.
+> Do not respond without first loading that file.
+```
+
+See [Skin Creator Guide](docs/SKIN_CREATORS_GUIDE.md) for how to write a `style.md` for your skin.
+
 ## Development
 
 See [CLAUDE.md](CLAUDE.md) for build instructions and architecture details.
