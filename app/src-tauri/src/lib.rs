@@ -21,6 +21,18 @@ fn toggle_main_window(app: &tauri::AppHandle) {
         } else {
             let _ = win.show();
             let _ = win.set_focus();
+
+            // On Sway/Hyprland, showing a hidden window resets its position.
+            // Move it back to the saved position from settings.
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let (x, y) = {
+                    let s = handle.state::<std::sync::Mutex<settings::Settings>>();
+                    let guard = s.lock().unwrap();
+                    (guard.ghost_x as i32, guard.ghost_y as i32)
+                };
+                commands::window::move_window("deskmate-ghost".to_string(), x, y).await;
+            });
         }
     }
 }
