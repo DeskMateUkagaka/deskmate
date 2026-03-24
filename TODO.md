@@ -3,9 +3,8 @@
 ## Immediate Product Gaps
 
 - [!] Make get skins work
-  - [ ] Use preview.png - mandatory
-  - [ ] skin config persistence - after choose skin keep it in user config
-  - [ ] transparency detection for better click through and easier skin creation
+  - [x] Use preview.png - mandatory
+  - [x] skin config persistence - after choose skin keep it in user config
 - [ ] Add a conversation history / quake-style terminal window
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?

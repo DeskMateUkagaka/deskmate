@@ -72,6 +72,8 @@ pub struct UiPlacement {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkinManifest {
     pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
     pub author: Option<String>,
     pub version: Option<String>,
     pub emotions: HashMap<String, Vec<String>>,
@@ -112,6 +114,8 @@ pub struct IdleAnimation {
 pub struct SkinInfo {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
     pub author: Option<String>,
     pub version: Option<String>,
     pub path: String,

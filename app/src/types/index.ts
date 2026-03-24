@@ -44,6 +44,7 @@ export interface IdleAnimation {
 export interface SkinInfo {
   id: string
   name: string
+  description: string | null
   author: string | null
   version: string | null
   path: string

@@ -1,9 +1,26 @@
 import { useState, useEffect, type CSSProperties } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { emit, listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { SkinInfo } from '../types'
 
+
+const previewImgStyle: CSSProperties = {
+  width: '100%', height: 80, objectFit: 'contain', borderRadius: 6,
+}
+const placeholderStyle: CSSProperties = {
+  width: '100%', height: 80, background: 'rgba(0,0,0,0.06)',
+  borderRadius: 6, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', fontSize: 24, color: '#bbb',
+}
+
+function SkinPreview({ path }: { path: string }) {
+  const [failed, setFailed] = useState(false)
+  const src = convertFileSrc(path + '/preview.png')
+
+  if (failed) return <div style={placeholderStyle}>🎭</div>
+  return <img src={src} style={previewImgStyle} onError={() => setFailed(true)} />
+}
 
 export function SkinPickerWindow() {
   const [skins, setSkins] = useState<SkinInfo[]>([])
@@ -95,12 +112,6 @@ export function SkinPickerWindow() {
     fontSize: 12, fontWeight: 500, color: '#333', marginTop: 4,
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   }
-  const placeholderStyle: CSSProperties = {
-    width: '100%', height: 80, background: 'rgba(0,0,0,0.06)',
-    borderRadius: 6, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', fontSize: 24, color: '#bbb',
-  }
-
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>
@@ -115,8 +126,11 @@ export function SkinPickerWindow() {
         )}
         {skins.map((skin) => (
           <div key={skin.id} style={skinCardStyle(skin.id === currentSkinId)} onClick={() => handleSelect(skin.id)}>
-            <div style={placeholderStyle}>🎭</div>
+            <SkinPreview path={skin.path} />
             <div style={skinNameStyle}>{skin.name}</div>
+            {skin.description && (
+              <div style={{ fontSize: 10, color: '#666', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{skin.description}</div>
+            )}
             {skin.author && (
               <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>by {skin.author}</div>
             )}

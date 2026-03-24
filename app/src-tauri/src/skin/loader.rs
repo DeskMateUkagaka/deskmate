@@ -172,6 +172,7 @@ impl SkinManager {
             info: SkinInfo {
                 id: id.to_string(),
                 name: manifest.name.clone(),
+                description: manifest.description.clone(),
                 author: manifest.author.clone(),
                 version: manifest.version.clone(),
                 path: path.to_string_lossy().to_string(),

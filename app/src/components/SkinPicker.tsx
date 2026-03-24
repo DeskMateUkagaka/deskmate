@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import type { SkinInfo } from '../types'
 
 interface SkinPickerProps {
@@ -6,6 +7,24 @@ interface SkinPickerProps {
   currentSkinId: string
   onSelect: (id: string) => void
   onClose: () => void
+}
+
+const previewImgStyle: CSSProperties = {
+  width: '100%', height: 80, objectFit: 'contain', borderRadius: 6,
+}
+
+function SkinPreview({ path }: { path: string }) {
+  const [failed, setFailed] = useState(false)
+  const src = convertFileSrc(path + '/preview.png')
+
+  if (failed) return <div style={placeholderFallbackStyle}>🎭</div>
+  return <img src={src} style={previewImgStyle} onError={() => setFailed(true)} />
+}
+
+const placeholderFallbackStyle: CSSProperties = {
+  width: '100%', height: 80, background: 'rgba(0,0,0,0.06)',
+  borderRadius: 6, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', fontSize: 24, color: '#bbb',
 }
 
 export function SkinPicker({ skins, currentSkinId, onSelect, onClose }: SkinPickerProps) {
@@ -83,18 +102,6 @@ export function SkinPicker({ skins, currentSkinId, onSelect, onClose }: SkinPick
     whiteSpace: 'nowrap',
   }
 
-  const placeholderStyle: CSSProperties = {
-    width: '100%',
-    height: 80,
-    background: 'rgba(0,0,0,0.06)',
-    borderRadius: 6,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 24,
-    color: '#bbb',
-  }
-
   return (
     <div style={overlayStyle} onMouseDown={onClose}>
       <div style={panelStyle} onMouseDown={(e) => e.stopPropagation()}>
@@ -114,8 +121,11 @@ export function SkinPicker({ skins, currentSkinId, onSelect, onClose }: SkinPick
               style={skinCardStyle(skin.id === currentSkinId)}
               onClick={() => onSelect(skin.id)}
             >
-              <div style={placeholderStyle}>🎭</div>
+              <SkinPreview path={skin.path} />
               <div style={skinNameStyle}>{skin.name}</div>
+              {skin.description && (
+                <div style={{ fontSize: 10, color: '#666', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{skin.description}</div>
+              )}
               {skin.author && (
                 <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>by {skin.author}</div>
               )}
