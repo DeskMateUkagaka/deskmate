@@ -48,8 +48,13 @@ pub fn run() {
             let settings = settings::Settings::load(&app_handle);
             app.manage(std::sync::Mutex::new(settings));
 
-            // Initialize skin manager
-            let skin_manager = skin::SkinManager::new(&app.handle());
+            // Initialize skin manager with persisted skin choice
+            let initial_skin_id = {
+                let s = app.state::<std::sync::Mutex<settings::Settings>>();
+                let guard = s.lock().unwrap();
+                guard.current_skin_id.clone()
+            };
+            let skin_manager = skin::SkinManager::new(&app.handle(), &initial_skin_id);
             app.manage(std::sync::Mutex::new(skin_manager));
 
             // Initialize gateway state (disconnected until connect_gateway is called)

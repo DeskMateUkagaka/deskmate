@@ -16,9 +16,18 @@ pub fn get_current_skin(skin_manager: State<Mutex<SkinManager>>) -> Option<SkinI
 }
 
 #[tauri::command]
-pub fn switch_skin(skin_id: String, skin_manager: State<Mutex<SkinManager>>) -> Result<(), String> {
+pub fn switch_skin(
+    skin_id: String,
+    skin_manager: State<Mutex<SkinManager>>,
+    settings: State<Mutex<crate::settings::Settings>>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
     let mut sm = skin_manager.lock().unwrap();
-    sm.switch_skin(&skin_id)
+    sm.switch_skin(&skin_id)?;
+    let mut s = settings.lock().unwrap();
+    s.current_skin_id = skin_id;
+    s.save(&app);
+    Ok(())
 }
 
 #[tauri::command]

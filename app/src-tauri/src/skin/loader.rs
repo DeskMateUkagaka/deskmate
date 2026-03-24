@@ -20,7 +20,7 @@ struct LoadedSkin {
 }
 
 impl SkinManager {
-    pub fn new(app: &tauri::AppHandle) -> Self {
+    pub fn new(app: &tauri::AppHandle, initial_skin_id: &str) -> Self {
         // In dev mode, skins are relative to the project root
         // In production, they're in the resource directory
         let skins_dir = if cfg!(debug_assertions) {
@@ -54,7 +54,7 @@ impl SkinManager {
             skins_dir,
             user_skins_dir,
             skins: HashMap::new(),
-            current_skin_id: "default".to_string(),
+            current_skin_id: initial_skin_id.to_string(),
         };
         manager.scan_skins();
         manager
