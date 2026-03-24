@@ -111,10 +111,10 @@
 
 ## Art And Content
 
-- [ ] Commission or create real character art (7 expression PNGs per skin)
-- [ ] Decide production character PNG resolution / default window size
-- [ ] Replace placeholder default skin artwork with final art
-- [ ] Create at least 2 real skins to test switching and packaging
+- [x] Commission or create real character art (7 expression PNGs per skin)
+- [x] Decide production character PNG resolution / default window size
+- [x] Replace placeholder default skin artwork with final art
+- [x] Create at least 2 real skins to test switching and packaging
 - [ ] Replace the default tray icon artwork
 
 ## Platform And Packaging
