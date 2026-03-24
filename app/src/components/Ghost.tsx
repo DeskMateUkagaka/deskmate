@@ -222,11 +222,17 @@ export function Ghost({ emotionOverride, imageKey, ghostHeightPixels, isConnecti
             const win = getCurrentWindow()
             debugLog(`[Ghost] onLoad fired, src=${img.src.slice(-40)}, initialLoadDone=${initialLoadDone.current}, nudgeInProgress=${nudgeInProgress.current}`)
 
-            // Resize window to match image aspect ratio
+            // Resize window to match image aspect ratio.
+            // When already visible (skin switch), wait for compositor to process
+            // before nudge reads outerSize — otherwise nudge restores the OLD size.
+            // Skip wait on initial load: window is hidden, rAF won't fire in WebKitGTK.
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
               const aspectRatio = img.naturalWidth / img.naturalHeight
               const targetWidth = Math.round(targetHeight * aspectRatio)
               await win.setSize(new LogicalSize(targetWidth, targetHeight)).catch(() => {})
+              if (initialLoadDone.current) {
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+              }
             }
 
             // Nudge after expression image is fully decoded and painted to clear
