@@ -2,9 +2,6 @@
 
 ## Immediate Product Gaps
 
-- [!] Make get skins work
-  - [x] Use preview.png - mandatory
-  - [x] skin config persistence - after choose skin keep it in user config
 - [ ] Add a conversation history / quake-style terminal window
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
@@ -167,6 +164,9 @@
 - [x] AI-decided action buttons via protocol extension
 - [x] Add command autocomplete in the chat input
 - [x] cache /commands - it pollutes conv hist
+- [x] Make get skins work
+  - [x] Use preview.png - mandatory
+  - [x] skin config persistence - after choose skin keep it in user config
 
 ## Won't Do
 
