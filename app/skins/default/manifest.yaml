@@ -19,7 +19,6 @@ emotions:
   connecting:
     - thinking.png
 
-idle_interval_seconds: 30
 idle_animations:
   - file: happy.png
     duration_ms: 2000

@@ -79,7 +79,6 @@ emotions:
     - neutral.png
 
 # --- Idle animations (optional) ---
-idle_interval_seconds: 30           # Seconds between idle fidgets (min: 1)
 idle_animations:
   - file: idle-fidget.apng          # APNG or static PNG
     duration_ms: 2000               # How long to show it (ms)
@@ -132,7 +131,6 @@ input:
 | `author` | Your name or handle |
 | `version` | Semver string (e.g. `1.0.0`) |
 | `emotions.<name>` | List of PNG files for each expression |
-| `idle_interval_seconds` | Seconds between idle animations (must be >= 1) |
 | `idle_animations` | List of `{ file, duration_ms }` entries |
 | `bubble_placement` | Where the chat bubble appears relative to the ghost |
 | `input_placement` | Where the chat input appears relative to the ghost |
@@ -224,10 +222,9 @@ bubble_placement:
 
 ## Idle Animations
 
-Idle animations play automatically when the user hasn't interacted for a while (configurable via `idle_interval_seconds`). The timer resets on clicks, keyboard events, dragging, and chat activity.
+Idle animations play automatically when the user hasn't interacted for a while. The interval between animations is configured per-user in `config.yaml` (`idle_interval_seconds`, default 30 seconds) — not in the skin manifest. The timer resets on clicks, keyboard events, dragging, and chat activity.
 
 ```yaml
-idle_interval_seconds: 30
 idle_animations:
   - file: idle-stretch.apng
     duration_ms: 3000
@@ -236,7 +233,7 @@ idle_animations:
 ```
 
 - One animation is picked at random each time
-- APNG files play from frame 1 each time (DOM is recreated)
+- APNG files play from frame 1 each time (URL fragment forces re-decode)
 - The interval has ±10% random jitter to feel more natural
 - After the animation plays, the character returns to their current expression
 
@@ -409,7 +406,6 @@ DeskMate validates skins on load. A skin will fail to load if:
 - No `neutral` emotion is defined
 - A PNG filename in `emotions` doesn't exist on disk
 - An idle animation filename doesn't exist on disk
-- `idle_interval_seconds` is less than 1 (when idle animations are defined)
 - Filenames contain path traversal (e.g. `../`)
 
 ## Full Example: Minimal Skin
@@ -461,7 +457,6 @@ emotions:
   connecting:
     - thinking.png
 
-idle_interval_seconds: 20
 idle_animations:
   - file: idle-tail-wag.apng
     duration_ms: 2500

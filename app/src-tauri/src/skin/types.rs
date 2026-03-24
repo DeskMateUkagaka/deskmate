@@ -127,8 +127,6 @@ pub struct SkinInfo {
     pub input_theme: Option<InputTheme>,
     /// Idle animation clips (mirrors SkinManifest)
     pub idle_animations: Vec<IdleAnimation>,
-    /// Seconds between idle animations (mirrors SkinManifest)
-    pub idle_interval_seconds: f64,
     /// Where this skin came from: "bundled" or "community"
     #[serde(default)]
     pub source: String,

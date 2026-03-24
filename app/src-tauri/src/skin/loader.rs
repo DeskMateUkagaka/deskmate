@@ -164,10 +164,6 @@ impl SkinManager {
                 ));
             }
         }
-        if !manifest.idle_animations.is_empty() && manifest.idle_interval_seconds < 1.0 {
-            return Err("idle_interval_seconds must be >= 1.0".to_string());
-        }
-
         Ok(LoadedSkin {
             info: SkinInfo {
                 id: id.to_string(),
@@ -182,7 +178,6 @@ impl SkinManager {
                 bubble_theme: manifest.bubble.clone(),
                 input_theme: manifest.input.clone(),
                 idle_animations: manifest.idle_animations.clone(),
-                idle_interval_seconds: manifest.idle_interval_seconds,
                 source: source.to_string(),
                 format_version: manifest.format_version,
             },

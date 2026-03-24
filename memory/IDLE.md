@@ -5,7 +5,7 @@ The ghost supports idle animations — short clips that play when the user hasn'
 ## How It Works
 
 1. User stops interacting (no clicks, keys, drags, or chat messages)
-2. After N seconds (default 30, ±10% random jitter), one random idle animation plays
+2. After N seconds (user-configurable `idle_interval_seconds` in config.yaml, default 30, ±10% random jitter), one random idle animation plays
 3. The current expression (e.g., "happy") is temporarily replaced by the animation
 4. After `duration_ms`, the previous expression is restored
 5. Cycle repeats indefinitely while idle
@@ -16,7 +16,7 @@ Idle animations do NOT play while the chat bubble is visible (user is reading a 
 
 ## Manifest Format
 
-Add `idle_animations` and optionally `idle_interval_seconds` to `manifest.yaml`:
+Add `idle_animations` to `manifest.yaml`:
 
 ```yaml
 name: My Character
@@ -34,9 +34,9 @@ idle_animations:
     duration_ms: 2000
   - file: idle-wink.png        # static PNGs work too — shown for duration_ms
     duration_ms: 1500
-
-idle_interval_seconds: 30       # optional, default 30.0, must be >= 1.0
 ```
+
+The interval between idle animations is a per-user setting in `config.yaml` (`idle_interval_seconds`, default 30.0). It is NOT in the skin manifest.
 
 ### Fields
 
@@ -45,7 +45,6 @@ idle_interval_seconds: 30       # optional, default 30.0, must be >= 1.0
 | `idle_animations` | list | No | List of idle animation entries. If absent or empty, no idle behavior. |
 | `idle_animations[].file` | string | Yes | Filename relative to skin directory. APNG or PNG. |
 | `idle_animations[].duration_ms` | integer | Yes | How long to show the animation before restoring the expression. Must be > 0. |
-| `idle_interval_seconds` | float | No | Seconds between idle animations. Default 30.0. Must be >= 1.0. Actual timing varies ±10% (uniform random jitter). |
 
 ## Supported Formats
 
@@ -69,13 +68,13 @@ The `--loops 1` flag sets the APNG to play once (recommended). The `--delay 100`
 
 ### Frontend
 
-- **`useIdleAnimation` hook** (`app/src/hooks/useIdleAnimation.ts`) — timer management, state machine (IDLE → ANIMATING → restore → IDLE), random selection with jitter
-- **`App.tsx`** — wires the hook, passes `idleOverrideUrl` as emotion override, calls `resetIdleTimer()` from all interaction handlers
-- **`Ghost.tsx`** — `imageKey` prop (React `key` on `<img>`) forces DOM recreation for APNG replay from frame 1
+- **`useIdleAnimation` hook** (`app/src/hooks/useIdleAnimation.ts`) — timer management, state machine (IDLE → ANIMATING → restore → IDLE), random selection with jitter. Takes `idleIntervalSeconds` from user settings.
+- **`App.tsx`** — wires the hook, passes `idleOverrideUrl` as emotion override, passes `settings.idle_interval_seconds`, calls `resetIdleTimer()` from all interaction handlers
+- **`Ghost.tsx`** — `imageKey` prop appended as URL fragment (`#replay=N`) to force APNG re-decode without DOM element destruction (which causes unfixable bleed on WebKitGTK)
 
 ### Backend (Rust)
 
-- **`SkinManifest` / `SkinInfo`** (`app/src-tauri/src/skin/types.rs`) — `idle_animations: Vec<IdleAnimation>` and `idle_interval_seconds: f64` with serde defaults for backward compatibility
+- **`SkinManifest` / `SkinInfo`** (`app/src-tauri/src/skin/types.rs`) — `idle_animations: Vec<IdleAnimation>` with serde defaults for backward compatibility. `idle_interval_seconds` lives in user `Settings` (`config.yaml`), not in the skin manifest.
 - **`SkinManager::load_skin()`** (`app/src-tauri/src/skin/loader.rs`) — validates idle animation files exist on disk, checks path traversal, enforces minimum values
 - **`get_idle_animation_path`** command — resolves filename to absolute path with allowlist + canonicalization guard
 
@@ -103,9 +102,9 @@ ANIMATING ──────────> IDLE (duration_ms elapsed, expression 
 
 ### APNG Replay Mechanism
 
-APNG in `<img>` tags loops by default and doesn't restart when the same URL is re-assigned. To force replay from frame 1, the hook increments `idlePlayCount` each time an animation starts. App.tsx passes this as `imageKey` to Ghost.tsx, which uses it as a React `key` on the `<img>` element. Changing the key forces React to destroy and recreate the DOM node, which starts a fresh APNG decode.
+APNG in `<img>` tags loops by default and doesn't restart when the same URL is re-assigned. To force replay from frame 1, the hook increments `idlePlayCount` each time an animation starts. App.tsx passes this as `imageKey` to Ghost.tsx, which appends it as a URL fragment (`#replay=N`) to the image src. The browser treats this as a new URL and re-decodes the APNG from frame 1, without destroying the DOM element.
 
-This avoids relying on `?t=Date.now()` cache-busting query parameters, which may not work with Tauri's `asset://` protocol.
+**Why not React `key`?** Using `key={imageKey}` would force React to destroy and recreate the `<img>` element. On WebKitGTK transparent windows, element destruction causes bleed artifacts (old pixels persist) that the subsequent nudge cannot always clear reliably. The URL fragment approach keeps the same DOM element alive, avoiding destruction bleed entirely.
 
 ### Nudge Concurrency Guard
 

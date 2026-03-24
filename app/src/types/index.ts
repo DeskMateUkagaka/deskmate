@@ -56,8 +56,6 @@ export interface SkinInfo {
   input_theme: InputTheme | null
   /** Idle animation clips (empty if skin has none) */
   idle_animations: IdleAnimation[]
-  /** Seconds between idle animations (default 30) */
-  idle_interval_seconds: number
   source: string          // "bundled" | "community"
   format_version: number  // 1 = static PNGs (current), 2+ = future
 }
@@ -126,5 +124,6 @@ export interface Settings {
   popup_margin_bottom: number
   popup_margin_left: number
   popup_margin_right: number
+  idle_interval_seconds: number
   quake_terminal: QuakeTerminalConfig
 }

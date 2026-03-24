@@ -6,6 +6,7 @@ import { debugLog } from '../lib/debugLog'
 interface UseIdleAnimationOptions {
   skin: SkinInfo | null
   enabled: boolean
+  idleIntervalSeconds: number
 }
 
 interface UseIdleAnimationReturn {
@@ -17,7 +18,7 @@ interface UseIdleAnimationReturn {
   resetIdleTimer: () => void
 }
 
-export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): UseIdleAnimationReturn {
+export function useIdleAnimation({ skin, enabled, idleIntervalSeconds }: UseIdleAnimationOptions): UseIdleAnimationReturn {
   const [idleOverrideUrl, setIdleOverrideUrl] = useState<string | null>(null)
   const [idlePlayCount, setIdlePlayCount] = useState(0)
 
@@ -27,6 +28,8 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
   enabledRef.current = enabled
   const skinRef = useRef(skin)
   skinRef.current = skin
+  const intervalRef = useRef(idleIntervalSeconds)
+  intervalRef.current = idleIntervalSeconds
 
   const hasAnimations = !!skin && skin.idle_animations.length > 0
 
@@ -49,7 +52,7 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
     if (!s || s.idle_animations.length === 0) return
     clearTimers()
 
-    const baseMs = s.idle_interval_seconds * 1000
+    const baseMs = intervalRef.current * 1000
     const jitter = baseMs * (Math.random() * 0.2 - 0.1) // ±10%
     const delayMs = baseMs + jitter
 
@@ -125,7 +128,6 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
 
   // Start/stop based on enabled state and skin (including manifest changes on reload)
   const animCount = skin?.idle_animations.length ?? 0
-  const idleInterval = skin?.idle_interval_seconds ?? 0
   useEffect(() => {
     if (enabled && hasAnimations) {
       setIdlePlayCount(0)
@@ -135,7 +137,7 @@ export function useIdleAnimation({ skin, enabled }: UseIdleAnimationOptions): Us
       setIdleOverrideUrl(null)
     }
     return clearTimers
-  }, [enabled, skin?.id, animCount, idleInterval]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, skin?.id, animCount, idleIntervalSeconds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { idleOverrideUrl, idlePlayCount, resetIdleTimer }
 }

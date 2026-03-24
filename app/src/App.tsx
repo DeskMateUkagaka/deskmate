@@ -85,6 +85,7 @@ export default function App() {
   const { idleOverrideUrl, idlePlayCount, resetIdleTimer } = useIdleAnimation({
     skin: currentSkin,
     enabled: chatState === 'idle' && !bubble.isVisible,
+    idleIntervalSeconds: settings.idle_interval_seconds,
   })
 
   // Track window position on screen + monitor size for edge clamping
