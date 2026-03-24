@@ -69,24 +69,48 @@ pub fn run() {
             // Initialize quake terminal state
             app.manage(Arc::new(Mutex::new(quake_terminal::QuakeTerminalState::new())));
 
-            // Register global hotkey for quake terminal
+            // Register global hotkeys.
             // All errors are caught and logged — never crash the app on bad hotkey config.
-            'quake: {
-                let qt_config = {
+            {
+                let (qt_config, ghost_hotkey) = {
                     let s = app.state::<std::sync::Mutex<crate::settings::Settings>>();
                     let guard = s.lock().unwrap();
-                    guard.quake_terminal.clone()
+                    (guard.quake_terminal.clone(), guard.ghost_toggle_hotkey.clone())
                 };
 
-                if !qt_config.enabled {
-                    break 'quake;
-                }
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+                // Parse shortcuts up front so the handler can compare by value.
+                let quake_shortcut: Option<Shortcut> = if qt_config.enabled {
+                    match qt_config.hotkey.parse() {
+                        Ok(s) => Some(s),
+                        Err(e) => {
+                            log::error!("Invalid quake terminal hotkey '{}': {e}", qt_config.hotkey);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+                let ghost_shortcut: Option<Shortcut> = match ghost_hotkey.parse() {
+                    Ok(s) => Some(s),
+                    Err(e) => {
+                        log::error!("Invalid ghost toggle hotkey '{}': {e}", ghost_hotkey);
+                        None
+                    }
+                };
+
+                let qs_for_handler = quake_shortcut;
+                let gs_for_handler = ghost_shortcut;
 
                 if let Err(e) = app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
-                        .with_handler(move |_app, _shortcut, event| {
+                        .with_handler(move |_app, shortcut, event| {
                             use tauri_plugin_global_shortcut::ShortcutState;
-                            if event.state == ShortcutState::Pressed {
+                            if event.state != ShortcutState::Pressed {
+                                return;
+                            }
+                            if qs_for_handler.as_ref() == Some(shortcut) {
                                 let qt_state = _app.state::<Arc<Mutex<quake_terminal::QuakeTerminalState>>>();
                                 let settings = _app.state::<std::sync::Mutex<crate::settings::Settings>>();
                                 let config = settings.lock().unwrap().quake_terminal.clone();
@@ -95,43 +119,54 @@ pub fn run() {
                                     log::error!("Quake terminal toggle failed: {e}");
                                     let _ = _app.emit("quake-terminal-error", e);
                                 }
+                            } else if gs_for_handler.as_ref() == Some(shortcut) {
+                                toggle_main_window(_app);
                             }
                         })
                         .build(),
                 ) {
                     log::error!("Failed to register global shortcut plugin: {e}");
-                    break 'quake;
-                }
-
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-                let shortcut: Shortcut = match qt_config.hotkey.parse() {
-                    Ok(s) => s,
-                    Err(e) => {
-                        log::error!("Invalid quake terminal hotkey '{}': {e}", qt_config.hotkey);
-                        break 'quake;
+                } else {
+                    // Register individual shortcuts
+                    if let Some(qs) = quake_shortcut {
+                        if let Err(e) = app.handle().global_shortcut().register(qs) {
+                            log::error!("Failed to register quake hotkey '{}': {e}", qt_config.hotkey);
+                        } else {
+                            log::info!("Registered quake terminal hotkey: {}", qt_config.hotkey);
+                        }
                     }
-                };
-                if let Err(e) = app.handle().global_shortcut().register(shortcut) {
-                    log::error!("Failed to register hotkey '{}': {e}", qt_config.hotkey);
-                    break 'quake;
+                    if let Some(gs) = ghost_shortcut {
+                        if let Err(e) = app.handle().global_shortcut().register(gs) {
+                            log::error!("Failed to register ghost toggle hotkey '{}': {e}", ghost_hotkey);
+                        } else {
+                            log::info!("Registered ghost toggle hotkey: {}", ghost_hotkey);
+                        }
+                    }
                 }
-                log::info!("Registered quake terminal hotkey: {}", qt_config.hotkey);
             }
 
-            // SIGUSR1 handler: toggle quake terminal from external tools.
-            // Wayland compositors don't support global hotkeys via the
-            // global-shortcut plugin, so users can bind a key in their
-            // compositor config to `pkill -USR1 -x deskmate` instead.
+            // Signal handlers for Wayland compositors.
+            // Global hotkeys don't work on Wayland, so users bind keys in their
+            // compositor config to send signals instead:
+            //   SIGUSR1 → toggle quake terminal:  `pkill -USR1 -x deskmate`
+            //   SIGUSR2 → toggle ghost:           `pkill -USR2 -x deskmate`
             #[cfg(unix)]
             {
                 use std::sync::atomic::{AtomicBool, Ordering};
                 static SIGUSR1: AtomicBool = AtomicBool::new(false);
+                static SIGUSR2: AtomicBool = AtomicBool::new(false);
 
                 extern "C" fn sigusr1_handler(_: libc::c_int) {
                     SIGUSR1.store(true, Ordering::SeqCst);
                 }
-                // SAFETY: handler only sets an atomic bool — async-signal-safe.
-                unsafe { libc::signal(libc::SIGUSR1, sigusr1_handler as libc::sighandler_t); }
+                extern "C" fn sigusr2_handler(_: libc::c_int) {
+                    SIGUSR2.store(true, Ordering::SeqCst);
+                }
+                // SAFETY: handlers only set atomic bools — async-signal-safe.
+                unsafe {
+                    libc::signal(libc::SIGUSR1, sigusr1_handler as libc::sighandler_t);
+                    libc::signal(libc::SIGUSR2, sigusr2_handler as libc::sighandler_t);
+                }
 
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -147,9 +182,13 @@ pub fn run() {
                                 log::error!("Quake terminal toggle (SIGUSR1) failed: {e}");
                             }
                         }
+                        if SIGUSR2.swap(false, Ordering::SeqCst) {
+                            log::info!("SIGUSR2 received — toggling ghost");
+                            toggle_main_window(&handle);
+                        }
                     }
                 });
-                log::info!("SIGUSR1 handler registered for quake terminal toggle");
+                log::info!("Signal handlers registered: SIGUSR1 (quake), SIGUSR2 (ghost)");
             }
 
             // System tray

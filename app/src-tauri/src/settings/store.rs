@@ -27,6 +27,8 @@ pub struct Settings {
     pub idle_interval_seconds: f64,
     #[serde(default)]
     pub quake_terminal: QuakeTerminalConfig,
+    #[serde(default = "default_ghost_toggle_hotkey")]
+    pub ghost_toggle_hotkey: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +62,7 @@ impl Default for QuakeTerminalConfig {
     }
 }
 
+fn default_ghost_toggle_hotkey() -> String { "super+f11".to_string() }
 fn default_ghost_height_pixels() -> u32 { 540 }
 fn default_popup_margin() -> f64 { 10.0 }
 fn default_idle_interval_seconds() -> f64 { 30.0 }
@@ -82,6 +85,7 @@ impl Default for Settings {
             popup_margin_right: 10.0,
             idle_interval_seconds: 30.0,
             quake_terminal: QuakeTerminalConfig::default(),
+            ghost_toggle_hotkey: default_ghost_toggle_hotkey(),
         }
     }
 }

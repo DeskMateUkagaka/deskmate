@@ -6,7 +6,6 @@
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
-- [ ] Replace the default app icons
 
 ## Runtime Verification
 
@@ -167,6 +166,7 @@
 - [x] Make get skins work
   - [x] Use preview.png - mandatory
   - [x] skin config persistence - after choose skin keep it in user config
+- [x] Replace the default app icons
 
 ## Won't Do
 
