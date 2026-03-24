@@ -1,0 +1,14 @@
+Skin Asset License Notice
+=========================
+
+Skin assets (images, animations, manifests, style files) under this directory
+are NOT covered by the project's GPL-3.0 license.
+
+Each skin may have its own license. Check the individual skin's directory for
+a LICENSE file or a `license` field in its manifest.yaml.
+
+Skin creators are free to choose any license for their work, including
+proprietary and commercial licenses. You may sell skins, distribute them
+freely, or restrict usage as you see fit.
+
+If a skin has no explicit license, assume all rights are reserved by its author.
