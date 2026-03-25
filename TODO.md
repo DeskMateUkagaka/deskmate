@@ -6,6 +6,10 @@
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
   - [ ] What happens on Windows?
+- [ ] Write README
+- [ ] Installation instructions
+  - [ ] Human part - need a bootstrap before the AI can handle stuff on its own
+  - [ ] AI part
 
 ## Runtime Verification
 
