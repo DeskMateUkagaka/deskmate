@@ -1,12 +1,12 @@
-from .settings import Settings, SettingsManager, QuakeTerminalConfig
-from .skin import SkinInfo, SkinLoader, UiPlacement, BubbleTheme, IdleAnimation
 from .parse import (
-    parse_emotion,
-    strip_emotion_tags,
     parse_buttons,
-    strip_button_tags,
+    parse_emotion,
     strip_all_tags,
+    strip_button_tags,
+    strip_emotion_tags,
 )
+from .settings import QuakeTerminalConfig, Settings, SettingsManager
+from .skin import BubbleTheme, IdleAnimation, SkinInfo, SkinLoader, UiPlacement
 
 __all__ = [
     "Settings",

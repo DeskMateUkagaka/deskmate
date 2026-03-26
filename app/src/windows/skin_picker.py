@@ -19,8 +19,8 @@ from src.lib.skin import SkinInfo, SkinLoader
 
 logger = logging.getLogger(__name__)
 
-_CARD_SIZE = 140       # card width/height
-_PREVIEW_SIZE = 120    # preview image size
+_CARD_SIZE = 140  # card width/height
+_PREVIEW_SIZE = 120  # preview image size
 _GRID_COLS = 3
 _WINDOW_WIDTH = _GRID_COLS * (_CARD_SIZE + 10) + 40
 
@@ -254,7 +254,9 @@ class SkinPickerWindow(QWidget):
 
         for idx, skin in enumerate(skins):
             preview_path = self._skin_loader.get_preview_image(skin.id)
-            card = _SkinCard(skin, preview_path, skin.id == self._current_skin_id, self._grid_container)
+            card = _SkinCard(
+                skin, preview_path, skin.id == self._current_skin_id, self._grid_container
+            )
             card.clicked.connect(self._on_card_clicked)
             row, col = divmod(idx, _GRID_COLS)
             self._grid_layout.addWidget(card, row, col)

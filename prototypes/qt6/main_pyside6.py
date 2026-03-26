@@ -23,13 +23,13 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor,
     QKeySequence,
-    QPixmap,
     QPainter,
+    QPixmap,
     QShortcut,
 )
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 SKIN_DIR = Path(__file__).resolve().parent.parent.parent / "app" / "skins" / "default"
 EXPRESSIONS = ["neutral", "happy", "sad", "surprise", "thinking"]
@@ -229,9 +229,7 @@ class BubbleWindow(QWidget):
         self._web.setPage(page)
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
-        page.settings().setAttribute(
-            QWebEngineSettings.WebAttribute.ShowScrollBars, False
-        )
+        page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -258,9 +256,7 @@ class BubbleWindow(QWidget):
     def set_message(self, text: str) -> None:
         self._stream_timer.stop()
         self._current_display = text
-        self._web.page().runJavaScript(
-            f"setContent({self._js_escape(text)}, false);"
-        )
+        self._web.page().runJavaScript(f"setContent({self._js_escape(text)}, false);")
 
     def clear(self) -> None:
         self._stream_timer.stop()
@@ -339,7 +335,9 @@ class GhostWindow(QWidget):
                 self._pixmaps[expr] = pm.scaledToHeight(
                     DISPLAY_HEIGHT, Qt.TransformationMode.SmoothTransformation
                 )
-                log(f"Loaded {expr}: {pm.width()}x{pm.height()} -> scaled {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}")
+                log(
+                    f"Loaded {expr}: {pm.width()}x{pm.height()} -> scaled {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}"
+                )
 
         if not self._pixmaps:
             log("FATAL: No skin assets found in " + str(SKIN_DIR))
@@ -392,6 +390,7 @@ class GhostWindow(QWidget):
 # Orchestrator
 # ---------------------------------------------------------------------------
 
+
 class Orchestrator:
     def __init__(self):
         self._app = QApplication(sys.argv)
@@ -414,15 +413,9 @@ class Orchestrator:
         QShortcut(QKeySequence(Qt.Key.Key_Space), self._ghost).activated.connect(
             self._ghost.cycle_expression
         )
-        QShortcut(QKeySequence(Qt.Key.Key_B), self._ghost).activated.connect(
-            self._on_toggle_bubble
-        )
-        QShortcut(QKeySequence(Qt.Key.Key_N), self._ghost).activated.connect(
-            self._on_next_message
-        )
-        QShortcut(QKeySequence(Qt.Key.Key_Q), self._ghost).activated.connect(
-            self._app.quit
-        )
+        QShortcut(QKeySequence(Qt.Key.Key_B), self._ghost).activated.connect(self._on_toggle_bubble)
+        QShortcut(QKeySequence(Qt.Key.Key_N), self._ghost).activated.connect(self._on_next_message)
+        QShortcut(QKeySequence(Qt.Key.Key_Q), self._ghost).activated.connect(self._app.quit)
 
     def _reposition_bubble(self, ghost_pos: QPoint | None = None) -> None:
         if ghost_pos is None:

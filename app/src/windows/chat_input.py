@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 
 # Connection status colours
 _STATUS_COLORS = {
-    "connected":    "#4ec94e",
-    "connecting":   "#f0c060",
+    "connected": "#4ec94e",
+    "connecting": "#f0c060",
     "disconnected": "#e05050",
-    "error":        "#e05050",
+    "error": "#e05050",
 }
 
 # Maximum number of lines shown before the input stops growing
@@ -95,7 +95,9 @@ class _AutocompletePopup(QWidget):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, cmd)
             # Rich-ish label: bold name + dim description
-            label = QLabel(f"<b>{cmd.name}</b>  <span style='color: rgba(160,160,190,0.8); font-size: 11px;'>{cmd.description}</span>")
+            label = QLabel(
+                f"<b>{cmd.name}</b>  <span style='color: rgba(160,160,190,0.8); font-size: 11px;'>{cmd.description}</span>"
+            )
             label.setStyleSheet("background: transparent; padding: 2px 4px;")
             label.setFont(QFont("Segoe UI", 10))
             item.setSizeHint(QSize(self._list.width(), _POPUP_ITEM_HEIGHT))
@@ -261,9 +263,9 @@ class ChatInputWindow(QWidget):
     Typing '/' triggers slash command autocomplete.
     """
 
-    message_sent = Signal(str)       # User pressed Enter with non-empty text
-    dismissed = Signal()             # User pressed Escape
-    resized = Signal(int, int)       # Content size changed (width, height)
+    message_sent = Signal(str)  # User pressed Enter with non-empty text
+    dismissed = Signal()  # User pressed Escape
+    resized = Signal(int, int)  # Content size changed (width, height)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -353,9 +355,7 @@ class ChatInputWindow(QWidget):
 
         self._status_dot = _StatusDot(self)
         self._status_label = QLabel("Disconnected", self)
-        self._status_label.setStyleSheet(
-            "color: rgba(160,160,180,0.7); font-size: 11px;"
-        )
+        self._status_label.setStyleSheet("color: rgba(160,160,180,0.7); font-size: 11px;")
         status_row.addWidget(self._status_dot)
         status_row.addWidget(self._status_label)
         status_row.addStretch()
@@ -435,10 +435,7 @@ class ChatInputWindow(QWidget):
             return
 
         filter_text = trigger["filter_text"].lower()
-        filtered = [
-            cmd for cmd in self._commands
-            if cmd.name.lower().startswith(filter_text)
-        ]
+        filtered = [cmd for cmd in self._commands if cmd.name.lower().startswith(filter_text)]
 
         if not filtered:
             self._popup.hide()

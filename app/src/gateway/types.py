@@ -30,8 +30,7 @@ def to_wire(obj: Any) -> dict:
             result[camel_key] = to_wire(value)
         elif isinstance(value, list):
             result[camel_key] = [
-                to_wire(item) if hasattr(item, "__dataclass_fields__") else item
-                for item in value
+                to_wire(item) if hasattr(item, "__dataclass_fields__") else item for item in value
             ]
         else:
             result[camel_key] = value
@@ -63,9 +62,9 @@ class ClientInfo:
 @dataclass
 class DeviceParams:
     id: str
-    public_key: str       # base64url, no padding
-    signature: str        # base64url, no padding
-    signed_at: int        # unix milliseconds
+    public_key: str  # base64url, no padding
+    signature: str  # base64url, no padding
+    signed_at: int  # unix milliseconds
     nonce: str
 
 
@@ -83,9 +82,7 @@ class ConnectParams:
     max_protocol: int = 3
     caps: list[str] = field(default_factory=list)
     role: str = "operator"
-    scopes: list[str] = field(
-        default_factory=lambda: ["operator.admin", "operator.write"]
-    )
+    scopes: list[str] = field(default_factory=lambda: ["operator.admin", "operator.write"])
     device: DeviceParams | None = None
     auth: AuthParams | None = None
 
@@ -108,7 +105,7 @@ class ChatEvent:
     run_id: str
     session_key: str
     seq: int
-    state: str             # "delta" | "final" | "error" | "aborted"
+    state: str  # "delta" | "final" | "error" | "aborted"
     message: dict | None = None
     error_message: str | None = None
     usage: dict | None = None

@@ -1,17 +1,17 @@
-from .client import GatewayClient
 from .chat import ChatSession
+from .client import GatewayClient
+from .device_identity import DeviceIdentity
+from .protocol import EventFrame, RequestFrame, ResponseFrame, parse_frame
 from .types import (
-    ClientInfo,
-    DeviceParams,
     AuthParams,
-    ConnectParams,
-    ChatSendParams,
-    ChatSendAck,
     ChatEvent,
+    ChatSendAck,
+    ChatSendParams,
+    ClientInfo,
+    ConnectParams,
+    DeviceParams,
     SessionInfo,
 )
-from .protocol import RequestFrame, ResponseFrame, EventFrame, parse_frame
-from .device_identity import DeviceIdentity
 
 __all__ = [
     "GatewayClient",

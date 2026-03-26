@@ -74,9 +74,16 @@ def _parse_ui_placement(data: dict[str, Any]) -> UiPlacement:
 def _parse_bubble_theme(data: dict[str, Any]) -> BubbleTheme:
     t = BubbleTheme()
     str_fields = [
-        "background_color", "border_color", "border_width", "border_radius",
-        "text_color", "accent_color", "code_background", "code_text_color",
-        "font_family", "font_size",
+        "background_color",
+        "border_color",
+        "border_width",
+        "border_radius",
+        "text_color",
+        "accent_color",
+        "code_background",
+        "code_text_color",
+        "font_family",
+        "font_size",
     ]
     for f in str_fields:
         if f in data and data[f] is not None:

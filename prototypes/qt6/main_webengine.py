@@ -13,9 +13,9 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import (
-    QPropertyAnimation,
     QEasingCurve,
     QPoint,
+    QPropertyAnimation,
     QRect,
     Qt,
     QTimer,
@@ -26,16 +26,16 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QColor,
     QFont,
-    QPixmap,
+    QKeySequence,
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
     QShortcut,
-    QKeySequence,
 )
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout
-from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 SKIN_DIR = Path(__file__).resolve().parent.parent.parent / "app" / "skins" / "default"
 EXPRESSIONS = ["neutral", "happy", "sad", "surprise", "thinking"]
@@ -286,9 +286,7 @@ class BubbleWindow(QWidget):
         # Enable transparency in web view
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
-        page.settings().setAttribute(
-            QWebEngineSettings.WebAttribute.ShowScrollBars, False
-        )
+        page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -319,9 +317,7 @@ class BubbleWindow(QWidget):
         """Set message instantly (no streaming)."""
         self._stream_timer.stop()
         self._current_display = text
-        self._web.page().runJavaScript(
-            f"setContent({self._js_escape(text)}, false);"
-        )
+        self._web.page().runJavaScript(f"setContent({self._js_escape(text)}, false);")
 
     def clear(self) -> None:
         self._stream_timer.stop()
@@ -331,9 +327,10 @@ class BubbleWindow(QWidget):
     def _stream_tick(self) -> None:
         # Stream 1-3 chars per tick for natural feel
         import random
+
         chars = random.randint(1, 3)
         self._stream_pos = min(self._stream_pos + chars, len(self._stream_text))
-        self._current_display = self._stream_text[:self._stream_pos]
+        self._current_display = self._stream_text[: self._stream_pos]
 
         self._web.page().runJavaScript(
             f"setContent({self._js_escape(self._current_display)}, true);"
@@ -342,9 +339,12 @@ class BubbleWindow(QWidget):
         if self._stream_pos >= len(self._stream_text):
             self._stream_timer.stop()
             # Remove cursor after done
-            QTimer.singleShot(500, lambda: self._web.page().runJavaScript(
-                f"setContent({self._js_escape(self._current_display)}, false);"
-            ))
+            QTimer.singleShot(
+                500,
+                lambda: self._web.page().runJavaScript(
+                    f"setContent({self._js_escape(self._current_display)}, false);"
+                ),
+            )
             log("Streaming complete")
 
     def _js_escape(self, text: str) -> str:
@@ -407,7 +407,9 @@ class GhostWindow(QWidget):
                 self._pixmaps[expr] = pm.scaledToHeight(
                     DISPLAY_HEIGHT, Qt.TransformationMode.SmoothTransformation
                 )
-                log(f"Loaded {expr}: {pm.width()}x{pm.height()} -> {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}")
+                log(
+                    f"Loaded {expr}: {pm.width()}x{pm.height()} -> {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}"
+                )
             else:
                 log(f"WARNING: Missing skin asset: {path}")
 
@@ -471,6 +473,7 @@ class GhostWindow(QWidget):
 # Orchestrator — coordinates ghost + bubble windows
 # ---------------------------------------------------------------------------
 
+
 class Orchestrator:
     def __init__(self):
         self._app = QApplication(sys.argv)
@@ -496,15 +499,9 @@ class Orchestrator:
         QShortcut(QKeySequence(Qt.Key.Key_Space), self._ghost).activated.connect(
             self._on_expression
         )
-        QShortcut(QKeySequence(Qt.Key.Key_B), self._ghost).activated.connect(
-            self._on_toggle_bubble
-        )
-        QShortcut(QKeySequence(Qt.Key.Key_N), self._ghost).activated.connect(
-            self._on_next_message
-        )
-        QShortcut(QKeySequence(Qt.Key.Key_Q), self._ghost).activated.connect(
-            self._on_quit
-        )
+        QShortcut(QKeySequence(Qt.Key.Key_B), self._ghost).activated.connect(self._on_toggle_bubble)
+        QShortcut(QKeySequence(Qt.Key.Key_N), self._ghost).activated.connect(self._on_next_message)
+        QShortcut(QKeySequence(Qt.Key.Key_Q), self._ghost).activated.connect(self._on_quit)
 
     def _reposition_bubble(self, ghost_pos: QPoint = None) -> None:
         """Position bubble window above-right of the ghost."""

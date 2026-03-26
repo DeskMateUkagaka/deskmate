@@ -17,6 +17,7 @@ try:
     import websockets
     import websockets.exceptions
     from websockets.asyncio.client import connect as ws_connect
+
     _HAS_WEBSOCKETS = True
 except ImportError:  # pragma: no cover
     _HAS_WEBSOCKETS = False
@@ -79,8 +80,7 @@ class GatewayClient:
         """Start the connection loop in a background asyncio task."""
         if not _HAS_WEBSOCKETS:
             raise RuntimeError(
-                "websockets package is required but not installed. "
-                "Run: uv pip install websockets"
+                "websockets package is required but not installed. Run: uv pip install websockets"
             )
         self._url = url
         self._token = token
@@ -171,9 +171,7 @@ class GatewayClient:
             attempt += 1
             logger.info("Reconnecting in %ds (attempt %d)...", backoff, attempt)
             try:
-                await asyncio.wait_for(
-                    self._stop_event.wait(), timeout=float(backoff)
-                )
+                await asyncio.wait_for(self._stop_event.wait(), timeout=float(backoff))
             except asyncio.TimeoutError:
                 pass
 
@@ -265,8 +263,10 @@ class GatewayClient:
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _make_request(req_id: str, method: str, params: dict | None) -> str:
     import json
+
     d: dict = {"type": "req", "id": req_id, "method": method}
     if params is not None:
         d["params"] = params

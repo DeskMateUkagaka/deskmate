@@ -23,8 +23,8 @@ class IdleAnimationManager(QObject):
     animation and restart the countdown.
     """
 
-    idle_override = Signal(str)   # file path to APNG/PNG to display
-    idle_cleared = Signal()       # animation ended — restore expression
+    idle_override = Signal(str)  # file path to APNG/PNG to display
+    idle_cleared = Signal()  # animation ended — restore expression
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -108,7 +108,9 @@ class IdleAnimationManager(QObject):
         delay_ms = int(base_ms + jitter)
         logger.debug(
             "[idle] starting idle timer: %dms (base=%dms, jitter=%+.0fms)",
-            delay_ms, int(base_ms), jitter,
+            delay_ms,
+            int(base_ms),
+            jitter,
         )
         self._idle_timer.start(delay_ms)
 
@@ -120,9 +122,7 @@ class IdleAnimationManager(QObject):
         anim = random.choice(anims)
         path = str(self._skin.path / anim.file)  # type: ignore[union-attr]
 
-        logger.debug(
-            "[idle] timer fired, playing: %s (duration=%dms)", anim.file, anim.duration_ms
-        )
+        logger.debug("[idle] timer fired, playing: %s (duration=%dms)", anim.file, anim.duration_ms)
 
         self._animating = True
         self.idle_override.emit(path)

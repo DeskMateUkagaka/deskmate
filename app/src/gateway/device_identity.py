@@ -64,9 +64,7 @@ class DeviceIdentity:
     def _load(cls, path: Path) -> "DeviceIdentity":
         logger.debug("Loading device identity from %s", path)
         raw = json.loads(path.read_text())
-        signing_key = load_pem_private_key(
-            raw["private_key_pem"].encode(), password=None
-        )
+        signing_key = load_pem_private_key(raw["private_key_pem"].encode(), password=None)
         verifying_key = load_pem_public_key(raw["public_key_pem"].encode())
         if not isinstance(signing_key, Ed25519PrivateKey):
             raise ValueError("Stored private key is not Ed25519")

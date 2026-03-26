@@ -18,7 +18,7 @@ _CMD_RE = re.compile(r"^(/\w+)(?:\s[^-]*)?\s+-\s+(.+)$")
 
 @dataclass
 class SlashCommand:
-    name: str         # e.g., "/new"
+    name: str  # e.g., "/new"
     description: str  # e.g., "Start a new session."
 
 
@@ -55,7 +55,9 @@ def load_cached_commands(cache_dir: Path) -> list[SlashCommand] | None:
             logger.debug("Commands cache is stale, ignoring")
             return None
         raw_commands = data.get("commands", [])
-        commands = [SlashCommand(name=c["name"], description=c["description"]) for c in raw_commands]
+        commands = [
+            SlashCommand(name=c["name"], description=c["description"]) for c in raw_commands
+        ]
         logger.debug("Loaded %d commands from cache", len(commands))
         return commands
     except Exception as e:

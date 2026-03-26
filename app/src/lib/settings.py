@@ -1,7 +1,7 @@
 import logging
 import platform
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 def _default_config_dir() -> Path:
     try:
         from platformdirs import user_config_dir
+
         return Path(user_config_dir("deskmate"))
     except ImportError:
         pass
@@ -76,13 +77,21 @@ def _quake_from_dict(data: dict[str, Any]) -> QuakeTerminalConfig:
 def _settings_from_dict(data: dict[str, Any]) -> Settings:
     s = Settings()
     simple_fields = [
-        "gateway_url", "gateway_token", "bubble_timeout_ms",
-        "proactive_enabled", "proactive_interval_mins",
-        "ghost_x", "ghost_y", "current_skin_id",
+        "gateway_url",
+        "gateway_token",
+        "bubble_timeout_ms",
+        "proactive_enabled",
+        "proactive_interval_mins",
+        "ghost_x",
+        "ghost_y",
+        "current_skin_id",
         "ghost_height_pixels",
-        "popup_margin_top", "popup_margin_bottom",
-        "popup_margin_left", "popup_margin_right",
-        "idle_interval_seconds", "ghost_toggle_hotkey",
+        "popup_margin_top",
+        "popup_margin_bottom",
+        "popup_margin_left",
+        "popup_margin_right",
+        "idle_interval_seconds",
+        "ghost_toggle_hotkey",
     ]
     for f in simple_fields:
         if f in data:
@@ -186,6 +195,7 @@ class SettingsManager:
 # Comment extraction (mirrors the Rust extract_comments logic)
 # ---------------------------------------------------------------------------
 
+
 def _extract_comments(
     contents: str,
 ) -> tuple[list[str], dict[str, tuple[list[str], str | None]], list[str]]:
@@ -204,10 +214,7 @@ def _extract_comments(
     for line in contents.splitlines():
         trimmed = line.strip()
         is_top_key = (
-            line
-            and not line[0].isspace()
-            and ":" in trimmed
-            and not trimmed.startswith("#")
+            line and not line[0].isspace() and ":" in trimmed and not trimmed.startswith("#")
         )
 
         if is_top_key:

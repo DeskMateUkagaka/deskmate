@@ -52,7 +52,9 @@ _INPUT_STYLE = (
 )
 
 _LABEL_STYLE = "color: rgba(200,200,220,0.85); font-size: 12px;"
-_SECTION_STYLE = "color: rgba(140,160,200,0.7); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;"
+_SECTION_STYLE = (
+    "color: rgba(140,160,200,0.7); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;"
+)
 _SAVE_BTN_STYLE = (
     "QPushButton {"
     "  background: #3060c0;"

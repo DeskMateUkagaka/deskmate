@@ -506,13 +506,14 @@ document.addEventListener('DOMContentLoaded', function() {
 # JS → Python bridge object
 # ---------------------------------------------------------------------------
 
+
 class _BubbleBridge(QObject):
     """Registered with QWebChannel so JS can call Python methods."""
 
-    action_triggered = Signal(str, str)    # item_id, label
-    dismiss_triggered = Signal(str)        # item_id
-    pin_triggered = Signal(str)            # item_id
-    content_sized = Signal(int, int)       # width, height
+    action_triggered = Signal(str, str)  # item_id, label
+    dismiss_triggered = Signal(str)  # item_id
+    pin_triggered = Signal(str)  # item_id
+    content_sized = Signal(int, int)  # width, height
 
     @Slot(str)
     def onAction(self, payload: str) -> None:
@@ -541,6 +542,7 @@ class _BubbleBridge(QObject):
 # Transparent QWebEnginePage
 # ---------------------------------------------------------------------------
 
+
 class _TransparentWebPage(QWebEnginePage):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -551,6 +553,7 @@ class _TransparentWebPage(QWebEnginePage):
 # BubbleWindow
 # ---------------------------------------------------------------------------
 
+
 class BubbleWindow(QWidget):
     """Transparent window with QWebEngineView for rich chat content.
 
@@ -559,7 +562,7 @@ class BubbleWindow(QWidget):
     """
 
     # Re-exported from bridge for convenience
-    action = Signal(str, str)         # item_id, label
+    action = Signal(str, str)  # item_id, label
     content_sized = Signal(int, int)  # width, height
 
     def __init__(self, parent=None):
@@ -578,12 +581,8 @@ class BubbleWindow(QWidget):
         self._web.setPage(self._page)
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
-        self._page.settings().setAttribute(
-            QWebEngineSettings.WebAttribute.ShowScrollBars, False
-        )
-        self._page.settings().setAttribute(
-            QWebEngineSettings.WebAttribute.JavascriptEnabled, True
-        )
+        self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
+        self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
 
         # QWebChannel bridge
         self._bridge = _BubbleBridge(self)
@@ -722,7 +721,9 @@ class BubbleWindow(QWidget):
         for js in self._pending_js:
             self._page.runJavaScript(js)
         self._pending_js.clear()
-        logger.debug("BubbleWindow: page loaded, flushed %d pending JS calls", len(self._pending_js))
+        logger.debug(
+            "BubbleWindow: page loaded, flushed %d pending JS calls", len(self._pending_js)
+        )
 
     def _run_js(self, js: str) -> None:
         if self._loaded:
@@ -749,8 +750,7 @@ class BubbleWindow(QWidget):
     def _js_str(text: str) -> str:
         """Escape a Python string for safe embedding in a JS string literal."""
         escaped = (
-            text
-            .replace("\\", "\\\\")
+            text.replace("\\", "\\\\")
             .replace('"', '\\"')
             .replace("\n", "\\n")
             .replace("\r", "\\r")

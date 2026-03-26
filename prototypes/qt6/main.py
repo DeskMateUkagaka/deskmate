@@ -22,10 +22,10 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QColor,
     QFont,
-    QPixmap,
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
 )
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -45,6 +45,7 @@ def log(msg: str) -> None:
 # ---------------------------------------------------------------------------
 # Bubble widget — separate child widget so opacity animation is isolated
 # ---------------------------------------------------------------------------
+
 
 class BubbleWidget(QWidget):
     def __init__(self, parent: QWidget) -> None:
@@ -124,7 +125,9 @@ class CompanionWindow(QWidget):
                 self._pixmaps[expr] = pm.scaledToHeight(
                     DISPLAY_HEIGHT, Qt.TransformationMode.SmoothTransformation
                 )
-                log(f"Loaded {expr}: {pm.width()}x{pm.height()} -> {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}")
+                log(
+                    f"Loaded {expr}: {pm.width()}x{pm.height()} -> {self._pixmaps[expr].width()}x{self._pixmaps[expr].height()}"
+                )
             else:
                 log(f"WARNING: Missing skin asset: {path}")
 
@@ -145,7 +148,9 @@ class CompanionWindow(QWidget):
         self._anim.setDuration(300)
         self._anim.finished.connect(self._on_anim_finished)
 
-        log(f"Window created. Expression: {self._current_expr()}. Size: {self.width()}x{self.height()}")
+        log(
+            f"Window created. Expression: {self._current_expr()}. Size: {self.width()}x{self.height()}"
+        )
 
     def _current_expr(self) -> str:
         return EXPRESSIONS[self._expr_index]
@@ -290,6 +295,7 @@ class CompanionWindow(QWidget):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     app = QApplication(sys.argv)

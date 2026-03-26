@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 
 import yaml
-
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QWidget
@@ -21,9 +20,9 @@ class GhostWindow(QWidget):
     without bleed artifacts — no WebKitGTK nudge workarounds needed.
     """
 
-    position_changed = Signal(QPoint)   # emitted after each drag step and on release
-    clicked = Signal()                   # emitted on left-click (open chat input)
-    expression_changed = Signal(str)     # emitted when expression switches
+    position_changed = Signal(QPoint)  # emitted after each drag step and on release
+    clicked = Signal()  # emitted on left-click (open chat input)
+    expression_changed = Signal(str)  # emitted when expression switches
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,7 +39,7 @@ class GhostWindow(QWidget):
 
         self._dragging = False
         self._drag_offset = QPoint()
-        self._drag_moved = False   # track whether the mouse actually moved
+        self._drag_moved = False  # track whether the mouse actually moved
 
         self._display_height = DEFAULT_HEIGHT
         self._idle_override_pixmap: QPixmap | None = None
@@ -79,8 +78,12 @@ class GhostWindow(QWidget):
                 loaded.append(scaled)
                 logger.debug(
                     "Loaded %s/%s: %dx%d -> %dx%d",
-                    expr, fname, pm.width(), pm.height(),
-                    scaled.width(), scaled.height(),
+                    expr,
+                    fname,
+                    pm.width(),
+                    pm.height(),
+                    scaled.width(),
+                    scaled.height(),
                 )
             if loaded:
                 self._pixmaps[expr] = loaded
@@ -95,9 +98,7 @@ class GhostWindow(QWidget):
             next(iter(self._pixmaps)),
         )
         self._resize_to_current()
-        logger.info(
-            "Skin loaded: %d expressions from %s", len(self._pixmaps), skin_dir
-        )
+        logger.info("Skin loaded: %d expressions from %s", len(self._pixmaps), skin_dir)
 
     def set_expression(self, name: str) -> None:
         """Switch to a named expression.  Falls back to 'neutral' if unknown."""
@@ -118,8 +119,7 @@ class GhostWindow(QWidget):
         # Reload all scaled pixmaps in-place
         for expr, pms in list(self._pixmaps.items()):
             self._pixmaps[expr] = [
-                pm.scaledToHeight(pixels, Qt.TransformationMode.SmoothTransformation)
-                for pm in pms
+                pm.scaledToHeight(pixels, Qt.TransformationMode.SmoothTransformation) for pm in pms
             ]
         self._resize_to_current()
 
@@ -187,7 +187,11 @@ class GhostWindow(QWidget):
         painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
-        pm = self._idle_override_pixmap if self._idle_override_pixmap is not None else self._current_pixmap()
+        pm = (
+            self._idle_override_pixmap
+            if self._idle_override_pixmap is not None
+            else self._current_pixmap()
+        )
         if pm is not None:
             x = (self.width() - pm.width()) // 2
             y = (self.height() - pm.height()) // 2

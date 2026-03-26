@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # Terminal emulator definitions
 # ---------------------------------------------------------------------------
 
+
 def _detect_terminal(override: str | None = None) -> str | None:
     """Return the first available terminal emulator command."""
     if override:
@@ -58,9 +59,11 @@ def _detect_terminal(override: str | None = None) -> str | None:
     return None
 
 
-def _build_spawn_args(terminal: str, title: str, width_px: int, height_px: int, command: str) -> list[str]:
+def _build_spawn_args(
+    terminal: str, title: str, width_px: int, height_px: int, command: str
+) -> list[str]:
     """Build the argv list for launching the terminal."""
-    cols = max(40, width_px // 8)   # rough char width estimate
+    cols = max(40, width_px // 8)  # rough char width estimate
     rows = max(10, height_px // 16)  # rough char height estimate
     cmd_parts = command.split()
 
@@ -69,23 +72,30 @@ def _build_spawn_args(terminal: str, title: str, width_px: int, height_px: int, 
             "foot",
             f"--title={title}",
             f"--window-size-pixels={width_px}x{height_px}",
-            "-e", *cmd_parts,
+            "-e",
+            *cmd_parts,
         ]
 
     if terminal == "kitty":
         return [
             "kitty",
-            "--title", title,
-            "-o", f"initial_window_width={width_px}",
-            "-o", f"initial_window_height={height_px}",
-            "-e", *cmd_parts,
+            "--title",
+            title,
+            "-o",
+            f"initial_window_width={width_px}",
+            "-o",
+            f"initial_window_height={height_px}",
+            "-e",
+            *cmd_parts,
         ]
 
     if terminal == "alacritty":
         return [
             "alacritty",
-            "--title", title,
-            "-e", *cmd_parts,
+            "--title",
+            title,
+            "-e",
+            *cmd_parts,
         ]
 
     if terminal == "konsole":
@@ -93,23 +103,29 @@ def _build_spawn_args(terminal: str, title: str, width_px: int, height_px: int, 
             "konsole",
             "--hide-menubar",
             "--hide-tabbar",
-            "-p", f"tabtitle={title}",
-            "-e", *cmd_parts,
+            "-p",
+            f"tabtitle={title}",
+            "-e",
+            *cmd_parts,
         ]
 
     if terminal == "xterm":
         return [
             "xterm",
-            "-T", title,
-            "-geometry", f"{cols}x{rows}",
-            "-e", *cmd_parts,
+            "-T",
+            title,
+            "-geometry",
+            f"{cols}x{rows}",
+            "-e",
+            *cmd_parts,
         ]
 
     if terminal in ("xfce4-terminal",):
         return [
             terminal,
             f"--title={title}",
-            "-e", command,
+            "-e",
+            command,
         ]
 
     # Generic fallback
@@ -119,6 +135,7 @@ def _build_spawn_args(terminal: str, title: str, width_px: int, height_px: int, 
 # ---------------------------------------------------------------------------
 # Compositor detection and positioning
 # ---------------------------------------------------------------------------
+
 
 def _compositor() -> str:
     """Return 'sway', 'hyprland', 'x11', or 'unknown'."""
@@ -175,8 +192,8 @@ _WINDOW_TITLE = "deskmate-quake"
 class QuakeTerminalManager(QObject):
     """Manages an external terminal process as a quake-style dropdown."""
 
-    toggled = Signal(bool)        # emits visibility state after toggle
-    toggle_requested = Signal()   # emitted when SIGUSR1 fires; connect to trigger toggle
+    toggled = Signal(bool)  # emits visibility state after toggle
+    toggle_requested = Signal()  # emitted when SIGUSR1 fires; connect to trigger toggle
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -190,6 +207,7 @@ class QuakeTerminalManager(QObject):
 
     def setup_signal_handler(self) -> None:
         """Register SIGUSR1 and start a QTimer to poll it on the main thread."""
+
         def _handler(signum, frame):
             self._signal_event.set()
 
@@ -205,7 +223,9 @@ class QuakeTerminalManager(QObject):
         """Toggle the terminal. Returns new visibility state."""
         # Check if previously spawned process is still alive
         if self._process is not None and self._process.poll() is not None:
-            logger.info("Terminal process exited (returncode=%d), resetting state", self._process.returncode)
+            logger.info(
+                "Terminal process exited (returncode=%d), resetting state", self._process.returncode
+            )
             self._process = None
             self._visible = False
 
@@ -245,6 +265,7 @@ class QuakeTerminalManager(QObject):
     def _compute_geometry(self, config) -> tuple[int, int, int, int]:
         """Return (x, y, width, height) in screen pixels for the terminal."""
         from PySide6.QtWidgets import QApplication
+
         screen = QApplication.primaryScreen()
         if screen is None:
             return 0, 0, 1280, 400

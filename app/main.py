@@ -15,19 +15,17 @@ from pathlib import Path
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtGui import QIcon
-
-from src.lib.settings import SettingsManager
-from src.lib.quake_terminal import QuakeTerminalManager
-from src.lib.skin import SkinLoader
-from src.lib.parse import parse_emotion, parse_buttons, strip_all_tags
-from src.lib.idle import IdleAnimationManager
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from src.lib.commands import load_cached_commands, parse_commands_response, save_cached_commands
-from src.windows.ghost import GhostWindow
+from src.lib.idle import IdleAnimationManager
+from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
+from src.lib.quake_terminal import QuakeTerminalManager
+from src.lib.settings import SettingsManager
+from src.lib.skin import SkinLoader
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
+from src.windows.ghost import GhostWindow
 from src.windows.settings import SettingsWindow
 from src.windows.skin_picker import SkinPickerWindow
 
@@ -61,7 +59,9 @@ class DeskMate:
         try:
             self._skin = self._skin_loader.load_skin(self._settings.current_skin_id)
         except FileNotFoundError:
-            logger.warning("Skin '%s' not found, falling back to 'default'", self._settings.current_skin_id)
+            logger.warning(
+                "Skin '%s' not found, falling back to 'default'", self._settings.current_skin_id
+            )
             self._skin = self._skin_loader.load_skin("default")
             self._settings.current_skin_id = "default"
         logger.info("Skin loaded: %s (%d emotions)", self._skin.name, len(self._skin.emotions))
@@ -118,6 +118,7 @@ class DeskMate:
     def _load_emotions_map(self, skin: object) -> dict[str, list[str]]:
         """Read the manifest to get the emotion -> [files] mapping."""
         import yaml
+
         manifest_path = skin.path / "manifest.yaml"
         with open(manifest_path) as f:
             data = yaml.safe_load(f)
@@ -141,9 +142,7 @@ class DeskMate:
         # Ghost signals
         self._ghost.clicked.connect(self._show_chat_input)
         self._ghost.position_changed.connect(self._on_ghost_moved)
-        self._ghost.expression_changed.connect(
-            lambda expr: logger.info("Expression: %s", expr)
-        )
+        self._ghost.expression_changed.connect(lambda expr: logger.info("Expression: %s", expr))
 
         # Chat input signals
         self._input.message_sent.connect(self._on_chat_send)
@@ -157,7 +156,6 @@ class DeskMate:
 
         # Skin picker signals
         self._skin_picker.skin_selected.connect(self._on_skin_selected)
-
 
     def _setup_shortcuts(self):
         # Enter/Return opens chat input (on ghost window)
@@ -225,9 +223,7 @@ class DeskMate:
     def _show_chat_input(self):
         self._reposition_input()
         self._input.show_input(self._input.pos())
-        self._input.set_connection_status(
-            "connected" if self._gateway else "disconnected"
-        )
+        self._input.set_connection_status("connected" if self._gateway else "disconnected")
 
     def _on_chat_send(self, text: str):
         self._input.hide_input()
@@ -237,7 +233,9 @@ class DeskMate:
         self._idle_manager.reset()
 
         if not self._gateway:
-            self._show_local_bubble(f"Not connected to gateway. Configure in settings.\n\nYou said: {text}")
+            self._show_local_bubble(
+                f"Not connected to gateway. Configure in settings.\n\nYou said: {text}"
+            )
             return
 
         self._chat_state = "sending"
@@ -253,12 +251,11 @@ class DeskMate:
             self._bubble.show_bubble()
 
         # Send via gateway
-        asyncio.run_coroutine_threadsafe(
-            self._send_chat(text), self._loop
-        )
+        asyncio.run_coroutine_threadsafe(self._send_chat(text), self._loop)
 
     async def _send_chat(self, text: str):
         from src.gateway.chat import ChatSession
+
         session = ChatSession(self._gateway)
         try:
             run_id = await session.send("main", text)
@@ -410,12 +407,11 @@ class DeskMate:
             return
 
         logger.info("Fetching slash commands from gateway")
-        asyncio.run_coroutine_threadsafe(
-            self._send_commands_fetch(), self._loop
-        )
+        asyncio.run_coroutine_threadsafe(self._send_commands_fetch(), self._loop)
 
     async def _send_commands_fetch(self) -> None:
         from src.gateway.chat import ChatSession
+
         session = ChatSession(self._gateway)
         run_id = await session.send("main", "/commands")
         logger.debug("Silent /commands fetch run_id=%s", run_id)
