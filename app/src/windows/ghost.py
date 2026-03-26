@@ -1,28 +1,85 @@
-"""GhostWindow — transparent frameless window displaying the character sprite."""
+"""GhostWindow — transparent window using QWebEngineView for browser-quality sprite rendering."""
 
 import logging
 from pathlib import Path
 
-import yaml
-from PySide6.QtCore import QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPixmap
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtCore import QObject, QPoint, QSize, Qt, Signal, Slot, QUrl
+from PySide6.QtGui import QColor
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_HEIGHT = 540
 
+GHOST_HTML = """\
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+}
+#sprite {
+    image-rendering: auto; /* browser's best quality (Lanczos/bicubic) */
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+<img id="sprite" src="" />
+<script>
+let bridge = null;
+new QWebChannel(qt.webChannelTransport, function(channel) {
+    bridge = channel.objects.bridge;
+});
+
+function setImage(url, width, height) {
+    const img = document.getElementById('sprite');
+    img.src = url;
+    img.width = width;
+    img.height = height;
+}
+
+function getImageSize() {
+    const img = document.getElementById('sprite');
+    return JSON.stringify({width: img.naturalWidth, height: img.naturalHeight});
+}
+</script>
+</body>
+</html>"""
+
+
+class _GhostBridge(QObject):
+    """QWebChannel bridge for JS -> Python callbacks (future use)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
 
 class GhostWindow(QWidget):
-    """Transparent frameless window displaying the character sprite.
+    """Transparent window using QWebEngineView (Chromium) for the character sprite.
 
-    The window uses CompositionMode_Clear + SourceOver to paint the sprite
-    without bleed artifacts — no WebKitGTK nudge workarounds needed.
+    Uses the browser's native image scaling (Lanczos/bicubic) for quality
+    matching Tauri's WebKitGTK rendering.
     """
 
-    position_changed = Signal(QPoint)  # emitted after each drag step and on release
-    clicked = Signal()  # emitted on left-click (open chat input)
-    expression_changed = Signal(str)  # emitted when expression switches
+    position_changed = Signal(QPoint)
+    clicked = Signal()
+    expression_changed = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,171 +90,141 @@ class GhostWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        self._pixmaps: dict[str, list[QPixmap]] = {}
+        # Emotion -> [file paths]
+        self._emotion_files: dict[str, list[Path]] = {}
         self._current_expr: str = "neutral"
         self._variant_indices: dict[str, int] = {}
+        self._display_height: int = DEFAULT_HEIGHT
+        self._skin_dir: Path | None = None
+        self._idle_override_path: str | None = None
 
+        # Drag state
         self._dragging = False
         self._drag_offset = QPoint()
-        self._drag_moved = False  # track whether the mouse actually moved
+        self._drag_moved = False
 
-        self._display_height = DEFAULT_HEIGHT
-        self._idle_override_pixmap: QPixmap | None = None
+        # Track current image's natural size for image_bounds
+        self._img_width = 0
+        self._img_height = 0
+
+        # WebEngineView setup
+        self._web = QWebEngineView(self)
+        page = QWebEnginePage(self._web)
+        page.setBackgroundColor(QColor(0, 0, 0, 0))
+        self._web.setPage(page)
+        self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._web.setStyleSheet("background: transparent;")
+        page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
+        page.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+
+        # Web channel
+        self._bridge = _GhostBridge(self)
+        channel = QWebChannel(page)
+        channel.registerObject("bridge", self._bridge)
+        page.setWebChannel(channel)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._web)
+
+        # Use file:// base URL so <img src="file:///..."> works
+        self._web.setHtml(GHOST_HTML, QUrl("file:///"))
+        self._page_loaded = False
+        self._web.loadFinished.connect(self._on_page_loaded)
+
+    def _on_page_loaded(self, ok: bool) -> None:
+        self._page_loaded = ok
+        if ok and self._skin_dir:
+            self._update_image()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def set_skin(self, emotions_map: dict[str, list[str]], skin_dir: Path) -> None:
-        """Load all emotion pixmaps.
-
-        emotions_map: {emotion_name: [filename, ...]} mapping
-        skin_dir: directory containing the PNG files
-        """
-        self._pixmaps.clear()
+        """Load emotion file mappings."""
+        self._emotion_files.clear()
         self._variant_indices.clear()
+        self._skin_dir = skin_dir
 
-        emotions = emotions_map
-        for expr, files in emotions.items():
+        for expr, files in emotions_map.items():
             if isinstance(files, str):
                 files = [files]
-            loaded: list[QPixmap] = []
+            paths = []
             for fname in files:
-                path = skin_dir / fname
-                if not path.exists():
-                    logger.warning("Skin asset not found: %s", path)
-                    continue
-                pm = QPixmap(str(path))
-                if pm.isNull():
-                    logger.warning("Failed to load pixmap: %s", path)
-                    continue
-                scaled = pm.scaledToHeight(
-                    self._display_height,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                loaded.append(scaled)
-                logger.debug(
-                    "Loaded %s/%s: %dx%d -> %dx%d",
-                    expr,
-                    fname,
-                    pm.width(),
-                    pm.height(),
-                    scaled.width(),
-                    scaled.height(),
-                )
-            if loaded:
-                self._pixmaps[expr] = loaded
+                p = skin_dir / fname
+                if p.exists():
+                    paths.append(p)
+                else:
+                    logger.warning("Skin asset not found: %s", p)
+            if paths:
+                self._emotion_files[expr] = paths
                 self._variant_indices[expr] = 0
 
-        if not self._pixmaps:
+        if not self._emotion_files:
             logger.error("No skin assets loaded from %s", skin_dir)
             return
 
         self._current_expr = next(
-            (e for e in ("neutral", "connecting") if e in self._pixmaps),
-            next(iter(self._pixmaps)),
+            (e for e in ("neutral", "connecting") if e in self._emotion_files),
+            next(iter(self._emotion_files)),
         )
-        self._resize_to_current()
-        logger.info("Skin loaded: %d expressions from %s", len(self._pixmaps), skin_dir)
+
+        # Compute display dimensions from first image
+        self._compute_display_size()
+        self._update_image()
+        logger.info("Skin loaded: %d expressions from %s", len(self._emotion_files), skin_dir)
 
     def set_expression(self, name: str) -> None:
-        """Switch to a named expression.  Falls back to 'neutral' if unknown."""
-        if name not in self._pixmaps:
-            logger.debug("Expression %r not found, falling back to neutral", name)
-            name = "neutral" if "neutral" in self._pixmaps else next(iter(self._pixmaps), "")
-        if not name:
+        if name not in self._emotion_files:
+            name = "neutral" if "neutral" in self._emotion_files else next(iter(self._emotion_files), "")
+        if not name or name == self._current_expr:
             return
-        if name != self._current_expr:
-            self._current_expr = name
-            self.update()
-            self.expression_changed.emit(name)
-            logger.debug("Expression -> %s", name)
+        self._current_expr = name
+        self._idle_override_path = None
+        self._update_image()
+        self.expression_changed.emit(name)
 
     def set_height(self, pixels: int) -> None:
-        """Resize all loaded pixmaps to the given height, maintaining aspect ratio."""
         self._display_height = pixels
-        # Reload all scaled pixmaps in-place
-        for expr, pms in list(self._pixmaps.items()):
-            self._pixmaps[expr] = [
-                pm.scaledToHeight(pixels, Qt.TransformationMode.SmoothTransformation) for pm in pms
-            ]
-        self._resize_to_current()
+        self._compute_display_size()
+        self._update_image()
 
     def save_position(self) -> tuple[float, float]:
-        """Return current window position as (x, y) floats for persistence."""
         pos = self.pos()
         return float(pos.x()), float(pos.y())
 
     def restore_position(self, x: float, y: float) -> None:
-        """Move window to saved position."""
         self.move(int(x), int(y))
 
     def current_expression(self) -> str:
         return self._current_expr
 
     def set_idle_override(self, path: str) -> None:
-        """Temporarily display a different image instead of the current expression."""
-        pm = QPixmap(path)
-        if pm.isNull():
-            logger.warning("Failed to load idle override image: %s", path)
-            return
-        scaled = pm.scaledToHeight(
-            self._display_height,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._idle_override_pixmap: QPixmap | None = scaled
-        self.update()
-        logger.debug("Idle override set: %s", path)
+        self._idle_override_path = path
+        self._update_image()
 
     def clear_idle_override(self) -> None:
-        """Restore the current expression after idle animation ends."""
-        self._idle_override_pixmap = None
-        self.update()
-        logger.debug("Idle override cleared")
+        self._idle_override_path = None
+        self._update_image()
 
     def image_bounds(self) -> dict:
-        """Return the bounds of the visible sprite within the window.
-
-        Returns a dict with keys: centerX, centerY, top, bottom, left, right
-        (all in widget-local logical pixels).
-        """
-        pm = self._current_pixmap()
-        if pm is None:
-            return {"centerX": 0, "centerY": 0, "top": 0, "bottom": 0, "left": 0, "right": 0}
-        x = (self.width() - pm.width()) // 2
-        y = (self.height() - pm.height()) // 2
+        w = self._img_width
+        h = self._img_height
+        x = (self.width() - w) // 2
+        y = (self.height() - h) // 2
         return {
-            "centerX": x + pm.width() // 2,
-            "centerY": y + pm.height() // 2,
+            "centerX": x + w // 2,
+            "centerY": y + h // 2,
             "top": y,
-            "bottom": y + pm.height(),
+            "bottom": y + h,
             "left": x,
-            "right": x + pm.width(),
+            "right": x + w,
         }
 
     # ------------------------------------------------------------------
-    # Qt overrides
+    # Qt overrides — drag + click
     # ------------------------------------------------------------------
-
-    def paintEvent(self, _event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # Clear to fully transparent first — prevents bleed on native Qt windows
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-
-        pm = (
-            self._idle_override_pixmap
-            if self._idle_override_pixmap is not None
-            else self._current_pixmap()
-        )
-        if pm is not None:
-            x = (self.width() - pm.width()) // 2
-            y = (self.height() - pm.height()) // 2
-            painter.drawPixmap(x, y, pm)
-
-        painter.end()
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -220,18 +247,44 @@ class GhostWindow(QWidget):
                 self.position_changed.emit(self.pos())
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Internal
     # ------------------------------------------------------------------
 
-    def _current_pixmap(self) -> QPixmap | None:
-        variants = self._pixmaps.get(self._current_expr)
+    def _current_image_path(self) -> Path | None:
+        if self._idle_override_path:
+            return Path(self._idle_override_path)
+        variants = self._emotion_files.get(self._current_expr)
         if not variants:
             return None
         idx = self._variant_indices.get(self._current_expr, 0)
         return variants[idx % len(variants)]
 
-    def _resize_to_current(self) -> None:
-        pm = self._current_pixmap()
-        if pm is not None:
-            # Add a small margin so the sprite isn't clipped
-            self.resize(pm.width() + 20, pm.height() + 20)
+    def _compute_display_size(self) -> None:
+        """Compute the display width/height from the first image's aspect ratio."""
+        path = self._current_image_path()
+        if not path or not path.exists():
+            return
+        from PySide6.QtGui import QPixmap
+        pm = QPixmap(str(path))
+        if pm.isNull():
+            return
+        ratio = pm.width() / pm.height()
+        self._img_height = self._display_height
+        self._img_width = max(1, round(self._display_height * ratio))
+        # Window size = image size + small margin
+        self.resize(self._img_width + 20, self._img_height + 20)
+
+    def _update_image(self) -> None:
+        if not self._page_loaded:
+            return
+        path = self._current_image_path()
+        if not path:
+            return
+        url = QUrl.fromLocalFile(str(path.resolve())).toString()
+        self._compute_display_size()
+        js = f"setImage({_js_str(url)}, {self._img_width}, {self._img_height});"
+        self._web.page().runJavaScript(js)
+
+
+def _js_str(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'

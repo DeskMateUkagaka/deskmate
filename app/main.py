@@ -235,7 +235,7 @@ class DeskMate:
         # Debug: "emo" switches to a random expression
         if text.strip().lower() == "emo":
             import random
-            expressions = list(self._ghost._pixmaps.keys())
+            expressions = list(self._ghost._emotion_files.keys())
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
             logger.info("Debug: random expression -> %s", expr)
