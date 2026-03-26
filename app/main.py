@@ -7,8 +7,12 @@ Run: /usr/bin/python3 app/main.py
 
 import asyncio
 import logging
+import signal
 import sys
 from pathlib import Path
+
+# Allow Ctrl+C to kill the app (Qt's event loop swallows SIGINT by default)
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
