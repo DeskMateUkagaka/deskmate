@@ -44,6 +44,7 @@ class DeskMate:
     def __init__(self):
         self._app = QApplication(sys.argv)
         self._app.setApplicationName("deskmate")
+        self._app.setDesktopFileName("deskmate")  # Sets Wayland app_id
         self._app.setQuitOnLastWindowClosed(False)
 
         # Settings
