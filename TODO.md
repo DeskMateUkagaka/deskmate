@@ -12,12 +12,18 @@
 - [ ] Port skin loader (manifest.yaml, expression variants)
 - [ ] Port idle animation system
 - [ ] Port tray icon + context menu
-- [ ] Port quake-style terminal
-- [ ] Port command autocomplete
-- [ ] Port settings persistence
+- [x] Port quake-style terminal
+- [x] Port command autocomplete
+- [x] Port settings persistence
 - [ ] Port window position save/restore
 - [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
+  - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
+  - Bundle size: ~150-200MB due to QtWebEngine (Chromium)
+  - Build on each platform separately (no cross-compilation)
 - [ ] CI/CD for cross-platform builds (GitHub Actions)
+  - Linux: AppImage or Flatpak
+  - Windows: .exe via PyInstaller + NSIS/Inno Setup
+  - macOS: .app bundle + .dmg
 
 ## Immediate Product Gaps
 

@@ -8,11 +8,15 @@ from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+from src.lib.commands import SlashCommand
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,105 @@ _MAX_INPUT_LINES = 6
 _LINE_HEIGHT_PX = 22
 _MIN_HEIGHT_PX = 44
 
+# Autocomplete popup
+_POPUP_MAX_ITEMS = 8
+_POPUP_ITEM_HEIGHT = 36
+
+
+class _AutocompletePopup(QWidget):
+    """Floating popup that shows filtered slash command suggestions."""
+
+    command_selected = Signal(object)  # SlashCommand
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent, Qt.WindowType.SubWindow)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(
+            "QWidget {"
+            "  background: rgba(40, 40, 45, 0.98);"
+            "  border: 1px solid rgba(100, 100, 130, 0.5);"
+            "  border-radius: 8px;"
+            "}"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(0)
+
+        self._list = QListWidget(self)
+        self._list.setStyleSheet(
+            "QListWidget {"
+            "  background: transparent;"
+            "  border: none;"
+            "  outline: none;"
+            "}"
+            "QListWidget::item {"
+            "  padding: 4px 8px;"
+            "  border-radius: 4px;"
+            "  color: #e8e8f0;"
+            "}"
+            "QListWidget::item:selected {"
+            "  background: rgba(100, 140, 220, 0.35);"
+            "}"
+            "QListWidget::item:hover {"
+            "  background: rgba(100, 100, 130, 0.25);"
+            "}"
+        )
+        self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._list.itemClicked.connect(self._on_item_clicked)
+        layout.addWidget(self._list)
+
+        self._commands: list[SlashCommand] = []
+        self.hide()
+
+    def update_items(self, commands: list[SlashCommand]) -> None:
+        """Populate list with filtered commands."""
+        self._commands = commands
+        self._list.clear()
+
+        visible = commands[:_POPUP_MAX_ITEMS]
+        for cmd in visible:
+            item = QListWidgetItem()
+            item.setData(Qt.ItemDataRole.UserRole, cmd)
+            # Rich-ish label: bold name + dim description
+            label = QLabel(f"<b>{cmd.name}</b>  <span style='color: rgba(160,160,190,0.8); font-size: 11px;'>{cmd.description}</span>")
+            label.setStyleSheet("background: transparent; padding: 2px 4px;")
+            label.setFont(QFont("Segoe UI", 10))
+            item.setSizeHint(QSize(self._list.width(), _POPUP_ITEM_HEIGHT))
+            self._list.addItem(item)
+            self._list.setItemWidget(item, label)
+
+        if visible:
+            self._list.setCurrentRow(0)
+
+        # Resize to fit items
+        count = len(visible)
+        h = count * _POPUP_ITEM_HEIGHT + 8  # margins
+        self._list.setFixedHeight(h)
+        self.adjustSize()
+
+    def move_selection(self, delta: int) -> None:
+        """Move selection up (-1) or down (+1)."""
+        count = self._list.count()
+        if count == 0:
+            return
+        current = self._list.currentRow()
+        new_row = (current + delta) % count
+        self._list.setCurrentRow(new_row)
+
+    def accept_selection(self) -> SlashCommand | None:
+        """Return the currently selected command, or None."""
+        item = self._list.currentItem()
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
+    def _on_item_clicked(self, item: QListWidgetItem) -> None:
+        cmd = item.data(Qt.ItemDataRole.UserRole)
+        if cmd:
+            self.command_selected.emit(cmd)
+
 
 class _InputEdit(QTextEdit):
     """Single/multi-line text editor that:
@@ -36,11 +139,13 @@ class _InputEdit(QTextEdit):
     - Emits dismiss_requested on Escape
     - Adds a newline on Shift+Enter
     - Grows up to _MAX_INPUT_LINES rows, then scrolls
+    - Delegates Up/Down/Tab/Enter to autocomplete when popup is active
     """
 
     send_requested = Signal(str)
     dismiss_requested = Signal()
     height_changed = Signal(int)
+    text_changed_for_ac = Signal(str, int)  # (full text, cursor position)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -66,7 +171,32 @@ class _InputEdit(QTextEdit):
         self.document().contentsChanged.connect(self._on_contents_changed)
         self._update_height()
 
+        # Reference to the autocomplete popup (set by ChatInputWindow)
+        self._popup: _AutocompletePopup | None = None
+
+    def set_popup(self, popup: _AutocompletePopup) -> None:
+        self._popup = popup
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        popup_active = self._popup is not None and self._popup.isVisible()
+
+        if popup_active:
+            key = event.key()
+            if key == Qt.Key.Key_Up:
+                self._popup.move_selection(-1)
+                return
+            if key == Qt.Key.Key_Down:
+                self._popup.move_selection(1)
+                return
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
+                cmd = self._popup.accept_selection()
+                if cmd:
+                    self._popup.command_selected.emit(cmd)
+                return
+            if key == Qt.Key.Key_Escape:
+                self._popup.hide()
+                return
+
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                 super().keyPressEvent(event)  # newline
@@ -79,6 +209,10 @@ class _InputEdit(QTextEdit):
             self.dismiss_requested.emit()
             return
         super().keyPressEvent(event)
+
+        # Notify after key is processed so cursor position is updated
+        cursor = self.textCursor()
+        self.text_changed_for_ac.emit(self.toPlainText(), cursor.position())
 
     def _on_contents_changed(self) -> None:
         self._update_height()
@@ -124,6 +258,7 @@ class ChatInputWindow(QWidget):
     - Escape      → dismiss (dismissed signal)
 
     The window auto-grows as the user types, up to _MAX_INPUT_LINES rows.
+    Typing '/' triggers slash command autocomplete.
     """
 
     message_sent = Signal(str)       # User pressed Enter with non-empty text
@@ -139,7 +274,7 @@ class ChatInputWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        self._commands: list[dict] = []
+        self._commands: list[SlashCommand] = []
         self._connection_status = "disconnected"
 
         self._build_ui()
@@ -155,9 +290,11 @@ class ChatInputWindow(QWidget):
         self.show()
         self._editor.setFocus()
         self._editor.clear()
+        self._popup.hide()
         logger.debug("ChatInputWindow shown at (%d, %d)", pos.x(), pos.y())
 
     def hide_input(self) -> None:
+        self._popup.hide()
         self.hide()
         logger.debug("ChatInputWindow hidden")
 
@@ -169,9 +306,10 @@ class ChatInputWindow(QWidget):
         self._status_label.setText(status.capitalize())
         logger.debug("Connection status: %s", status)
 
-    def set_commands(self, commands: list[dict]) -> None:
-        """Store slash commands for future autocomplete support."""
+    def set_commands(self, commands: list[SlashCommand]) -> None:
+        """Store slash commands for autocomplete."""
         self._commands = commands
+        logger.debug("Loaded %d slash commands for autocomplete", len(commands))
 
     # ------------------------------------------------------------------
     # Qt overrides
@@ -233,11 +371,18 @@ class ChatInputWindow(QWidget):
         self._editor.send_requested.connect(self._on_send)
         self._editor.dismiss_requested.connect(self._on_dismiss)
         self._editor.height_changed.connect(self._on_editor_height_changed)
+        self._editor.text_changed_for_ac.connect(self._on_text_changed_for_ac)
         self._editor.setPlaceholderText("Type a message…")
         root.addWidget(self._editor)
 
+        # Autocomplete popup (child of this window, floats above editor)
+        self._popup = _AutocompletePopup(self)
+        self._popup.command_selected.connect(self._on_command_selected)
+        self._editor.set_popup(self._popup)
+
     def _on_send(self, text: str) -> None:
         self._editor.clear()
+        self._popup.hide()
         self.message_sent.emit(text)
         logger.debug("Message sent: %r", text[:80])
 
@@ -247,6 +392,7 @@ class ChatInputWindow(QWidget):
 
     def _on_editor_height_changed(self, _h: int) -> None:
         self._update_size()
+        self._reposition_popup()
 
     def _update_size(self) -> None:
         self.adjustSize()
@@ -255,3 +401,86 @@ class ChatInputWindow(QWidget):
         self.setFixedWidth(w)
         self.adjustSize()
         self.resized.emit(self.width(), self.height())
+
+    # ------------------------------------------------------------------
+    # Autocomplete
+    # ------------------------------------------------------------------
+
+    def _find_slash_trigger(self, text: str, cursor_pos: int) -> dict | None:
+        """Search backwards from cursor for a '/' trigger.
+
+        Stops at whitespace. Returns {"trigger_index": int, "filter_text": str}
+        or None if no active trigger.
+        """
+        search_text = text[:cursor_pos]
+        # Walk backwards until we hit whitespace or start of string
+        i = len(search_text) - 1
+        while i >= 0 and search_text[i] not in (" ", "\t", "\n"):
+            i -= 1
+        word_start = i + 1
+        word = search_text[word_start:]
+        if word.startswith("/"):
+            return {"trigger_index": word_start, "filter_text": word}
+        return None
+
+    def _on_text_changed_for_ac(self, text: str, cursor_pos: int) -> None:
+        """Called on each keypress — update autocomplete visibility."""
+        if not self._commands:
+            self._popup.hide()
+            return
+
+        trigger = self._find_slash_trigger(text, cursor_pos)
+        if trigger is None:
+            self._popup.hide()
+            return
+
+        filter_text = trigger["filter_text"].lower()
+        filtered = [
+            cmd for cmd in self._commands
+            if cmd.name.lower().startswith(filter_text)
+        ]
+
+        if not filtered:
+            self._popup.hide()
+            return
+
+        self._popup.update_items(filtered)
+        self._reposition_popup()
+        self._popup.show()
+        self._popup.raise_()
+
+    def _reposition_popup(self) -> None:
+        """Position popup just above the editor."""
+        editor_geom = self._editor.geometry()
+        popup_h = self._popup.sizeHint().height()
+        popup_w = max(self.width() - 24, 300)
+        self._popup.setFixedWidth(popup_w)
+        x = editor_geom.left()
+        y = editor_geom.top() - popup_h - 4
+        self._popup.move(x, y)
+
+    def _insert_command(self, cmd: SlashCommand) -> None:
+        """Replace the current /partial trigger with cmd.name + space."""
+        text = self._editor.toPlainText()
+        cursor = self._editor.textCursor()
+        cursor_pos = cursor.position()
+
+        trigger = self._find_slash_trigger(text, cursor_pos)
+        if trigger is None:
+            return
+
+        start = trigger["trigger_index"]
+        # Replace from trigger start to cursor position with command + space
+        new_text = text[:start] + cmd.name + " " + text[cursor_pos:]
+        self._editor.setPlainText(new_text)
+
+        # Move cursor to end of inserted command
+        new_cursor_pos = start + len(cmd.name) + 1
+        cursor = self._editor.textCursor()
+        cursor.setPosition(new_cursor_pos)
+        self._editor.setTextCursor(cursor)
+
+    def _on_command_selected(self, cmd: SlashCommand) -> None:
+        self._insert_command(cmd)
+        self._popup.hide()
+        self._editor.setFocus()

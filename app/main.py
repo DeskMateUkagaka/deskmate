@@ -16,9 +16,11 @@ from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QIcon
 
 from src.lib.settings import SettingsManager
+from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.skin import SkinLoader
 from src.lib.parse import parse_emotion, parse_buttons, strip_all_tags
 from src.lib.idle import IdleAnimationManager
+from src.lib.commands import load_cached_commands, parse_commands_response, save_cached_commands
 from src.windows.ghost import GhostWindow
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
@@ -78,6 +80,12 @@ class DeskMate:
         self._active_bubble_id: str | None = None
         self._bubble_counter = 0
 
+        # Quake terminal
+        self._quake = QuakeTerminalManager()
+        self._quake.toggled.connect(self._on_quake_toggled)
+        self._quake.toggle_requested.connect(self._toggle_quake_terminal)
+        self._quake.setup_signal_handler()
+
         # Idle animation
         self._idle_manager = IdleAnimationManager(self._app)
         self._idle_manager.set_skin(self._skin)
@@ -87,6 +95,10 @@ class DeskMate:
         # Gateway client (lazy — connected when settings have a URL)
         self._gateway = None
         self._gateway_task: asyncio.Task | None = None
+
+        # Silent /commands fetch state
+        self._silent_fetch_run_id: str | None = None
+        self._command_response_buffer: str = ""
 
         # Async integration: use QTimer to pump asyncio
         self._loop = asyncio.new_event_loop()
@@ -162,6 +174,7 @@ class DeskMate:
 
         menu = QMenu()
         menu.addAction("Show/Hide", self._toggle_ghost)
+        menu.addAction("Toggle Terminal", self._toggle_quake_terminal)
         menu.addAction("Change Skin", self._show_skin_picker)
         menu.addAction("Settings", self._show_settings)
         menu.addSeparator()
@@ -189,7 +202,7 @@ class DeskMate:
         bounds = self._ghost.image_bounds()
 
         # Position below the ghost
-        x = ghost_pos.x() + bounds["center_x"] - self._input.width() // 2
+        x = ghost_pos.x() + bounds["centerX"] - self._input.width() // 2
         y = ghost_pos.y() + bounds["bottom"] + 10
 
         self._input.move(x, y)
@@ -252,7 +265,28 @@ class DeskMate:
     def _on_chat_event(self, event):
         """Called from gateway event callback (may be from async thread)."""
         state = event.get("state", "")
+        run_id = event.get("runId")
         message = event.get("message")
+
+        # Intercept events from the silent /commands fetch — don't show in bubble
+        if self._silent_fetch_run_id and run_id == self._silent_fetch_run_id:
+            if state == "delta" and message:
+                for block in message.get("content", []):
+                    if block.get("type") == "text" and block.get("text"):
+                        self._command_response_buffer += block["text"]
+            elif state == "final":
+                commands = parse_commands_response(self._command_response_buffer)
+                if commands:
+                    save_cached_commands(self._settings_mgr._config_dir, commands)
+                    self._input.set_commands(commands)
+                    logger.info("Slash commands fetched and cached (%d commands)", len(commands))
+                self._silent_fetch_run_id = None
+                self._command_response_buffer = ""
+            elif state in ("error", "aborted"):
+                logger.warning("Silent /commands fetch %s", state)
+                self._silent_fetch_run_id = None
+                self._command_response_buffer = ""
+            return
 
         if state == "delta" and message:
             content_blocks = message.get("content", [])
@@ -359,15 +393,42 @@ class DeskMate:
         )
         logger.info("Gateway connecting to %s", self._settings.gateway_url)
 
+    def _fetch_slash_commands(self) -> None:
+        """Check cache then silently send /commands to gateway if stale."""
+        cached = load_cached_commands(self._settings_mgr._config_dir)
+        if cached is not None:
+            self._input.set_commands(cached)
+            logger.info("Slash commands loaded from cache (%d commands)", len(cached))
+            return
+
+        if not self._gateway:
+            return
+
+        logger.info("Fetching slash commands from gateway")
+        asyncio.run_coroutine_threadsafe(
+            self._send_commands_fetch(), self._loop
+        )
+
+    async def _send_commands_fetch(self) -> None:
+        from src.gateway.chat import ChatSession
+        session = ChatSession(self._gateway)
+        run_id = await session.send("main", "/commands")
+        logger.debug("Silent /commands fetch run_id=%s", run_id)
+        # Marshal back to Qt main thread to set the run_id
+        QTimer.singleShot(0, lambda: setattr(self, "_silent_fetch_run_id", run_id))
+
     def _on_gateway_event(self, event):
         """Called from async thread — marshal to Qt main thread."""
         if event.event == "chat" and event.payload:
+            payload = event.payload
             # Use QTimer.singleShot to marshal to main thread
-            QTimer.singleShot(0, lambda: self._on_chat_event(event.payload))
+            QTimer.singleShot(0, lambda: self._on_chat_event(payload))
 
     def _on_gateway_status(self, status: str):
         logger.info("Gateway status: %s", status)
         QTimer.singleShot(0, lambda: self._input.set_connection_status(status))
+        if status == "connected":
+            QTimer.singleShot(0, self._fetch_slash_commands)
 
     # ------------------------------------------------------------------
     # Asyncio integration
@@ -387,6 +448,12 @@ class DeskMate:
     # ------------------------------------------------------------------
     # Misc actions
     # ------------------------------------------------------------------
+
+    def _toggle_quake_terminal(self):
+        self._quake.toggle(self._settings.quake_terminal)
+
+    def _on_quake_toggled(self, visible: bool):
+        logger.info("Quake terminal %s", "shown" if visible else "hidden")
 
     def _toggle_ghost(self):
         if self._ghost.isVisible():
@@ -484,6 +551,7 @@ class DeskMate:
         if self._gateway:
             self._gateway.stop()
 
+        self._quake.cleanup()
         self._async_timer.stop()
         self._app.quit()
 
