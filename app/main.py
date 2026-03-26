@@ -232,6 +232,15 @@ class DeskMate:
         # User interaction — reset idle countdown
         self._idle_manager.reset()
 
+        # Debug: "emo" switches to a random expression
+        if text.strip().lower() == "emo":
+            import random
+            expressions = list(self._ghost._pixmaps.keys())
+            expr = random.choice(expressions)
+            self._ghost.set_expression(expr)
+            logger.info("Debug: random expression -> %s", expr)
+            return
+
         if not self._gateway:
             self._show_local_bubble(
                 f"Not connected to gateway. Configure in settings.\n\nYou said: {text}"
