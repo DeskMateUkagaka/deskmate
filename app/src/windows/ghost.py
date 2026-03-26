@@ -43,6 +43,7 @@ class GhostWindow(QWidget):
         self._drag_moved = False   # track whether the mouse actually moved
 
         self._display_height = DEFAULT_HEIGHT
+        self._idle_override_pixmap: QPixmap | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -134,6 +135,26 @@ class GhostWindow(QWidget):
     def current_expression(self) -> str:
         return self._current_expr
 
+    def set_idle_override(self, path: str) -> None:
+        """Temporarily display a different image instead of the current expression."""
+        pm = QPixmap(path)
+        if pm.isNull():
+            logger.warning("Failed to load idle override image: %s", path)
+            return
+        scaled = pm.scaledToHeight(
+            self._display_height,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._idle_override_pixmap: QPixmap | None = scaled
+        self.update()
+        logger.debug("Idle override set: %s", path)
+
+    def clear_idle_override(self) -> None:
+        """Restore the current expression after idle animation ends."""
+        self._idle_override_pixmap = None
+        self.update()
+        logger.debug("Idle override cleared")
+
     def image_bounds(self) -> dict:
         """Return the bounds of the visible sprite within the window.
 
@@ -166,7 +187,7 @@ class GhostWindow(QWidget):
         painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
-        pm = self._current_pixmap()
+        pm = self._idle_override_pixmap if self._idle_override_pixmap is not None else self._current_pixmap()
         if pm is not None:
             x = (self.width() - pm.width()) // 2
             y = (self.height() - pm.height()) // 2

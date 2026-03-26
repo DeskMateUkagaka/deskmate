@@ -18,9 +18,12 @@ from PySide6.QtGui import QIcon
 from src.lib.settings import SettingsManager
 from src.lib.skin import SkinLoader
 from src.lib.parse import parse_emotion, parse_buttons, strip_all_tags
+from src.lib.idle import IdleAnimationManager
 from src.windows.ghost import GhostWindow
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
+from src.windows.settings import SettingsWindow
+from src.windows.skin_picker import SkinPickerWindow
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +63,8 @@ class DeskMate:
         self._ghost = GhostWindow()
         self._bubble = BubbleWindow()
         self._input = ChatInputWindow()
+        self._settings_win = SettingsWindow()
+        self._skin_picker = SkinPickerWindow(self._skin_loader)
 
         # Load skin into ghost — need the emotion->files mapping from manifest
         emotions_map = self._load_emotions_map(self._skin)
@@ -72,6 +77,12 @@ class DeskMate:
         self._current_emotion = "neutral"
         self._active_bubble_id: str | None = None
         self._bubble_counter = 0
+
+        # Idle animation
+        self._idle_manager = IdleAnimationManager(self._app)
+        self._idle_manager.set_skin(self._skin)
+        self._idle_manager.idle_override.connect(self._ghost.set_idle_override)
+        self._idle_manager.idle_cleared.connect(self._ghost.clear_idle_override)
 
         # Gateway client (lazy — connected when settings have a URL)
         self._gateway = None
@@ -124,6 +135,13 @@ class DeskMate:
         # Bubble signals
         self._bubble.action.connect(self._on_bubble_action)
 
+        # Settings signals
+        self._settings_win.settings_saved.connect(self._on_settings_saved)
+
+        # Skin picker signals
+        self._skin_picker.skin_selected.connect(self._on_skin_selected)
+
+
     def _setup_shortcuts(self):
         # Enter/Return opens chat input (on ghost window)
         QShortcut(QKeySequence(Qt.Key.Key_Return), self._ghost).activated.connect(
@@ -144,6 +162,7 @@ class DeskMate:
 
         menu = QMenu()
         menu.addAction("Show/Hide", self._toggle_ghost)
+        menu.addAction("Change Skin", self._show_skin_picker)
         menu.addAction("Settings", self._show_settings)
         menu.addSeparator()
         menu.addAction("Quit", self._quit)
@@ -195,6 +214,9 @@ class DeskMate:
     def _on_chat_send(self, text: str):
         self._input.hide_input()
         logger.info("User message: %s", text[:80])
+
+        # User interaction — reset idle countdown
+        self._idle_manager.reset()
 
         if not self._gateway:
             self._show_local_bubble(f"Not connected to gateway. Configure in settings.\n\nYou said: {text}")
@@ -276,6 +298,10 @@ class DeskMate:
             if self._active_bubble_id:
                 self._bubble.finalize(self._active_bubble_id)
             self._active_bubble_id = None
+
+        # Restart idle countdown when chat returns to idle and bubble is not visible
+        if self._chat_state == "idle" and not self._bubble.is_bubble_visible():
+            self._idle_manager.start()
 
     def _on_chat_error(self, error: str):
         self._chat_state = "idle"
@@ -370,9 +396,80 @@ class DeskMate:
         else:
             self._ghost.show()
 
+    def _show_skin_picker(self):
+        skins = self._skin_loader.list_skins()
+        self._skin_picker.show_picker(skins, self._settings.current_skin_id)
+        # Position near ghost window
+        ghost_pos = self._ghost.pos()
+        ghost_w = self._ghost.width()
+        picker_w = self._skin_picker.width()
+        x = ghost_pos.x() + ghost_w // 2 - picker_w // 2
+        y = ghost_pos.y() - self._skin_picker.height() - 10
+        screen = self._app.primaryScreen()
+        if screen:
+            sg = screen.availableGeometry()
+            x = max(sg.left(), min(x, sg.right() - picker_w))
+            y = max(sg.top(), min(y, sg.bottom() - self._skin_picker.height()))
+        self._skin_picker.move(x, y)
+
+    def _on_skin_selected(self, skin_id: str):
+        logger.info("Switching skin to: %s", skin_id)
+        try:
+            new_skin = self._skin_loader.load_skin(skin_id)
+        except (FileNotFoundError, ValueError) as e:
+            logger.error("Failed to load skin '%s': %s", skin_id, e)
+            return
+        self._skin = new_skin
+        emotions_map = self._load_emotions_map(new_skin)
+        self._ghost.set_skin(emotions_map, new_skin.path)
+        self._settings.current_skin_id = skin_id
+        try:
+            self._settings_mgr.update(current_skin_id=skin_id)
+        except Exception as e:
+            logger.warning("Failed to save skin setting: %s", e)
+        logger.info("Skin switched to: %s", new_skin.name)
+
     def _show_settings(self):
-        # TODO: Settings window
-        logger.info("Settings window not yet implemented")
+        available_skins = [d.name for d in SKINS_DIR.iterdir() if d.is_dir()]
+        available_skins.sort()
+
+        # Position near the ghost
+        ghost_pos = self._ghost.pos()
+        x = ghost_pos.x() - self._settings_win.width() - 10
+        y = ghost_pos.y()
+        # Keep on screen
+        screen = self._app.primaryScreen()
+        if screen:
+            sg = screen.availableGeometry()
+            if x < sg.left():
+                x = ghost_pos.x() + self._ghost.width() + 10
+            if y + self._settings_win.height() > sg.bottom():
+                y = sg.bottom() - self._settings_win.height()
+        self._settings_win.move(x, y)
+
+        self._settings_win.show_settings(self._settings, available_skins)
+
+    def _on_settings_saved(self, updated: dict) -> None:
+        old_url = self._settings.gateway_url
+        for key, value in updated.items():
+            if hasattr(self._settings, key):
+                setattr(self._settings, key, value)
+        try:
+            self._settings_mgr.update(**updated)
+        except Exception as e:
+            logger.warning("Failed to persist settings: %s", e)
+
+        # Apply ghost height immediately
+        self._ghost.set_height(self._settings.ghost_height_pixels)
+
+        # Reconnect gateway if URL changed
+        if updated.get("gateway_url", old_url) != old_url:
+            logger.info("Gateway URL changed — reconnecting")
+            if self._gateway:
+                self._gateway.stop()
+                self._gateway = None
+                self._gateway_task = None
+            self._connect_gateway()
 
     def _quit(self):
         # Save ghost position
@@ -408,6 +505,9 @@ class DeskMate:
                 )
 
         self._ghost.show()
+
+        # Start idle animation cycle
+        self._idle_manager.start()
 
         logger.info("=" * 50)
         logger.info("DeskMate (PySide6) started")
