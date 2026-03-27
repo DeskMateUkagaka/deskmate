@@ -378,7 +378,10 @@ function addItem(id, text, isStreaming) {
 function updateItem(id, text, isStreaming) {
     if (!_items[id]) { addItem(id, text, isStreaming); return; }
     _renderContent(id, text, isStreaming);
+    // Auto-scroll both the container and the item's content area to the end
     _getContainer().scrollTop = _getContainer().scrollHeight;
+    var item = _items[id];
+    if (item) item.contentEl.scrollTop = item.contentEl.scrollHeight;
     notifySized();
 }
 
