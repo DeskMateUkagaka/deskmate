@@ -161,6 +161,18 @@ class _InputEdit(QTextEdit):
             "  padding: 0;"
             "  selection-background-color: rgba(100, 140, 220, 0.4);"
             "}"
+            "QTextEdit QScrollBar:vertical {"
+            "  width: 5px;"
+            "  background: transparent;"
+            "}"
+            "QTextEdit QScrollBar::handle:vertical {"
+            "  background: rgba(150, 150, 170, 0.4);"
+            "  border-radius: 2px;"
+            "}"
+            "QTextEdit QScrollBar::add-line:vertical,"
+            "QTextEdit QScrollBar::sub-line:vertical {"
+            "  height: 0;"
+            "}"
         )
         font = QFont("Segoe UI", 10)
         font.setStyleHint(QFont.StyleHint.SansSerif)
