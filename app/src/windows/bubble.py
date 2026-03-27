@@ -412,22 +412,16 @@ function startDismissTimer(id, durationMs) {
     item.totalMs = durationMs;
     item.startTime = Date.now();
     item.progressWrap.style.display = 'block';
+    // Start at 100%, then animate to 0% via CSS transition
+    item.progressFill.style.transition = 'none';
     item.progressFill.style.width = '100%';
-    _tickProgress(id);
+    // Force reflow so the browser registers 100% before transitioning
+    void item.progressFill.offsetWidth;
+    item.progressFill.style.transition = 'width ' + durationMs + 'ms linear';
+    item.progressFill.style.width = '0%';
     item.timerId = setTimeout(function() {
         callBridge('onDismiss', {id: id});
     }, durationMs);
-}
-
-function _tickProgress(id) {
-    var item = _items[id];
-    if (!item || item.pinned || !item.timerId) return;
-    var elapsed = Date.now() - item.startTime;
-    var pct = Math.max(0, 100 - (elapsed / item.totalMs) * 100);
-    item.progressFill.style.width = pct + '%';
-    if (pct > 0) {
-        item.animFrame = requestAnimationFrame(function() { _tickProgress(id); });
-    }
 }
 
 function removeItem(id) {
