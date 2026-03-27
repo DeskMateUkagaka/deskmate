@@ -6,9 +6,12 @@ Run: /usr/bin/python3 app/main.py
 """
 
 import asyncio
+import random
 import signal
 import sys
 from pathlib import Path
+
+import yaml
 
 # Allow Ctrl+C to kill the app (Qt's event loop swallows SIGINT by default)
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -17,6 +20,8 @@ from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from src.gateway.chat import ChatSession
+from src.gateway.client import GatewayClient
 from src.lib.commands import load_cached_commands, parse_commands_response, save_cached_commands
 from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
@@ -116,8 +121,6 @@ class DeskMate:
 
     def _load_emotions_map(self, skin: object) -> dict[str, list[str]]:
         """Read the manifest to get the emotion -> [files] mapping."""
-        import yaml
-
         manifest_path = skin.path / "manifest.yaml"
         with open(manifest_path) as f:
             data = yaml.safe_load(f)
@@ -252,11 +255,9 @@ class DeskMate:
             self._debug_stream_text("ACK", label="ack")
             return
         if cmd == "emo":
-            import random
-            expressions = list(self._ghost._emotion_files.keys())
-            expr = random.choice(expressions)
-            self._ghost.set_expression(expr)
-            self._debug_stream_text(f"emotion test → {expr}", label="emo")
+            non_neutral = [e for e in self._ghost._emotion_files if e != "neutral"]
+            expr = random.choice(non_neutral) if non_neutral else "neutral"
+            self._debug_stream_text(f"emotion test [emotion:{expr}]", label="emo")
             return
         if cmd == "md":
             self._debug_stream_text(
@@ -332,15 +333,14 @@ class DeskMate:
         asyncio.run_coroutine_threadsafe(self._send_chat(text), self._loop)
 
     async def _send_chat(self, text: str):
-        from src.gateway.chat import ChatSession
-
         session = ChatSession(self._gateway)
         try:
             run_id = await session.send("main", text)
             logger.info(f"Chat sent, run_id={run_id}")
         except Exception as e:
             logger.error(f"Chat send failed: {e}")
-            self._on_chat_error(str(e))
+            self._on_stream_delta(f"Error: {e}")
+            self._on_stream_final(f"Error: {e}")
 
     def _on_chat_event(self, event):
         """Called from gateway event callback (may be from async thread)."""
@@ -377,45 +377,20 @@ class DeskMate:
             for block in content_blocks:
                 if block.get("type") == "text" and block.get("text"):
                     self._current_response += block["text"]
-
-            self._chat_state = "streaming"
-
-            # Parse emotion from accumulated text
-            emotion = parse_emotion(self._current_response)
-            if emotion != self._current_emotion:
-                self._current_emotion = emotion
-                self._ghost.set_expression(emotion)
-
-            # Update bubble with stripped text
-            display_text = strip_all_tags(self._current_response)
-            if self._active_bubble_id:
-                self._bubble.update_text(self._active_bubble_id, display_text)
+            self._on_stream_delta(self._current_response)
 
         elif state == "final":
-            display_text = strip_all_tags(self._current_response)
-
-            if self._active_bubble_id:
-                self._bubble.update_text(self._active_bubble_id, display_text)
-
-                # Extract buttons
-                buttons = parse_buttons(self._current_response)
-                if buttons:
-                    self._bubble.set_buttons(self._active_bubble_id, buttons)
-
-            self._end_streaming()
+            self._on_stream_final(self._current_response)
             self._current_response = ""
 
         elif state == "error":
             error_msg = event.get("error_message", "Unknown error")
-            self._on_chat_error(error_msg)
+            self._on_stream_delta(f"Error: {error_msg}")
+            self._on_stream_final(f"Error: {error_msg}")
 
         elif state == "aborted":
-            self._end_streaming()
-
-    def _on_chat_error(self, error: str):
-        if self._active_bubble_id:
-            self._bubble.update_text(self._active_bubble_id, f"Error: {error}")
-        self._end_streaming()
+            self._on_stream_final(self._current_response)
+            self._current_response = ""
 
     # ------------------------------------------------------------------
     # Streaming lifecycle (shared by gateway and debug cheat codes)
@@ -433,18 +408,38 @@ class DeskMate:
             self._bubble.show_bubble()
         return item_id
 
+    def _on_stream_delta(self, raw_text: str) -> None:
+        """Process a streaming delta: parse emotion, strip tags, update bubble."""
+        emotion = parse_emotion(raw_text)
+        if emotion and emotion != self._current_emotion:
+            self._current_emotion = emotion
+            self._ghost.set_expression(emotion)
+        display_text = strip_all_tags(raw_text)
+        if self._active_bubble_id:
+            self._bubble.update_text(self._active_bubble_id, display_text)
+
+    def _on_stream_final(self, raw_text: str) -> None:
+        """Finalize streaming: update bubble, extract buttons, end streaming."""
+        display_text = strip_all_tags(raw_text)
+        if self._active_bubble_id:
+            self._bubble.update_text(self._active_bubble_id, display_text)
+            buttons = parse_buttons(raw_text)
+            if buttons:
+                self._bubble.set_buttons(self._active_bubble_id, buttons)
+        self._end_streaming()
+
     def _end_streaming(self) -> None:
         """Finalize active bubble and restart idle."""
         if self._active_bubble_id:
             self._bubble.finalize(self._active_bubble_id, self._settings.bubble_timeout_ms)
         self._active_bubble_id = None
         self._chat_state = "idle"
+        self._current_emotion = ""
         self._idle_manager.reset()
 
     def _debug_stream_text(self, text: str, *, label: str = "debug", duration_ms: int = 1000):
         """Stream text into the bubble over duration_ms, simulating gateway streaming."""
         self._active_bubble_id = self._begin_streaming(label=f"debug-{label}")
-        self._ghost.set_expression("thinking")
 
         # Calculate chunk size to finish in ~duration_ms at 30ms intervals
         tick_interval = 30
@@ -460,11 +455,10 @@ class DeskMate:
                 self._debug_stream_pos + self._debug_stream_chunk, len(self._debug_stream_sample)
             )
             partial = self._debug_stream_sample[: self._debug_stream_pos]
-            self._bubble.update_text(self._active_bubble_id, partial)
+            self._on_stream_delta(partial)
             if self._debug_stream_pos >= len(self._debug_stream_sample):
                 self._debug_timer.stop()
-                self._ghost.set_expression("neutral")
-                self._end_streaming()
+                self._on_stream_final(self._debug_stream_sample)
                 logger.info(f"Debug: {label} streaming complete")
 
         self._debug_timer = QTimer()
@@ -494,8 +488,6 @@ class DeskMate:
         if not self._settings.gateway_url:
             logger.info("No gateway URL configured")
             return
-
-        from src.gateway.client import GatewayClient
 
         self._gateway = GatewayClient()
         self._gateway.on_event = self._on_gateway_event
@@ -528,8 +520,6 @@ class DeskMate:
         asyncio.run_coroutine_threadsafe(self._send_commands_fetch(), self._loop)
 
     async def _send_commands_fetch(self) -> None:
-        from src.gateway.chat import ChatSession
-
         assert self._gateway is not None
         session = ChatSession(self._gateway)
         try:
