@@ -2,199 +2,93 @@
 
 ## Prerequisites
 
-- **Rust** (stable, ≥1.77.2): https://rustup.rs
-- **Node.js** (≥18)
-- **pnpm**: `npm i -g pnpm`
-- **Tauri CLI v2**: `cargo install tauri-cli --version "^2"`
-- **Linux system deps** (Debian/Ubuntu):
-  ```bash
-  sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
-  ```
-  Arch:
-  ```bash
-  sudo pacman -S webkit2gtk-4.1 gtk3 libayatana-appindicator librsvg
-  ```
+- **Python 3.13+**
+- **PySide6** (Qt6 + QtWebEngine)
+- **uv** (recommended) or pip
 
 ## Getting Started
 
 ```bash
 cd app
-pnpm install          # install frontend dependencies
-cargo tauri dev       # starts Vite + Tauri with hot reload
+uv pip install -r requirements.txt
+python3 main.py
 ```
 
-Rust dependencies are fetched automatically by Cargo on first build.
+First run creates `~/.config/deskmate/` with default settings and a generated Ed25519 device identity.
 
-## Build Commands
-
-All commands run from the `app/` directory:
-
-```bash
-cargo tauri dev           # dev mode with hot reload
-cargo tauri build         # production build (binary + .deb + .rpm)
-npx tsc --noEmit          # TypeScript check only
-cargo check               # Rust check only (from app/src-tauri/)
-pnpm add <package>        # add frontend dependency
-cargo add <crate>         # add Rust dependency (from app/src-tauri/)
+**Sway users** need this in their config:
 ```
-
-## Debugging
-
-- **Webview devtools**: Press `Ctrl+Shift+I` while the app is focused
-- **Rust logs**: Appear in the terminal where `cargo tauri dev` is running
-- **JS console.log**: Goes to the webview devtools console, NOT the terminal
+for_window [app_id="deskmate"] floating enable
+```
 
 ## Debug Commands
 
-Type these into the chat input to test features without a gateway connection:
+Type these into the chat input:
 
-- **`ack`** — Returns "ACK" after a brief simulated stream. Tests basic bubble display.
-- **`emo`** — Picks a random non-neutral emotion from the current skin and displays it. Tests emotion switching, dismiss→neutral revert, and pin→persist behavior.
-- **`md`** — Returns a rich Markdown sample (headers, bold, code block, list, blockquote, table, link). Tests Markdown rendering, syntax highlighting, and bubble theming.
+- **`emo`** — Switch to a random expression. Tests expression switching without a gateway.
 
-## Known Platform Issues
+## Rendering Quality: QPainter vs QWebEngineView (Chromium)
 
-### NVIDIA GPU: `Failed to create GBM buffer`
+The ghost window uses QWebEngineView (Chromium `<img>` tag) instead of QPainter for image rendering. This was a deliberate choice after observing significantly worse anti-aliasing with vanilla Qt. The difference comes from three layers:
 
-WebKitGTK + NVIDIA proprietary drivers have a known issue with DMA-BUF allocation for transparent windows. Fix:
+### 1. Scaling Algorithm
 
-```bash
-WEBKIT_DISABLE_COMPOSITING_MODE=1 cargo tauri dev
-```
+- **QPainter `SmoothTransformation`**: Bilinear interpolation (2x2 pixel sample). Fast but soft, especially on large downscales like 3133px → 540px.
+- **Chrome `<img>`**: Lanczos-3 resampling (6x6 sinc-based kernel). Much better edge preservation.
 
-Other env vars that may help:
-```bash
-WEBKIT_DISABLE_DMABUF_RENDERER=1 cargo tauri dev
-```
+### 2. Compositing Pipeline
 
-### `libayatana-appindicator is deprecated` warning
+- **QPainter**: CPU-based software rasterizer. Scales the image, then blits it onto the window surface with basic alpha blending. The transparent window compositing is also done in software.
+- **Chrome (Skia)**: GPU-accelerated compositing with **premultiplied alpha** throughout the entire pipeline. Image decode, scale, and composite all happen on the GPU with proper filtering at every step.
 
-The tray icon produces a warning: `libayatana-appindicator is deprecated. Please use libayatana-appindicator-glib in newly written code.` This is an upstream issue — Tauri's `tray-icon` crate depends on the `libappindicator` Rust crate (v0.9.0) which binds to the deprecated C library. Until `tray-icon` migrates to `libayatana-appindicator-glib`, this warning cannot be resolved on our side. The tray works fine despite the warning.
+### 3. Why Pillow Lanczos Didn't Help
 
-### Sway / Wayland
+We tried replacing Qt's scaler with Pillow's Lanczos (the same algorithm browsers use). Quality didn't improve because the bottleneck was **not the scaling step** — it was QPainter's compositing. When QPainter draws the scaled QPixmap onto the transparent window, it uses bilinear filtering *again* for the final blit. Even a perfectly scaled image gets degraded at the compositing stage.
 
-The app works on Sway with the `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround above. XWayland is used when `GDK_BACKEND=x11` is set (usually enabled in Sway by default).
+Chrome avoids this entirely because Skia renders the `<img>` directly to a GPU texture that the Wayland compositor receives as-is — no extra software compositing step.
 
-## Architecture Overview
+**Conclusion**: For any transparent window that needs high-quality image rendering on Qt, use QWebEngineView with an `<img>` tag instead of QPainter. The tradeoff is higher memory usage (each QWebEngineView is a Chromium instance) but the visual quality matches browser rendering exactly — because it *is* browser rendering.
 
-### Two-Layer System
-- **Rust backend** (`app/src-tauri/src/`): Tauri commands, OpenClaw WebSocket client, skin loader, settings persistence
-- **React frontend** (`app/src/`): Components + hooks calling Rust via `invoke()`, Tauri events for streaming
+### Mouse Event Interception on QWebEngineView
 
-### Data Flow
+QWebEngineView creates internal child widgets (`RenderWidgetHostViewQtDelegateWidget`) that swallow all mouse events. To handle drag and click on a QWebEngineView-based window:
 
-```
-User types → ChatInput → invoke('chat_send') → Rust GatewayClient → OpenClaw WS
-OpenClaw WS → Rust EventFrame listener → app.emit("chat-event") → useOpenClaw hook → Bubble
-```
+1. Install an `eventFilter` recursively on all child widgets after `loadFinished`
+2. Also handle `ChildAdded` events to catch widgets created dynamically
+3. Use `windowHandle().startSystemMove()` for drag — this delegates to the Wayland compositor natively (QWidget.move() is ignored on Wayland)
+4. Distinguish click vs drag by checking manhattan distance between press and release positions
 
-### Key Files
+See `ghost.py` `eventFilter()` and `_install_filters_recursive()`.
+
+## Fractional Scaling (Wayland)
+
+Sway with fractional scale (e.g., 1.333x) causes blurry rendering in ALL Qt/GTK apps. The compositor sends integer scale 2 to apps via `wl_output.scale`, then downscales the 2x buffer to 1.33x. This double-scaling causes blur and is not fixable from the app side. Integer scales (1x, 2x) render sharply.
+
+Relevant issues:
+- [sway#8131](https://github.com/swaywm/sway/issues/8131) — Blurry scaling for native Wayland apps
+- [sway#7463](https://github.com/swaywm/sway/issues/7463) — Rounding issues with wp-fractional-scaling
+
+## Key Files
 
 | Area | File |
 |------|------|
-| App entry | `app/src/App.tsx` |
-| Ghost character | `app/src/components/Ghost.tsx` |
-| Chat hook | `app/src/hooks/useOpenClaw.ts` |
-| Skin hook | `app/src/hooks/useSkin.ts` |
-| Settings hook | `app/src/hooks/useSettings.ts` |
-| Rust gateway client | `app/src-tauri/src/openclaw/client.rs` |
-| Rust chat commands | `app/src-tauri/src/commands/chat.rs` |
-| Skin loader | `app/src-tauri/src/skin/loader.rs` |
-| Settings persistence | `app/src-tauri/src/settings/store.rs` |
-| Tauri capabilities | `app/src-tauri/capabilities/default.json` |
-| Tauri config | `app/src-tauri/tauri.conf.json` |
+| App entry / orchestrator | `app/main.py` |
+| Ghost window (QWebEngineView) | `app/src/windows/ghost.py` |
+| Chat bubble (QWebEngineView) | `app/src/windows/bubble.py` |
+| Chat input | `app/src/windows/chat_input.py` |
+| Settings window | `app/src/windows/settings.py` |
+| Skin picker | `app/src/windows/skin_picker.py` |
+| Gateway WebSocket client | `app/src/gateway/client.py` |
+| Ed25519 device identity | `app/src/gateway/device_identity.py` |
+| Protocol types | `app/src/gateway/types.py` |
+| Chat session | `app/src/gateway/chat.py` |
+| Settings persistence (YAML) | `app/src/lib/settings.py` |
+| Skin loader | `app/src/lib/skin.py` |
+| Emotion/button tag parsing | `app/src/lib/parse.py` |
+| Idle animation | `app/src/lib/idle.py` |
+| Quake terminal | `app/src/lib/quake_terminal.py` |
+| Slash command autocomplete | `app/src/lib/commands.py` |
 
-### Skin Format
+## Legacy Tauri App
 
-Each skin is a folder under `app/skins/`:
-```
-skins/<skin-id>/
-  manifest.yaml     # { name, author, version, emotions: { happy: "happy.png", ... } }
-  happy.png
-  sad.png
-  angry.png
-  disgusted.png
-  condescending.png
-  thinking.png
-  uwamezukai.png
-  neutral.png
-```
-
-### Emotion System
-
-Emotions are parsed client-side from AI text using `[emotion:X]` tags, then stripped from display. Falls back to `neutral`. The AI agent must be prompted to emit these tags — there is no protocol-native emotion field.
-
-Available emotions are **dynamic per skin** — defined in the skin's `manifest.yaml` `emotions` map. The only required emotion is `neutral` (all skins must have it). When the AI sends an unknown emotion, it falls back to `neutral` with a warning logged.
-
-When the bubble is dismissed (manually or by auto-dismiss timer), the ghost reverts to `neutral`. When the bubble is pinned, the ghost stays in the current emotion until the user manually dismisses it.
-
-### Tauri Capabilities
-
-Permissions are in `app/src-tauri/capabilities/default.json`. If adding new Tauri APIs (e.g., shell, dialog, notification), add the corresponding permission there.
-
-## E2E Tests (Window Positioning & Bleed Detection)
-
-Automated integration tests that launch the real app on Sway Wayland and verify window positioning correctness and transparency bleed absence. These are **not unit tests** — they interact with the live compositor.
-
-### Design Decisions
-
-- **Rust integration tests** (`app/src-tauri/tests/`) using `swayipc` for compositor queries and `grim` for screenshots. No browser automation (Playwright/Cypress) — the testable behavior is at the compositor level, not the DOM.
-- **Bleed detection** via screenshot comparison: a green `(0,255,0)` background is rendered via `swaybg` on the wallpaper layer. After hiding UI elements, the region is screenshotted and all pixels are verified to be green within ±5 per RGB channel. Non-green pixels = stale bleed artifacts.
-- **Position verification** via `swayipc::get_tree()`: query the compositor for actual window coordinates, compare against expected within ±5px. No screenshot alignment or template matching needed.
-- **Sway only** for now — the only platform with compositor IPC implemented. Tests skip automatically on non-Sway environments.
-- **Sequential execution** (`--test-threads=1`) because tests manipulate global compositor state.
-
-### System Dependencies
-
-```bash
-# Arch Linux
-sudo pacman -S grim swaybg wtype
-```
-
-- `grim` — Wayland screenshot tool
-- `swaybg` — solid-color wallpaper for green-screen bleed detection
-- `wtype` — Wayland keyboard simulation (replaces xdotool)
-
-### Running
-
-```bash
-# 1. Build the app binary (once)
-cd app && cargo tauri build --debug
-
-# 2. Run E2E tests (must be on a Sway session)
-cd app/src-tauri && cargo test --test e2e -- --test-threads=1
-```
-
-Tests skip with a message if `SWAYSOCK` is not set (i.e., not on Sway).
-
-### Test Scenarios
-
-| File | Tests | What it verifies |
-|------|-------|-----------------|
-| `ghost_window.rs` | Ghost renders, transparent background, position save/restore | Ghost appears in Sway tree, corners are transparent (green), Ctrl+Q saves position and relaunch restores it |
-| `popup_position.rs` | Input/bubble positioned near ghost, show-before-move regression | Popups appear near the ghost (not at 0,0), catching the "hidden windows can't be moved on Sway" bug |
-| `bleed.rs` | No bleed after bubble hide, no bleed after input hide | After dismissing a popup, screenshot its former region — all pixels must be green (no stale artifacts) |
-| `keyboard.rs` | Focus returns after input close | After closing the chat input with Escape, ghost window gets focus back |
-
-### Test Infrastructure
-
-```
-app/src-tauri/tests/
-  e2e.rs                    # entry point
-  helpers/
-    app.rs                  # launch/kill app binary (DESKMATE_TEST_MODE=1, isolated data dir)
-    sway.rs                 # swayipc wrappers: find_window, wait_for_window, assert_position_near, send_key
-    screenshot.rs           # grim capture + green pixel verification
-    green_screen.rs         # swaybg launcher (green wallpaper), killed on Drop
-  tests/
-    ghost_window.rs
-    popup_position.rs
-    bleed.rs
-    keyboard.rs
-```
-
-The `DESKMATE_TEST_MODE=1` env var enables `e2e_inject_event` — a Tauri command that emits arbitrary events, allowing tests to simulate chat responses without a gateway connection.
-
-### Asset Protocol
-
-Local files (skin PNGs) are served to the webview via Tauri's asset protocol. Configured in `tauri.conf.json` under `app.security.assetProtocol`. The scope must cover the paths returned by the skin loader. In dev mode, skins are at an absolute filesystem path; in production, they're under `$RESOURCE/skins/`.
+The original Tauri v2 codebase is preserved in `app-tauri/` for reference. See `memory/BLEED.md` for documentation of the WebKitGTK transparency bleed bug that drove the migration to PySide6.
