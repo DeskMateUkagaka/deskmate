@@ -21,11 +21,13 @@ First run creates `~/.config/deskmate/` with default settings and a generated Ed
 for_window [app_id="deskmate"] floating enable
 ```
 
-## Debug Commands
+## Debug Cheat Codes
 
-Type these into the chat input:
+Type these into the chat input. They bypass the gateway entirely — no connection needed.
 
-- **`emo`** — Switch to a random expression. Tests expression switching without a gateway.
+- **`ack`** — Show a hardcoded "ACK" bubble immediately. Tests bubble display without hitting the gateway.
+- **`emo`** — Switch to a random non-neutral expression. Tests ghost expression rendering.
+- **`md`** — Stream a sample Markdown document (headers, bold, code blocks, tables, lists, blockquote, link) into the bubble. Simulates real gateway streaming at ~10 chars/30ms. Tests bubble markdown rendering and streaming cursor animation.
 
 ## Rendering Quality: QPainter vs QWebEngineView (Chromium)
 

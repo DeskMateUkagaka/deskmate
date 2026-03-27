@@ -241,14 +241,22 @@ class DeskMate:
         # User interaction — reset idle countdown
         self._idle_manager.reset()
 
-        # Debug: "emo" switches to a random expression
-        if text.strip().lower() == "emo":
+        # Debug cheat codes — bypass gateway entirely
+        cmd = text.strip().lower()
+        if cmd == "ack":
+            self._show_local_bubble("ACK")
+            logger.info("Debug: ack")
+            return
+        if cmd == "emo":
             import random
-
             expressions = list(self._ghost._emotion_files.keys())
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
+            self._show_local_bubble(f"emotion test → {expr}")
             logger.info("Debug: random expression -> %s", expr)
+            return
+        if cmd == "md":
+            self._debug_stream_markdown()
             return
 
         if not self._gateway:
@@ -375,6 +383,61 @@ class DeskMate:
         if not self._bubble.is_bubble_visible():
             self._reposition_bubble()
             self._bubble.show_bubble()
+
+    def _debug_stream_markdown(self):
+        """Stream sample markdown into the bubble, simulating gateway streaming."""
+        sample = (
+            "# Hello from Markdown!\n\n"
+            "Here's some **bold**, *italic*, and `inline code`.\n\n"
+            "## A code block\n\n"
+            "```python\n"
+            'def greet(name: str) -> str:\n'
+            '    """Say hello with style."""\n'
+            '    return f"Hello, {name}!"\n\n'
+            "for i in range(3):\n"
+            '    print(greet("World"))\n'
+            "```\n\n"
+            "## A list\n\n"
+            "- First item\n"
+            "- Second item with **emphasis**\n"
+            "- Third item\n\n"
+            "> This is a blockquote. It should look nice.\n\n"
+            "| Header 1 | Header 2 |\n"
+            "|----------|----------|\n"
+            "| Cell A   | Cell B   |\n"
+            "| Cell C   | Cell D   |\n\n"
+            "And a [link](https://example.com) for good measure."
+        )
+
+        self._ghost.set_expression("thinking")
+        self._bubble_counter += 1
+        item_id = f"debug-md-{self._bubble_counter}"
+        self._bubble.start_streaming(item_id, "")
+
+        if not self._bubble.is_bubble_visible():
+            self._reposition_bubble()
+            self._bubble.show_bubble()
+
+        # Stream ~10 chars at a time, ~30ms apart
+        self._md_stream_pos = 0
+        self._md_stream_sample = sample
+        self._md_stream_id = item_id
+
+        def _tick():
+            self._md_stream_pos = min(self._md_stream_pos + 10, len(self._md_stream_sample))
+            partial = self._md_stream_sample[:self._md_stream_pos]
+            self._bubble.update_text(self._md_stream_id, partial)
+            if self._md_stream_pos >= len(self._md_stream_sample):
+                self._md_timer.stop()
+                self._bubble.finalize(self._md_stream_id)
+                self._ghost.set_expression("neutral")
+                logger.info("Debug: md streaming complete")
+
+        self._md_timer = QTimer()
+        self._md_timer.setInterval(30)
+        self._md_timer.timeout.connect(_tick)
+        self._md_timer.start()
+        logger.info("Debug: md streaming started")
 
     # ------------------------------------------------------------------
     # Bubble actions
