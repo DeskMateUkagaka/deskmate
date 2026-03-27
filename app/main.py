@@ -13,7 +13,7 @@ from pathlib import Path
 
 import yaml
 from loguru import logger
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer
+from PySide6.QtCore import QPoint, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from src.gateway.chat import ChatSession
@@ -23,7 +23,8 @@ from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.settings import AppStateManager, SettingsManager
-from src.lib.skin import SkinLoader
+from src.lib.skin import SkinLoader, UiPlacement
+from src.lib.window_position import calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
 from src.windows.ghost import GhostWindow
@@ -206,24 +207,65 @@ class DeskMate:
     # Window positioning
     # ------------------------------------------------------------------
 
-    def _reposition_bubble(self):
-        ghost_pos = self._ghost.pos()
-        ghost_size = QSize(self._ghost.width(), self._ghost.height())
-        placement = None
-        if self._skin and self._skin.bubble_placement:
-            bp = self._skin.bubble_placement
-            placement = {"x": bp.x, "y": bp.y, "origin": bp.origin}
-        self._bubble.reposition(ghost_pos, ghost_size, placement)
+    def _calc_screen_rect(self):
+        """Return (width, height) of the primary screen's available area."""
+        screen = self._app.primaryScreen()
+        if screen:
+            sg = screen.availableGeometry()
+            return sg.width(), sg.height()
+        return 1920, 1080
 
-    def _reposition_input(self):
+    def _position_window(self, window, placement):
+        """Position *window* relative to ghost using shared anchor + clamping."""
         ghost_pos = self._ghost.pos()
         bounds = self._ghost.image_bounds()
+        ax, ay = calc_anchor(
+            ghost_pos.x(),
+            ghost_pos.y(),
+            bounds,
+            placement.x,
+            placement.y,
+        )
+        sw, sh = self._calc_screen_rect()
+        pos = calc_window_position(
+            ax,
+            ay,
+            window.width(),
+            window.height(),
+            placement.origin,
+            sw,
+            sh,
+        )
+        window.move(pos.screen_x, pos.screen_y)
+        return pos
 
-        # Position below the ghost
-        x = ghost_pos.x() + bounds["centerX"] - self._input.width() // 2
-        y = ghost_pos.y() + bounds["bottom"] + 10
+    def _reposition_bubble(self):
+        if self._skin and self._skin.bubble_placement:
+            p = self._skin.bubble_placement
+        else:
+            p = UiPlacement(x=20, y=-self._bubble.height() + 60, origin="bottom-left")
+        self._position_window(self._bubble, p)
 
-        self._input.move(x, y)
+    def _reposition_input(self):
+        if self._skin and self._skin.input_placement:
+            self._position_window(self._input, self._skin.input_placement)
+            return
+        # Default: centered below the sprite's bottom edge with a small gap.
+        ghost_pos = self._ghost.pos()
+        bounds = self._ghost.image_bounds()
+        ax = ghost_pos.x() + bounds["centerX"]
+        ay = ghost_pos.y() + bounds["bottom"] + 10
+        sw, sh = self._calc_screen_rect()
+        pos = calc_window_position(
+            ax,
+            ay,
+            self._input.width(),
+            self._input.height(),
+            "top-center",
+            sw,
+            sh,
+        )
+        self._input.move(pos.screen_x, pos.screen_y)
 
     def _on_ghost_moved(self, pos: QPoint):
         if self._bubble.is_bubble_visible():

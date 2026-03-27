@@ -3,12 +3,12 @@
 import json
 
 from loguru import logger
-from PySide6.QtCore import QObject, QPoint, QSize, Qt, Signal, Slot
+from PySide6.QtCore import QObject, Qt, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 # ---------------------------------------------------------------------------
 # Embedded HTML template — full feature bubble with markdown, streaming,
@@ -690,50 +690,6 @@ class BubbleWindow(QWidget):
 
     def is_bubble_visible(self) -> bool:
         return self.isVisible()
-
-    def reposition(
-        self,
-        ghost_pos: QPoint,
-        ghost_size: QSize,
-        placement: dict | None = None,
-    ) -> None:
-        """Move the bubble window relative to the ghost.
-
-        placement: dict with keys x, y, origin (from skin manifest bubble_placement).
-        Default: place bubble to the upper-right of ghost center.
-        """
-        if placement is None:
-            placement = {"x": 20, "y": -self.height() + 60, "origin": "bottom-left"}
-
-        px = int(placement.get("x", 20))
-        py = int(placement.get("y", -self.height() + 60))
-        origin = placement.get("origin", "bottom-left")
-
-        # Anchor: ghost center
-        anchor_x = ghost_pos.x() + ghost_size.width() // 2
-        anchor_y = ghost_pos.y() + ghost_size.height() // 2
-
-        # Window top-left from anchor + offset
-        win_x = anchor_x + px
-        win_y = anchor_y + py
-
-        # Adjust for origin
-        if "right" in origin:
-            win_x -= self.width()
-        if "bottom" in origin:
-            win_y -= self.height()
-        elif "center" in origin:
-            win_y -= self.height() // 2
-
-        # Clamp to screen
-        screen = QApplication.primaryScreen()
-        if screen:
-            sg = screen.availableGeometry()
-            win_x = max(sg.left(), min(win_x, sg.right() - self.width()))
-            win_y = max(sg.top(), min(win_y, sg.bottom() - self.height()))
-
-        self.move(win_x, win_y)
-        logger.debug(f"Bubble repositioned to ({win_x}, {win_y})")
 
     # ------------------------------------------------------------------
     # Internal

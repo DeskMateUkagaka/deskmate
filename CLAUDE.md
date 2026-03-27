@@ -8,6 +8,11 @@ AI-powered desktop companion (DeskMate) built with PySide6 (Qt6). A transparent 
 
 The app was migrated from Tauri v2 (Rust + React) to PySide6 (Python). The old codebase is preserved in `app-tauri/` for reference. The migration was driven by WebKitGTK's unfixable transparent window bleed bug.
 
+## Code Style
+
+- **Python 3.13+ required** — do not use `from __future__ import annotations`.
+- **No inline imports** — all imports go at the top of the file.
+
 ## Getting Started
 
 ```bash
