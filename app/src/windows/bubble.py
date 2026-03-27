@@ -598,7 +598,7 @@ class BubbleWindow(QWidget):
         self._web.setPage(self._page)
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
-        self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
+        self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, True)
         self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
 
         # QWebChannel bridge
