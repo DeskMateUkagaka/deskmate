@@ -436,7 +436,7 @@ class DeskMate:
     def _end_streaming(self) -> None:
         """Finalize active bubble and restart idle."""
         if self._active_bubble_id:
-            self._bubble.finalize(self._active_bubble_id)
+            self._bubble.finalize(self._active_bubble_id, self._settings.bubble_timeout_ms)
         self._active_bubble_id = None
         self._chat_state = "idle"
         self._idle_manager.reset()
