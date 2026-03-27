@@ -33,11 +33,13 @@ def calc_anchor(
 ) -> tuple[int, int]:
     """Compute anchor point from ghost position + image bounds + placement offset.
 
-    image_bounds: dict with centerX/centerY keys (from GhostWindow.image_bounds()).
-    placement_x/y: skin-defined offset in display pixels.
+    image_bounds: dict with centerX/centerY/scale keys (from GhostWindow.image_bounds()).
+    placement_x/y: skin-defined offset in **original PNG pixel coordinates** —
+    they are scaled by image_bounds["scale"] (targetHeight / naturalHeight).
     """
-    px = int(placement_x)
-    py = int(placement_y)
+    s = image_bounds.get("scale", 1.0) if image_bounds else 1.0
+    px = int(placement_x * s)
+    py = int(placement_y * s)
     if image_bounds:
         return (
             ghost_x + image_bounds["centerX"] + px,

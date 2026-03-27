@@ -79,7 +79,7 @@ class DeskMate:
         # Load skin into ghost — need the emotion->files mapping from manifest
         emotions_map = self._load_emotions_map(self._skin)
         self._ghost.set_skin(emotions_map, self._skin.path)
-        self._ghost.set_height(self._settings.ghost_height_pixels)
+        self._apply_ghost_size()
 
         # Chat state
         self._chat_state = "idle"  # idle | sending | streaming
@@ -207,6 +207,12 @@ class DeskMate:
     # Window positioning
     # ------------------------------------------------------------------
 
+    def _apply_ghost_size(self):
+        if self._settings.ghost_width_pixels is not None:
+            self._ghost.set_width(self._settings.ghost_width_pixels)
+        else:
+            self._ghost.set_height(self._settings.ghost_height_pixels)
+
     def _calc_screen_rect(self):
         """Return (width, height) of the primary screen's available area."""
         screen = self._app.primaryScreen()
@@ -261,7 +267,7 @@ class DeskMate:
             ay,
             self._input.width(),
             self._input.height(),
-            "top-center",
+            "center",
             sw,
             sh,
         )
@@ -700,8 +706,8 @@ class DeskMate:
         except Exception as e:
             logger.warning(f"Failed to persist settings: {e}")
 
-        # Apply ghost height immediately
-        self._ghost.set_height(self._settings.ghost_height_pixels)
+        # Apply ghost size immediately
+        self._apply_ghost_size()
 
         # Reconnect gateway if URL changed
         if updated.get("gateway_url", old_url) != old_url:

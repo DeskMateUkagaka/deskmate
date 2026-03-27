@@ -1,10 +1,12 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 from loguru import logger
 from platformdirs import user_config_dir
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+from src.lib.consts import DEFAULT_GHOST_HEIGHT
 
 
 def _default_config_dir() -> Path:
@@ -26,7 +28,8 @@ class Settings(BaseModel):
     proactive_enabled: bool = False
     proactive_interval_mins: int = 60
     current_skin_id: str = "default"
-    ghost_height_pixels: int = 540
+    ghost_height_pixels: Optional[int] = DEFAULT_GHOST_HEIGHT
+    ghost_width_pixels: Optional[int] = None
     popup_margin_top: float = 10.0
     popup_margin_bottom: float = 10.0
     popup_margin_left: float = 10.0
@@ -34,6 +37,17 @@ class Settings(BaseModel):
     idle_interval_seconds: float = 30.0
     quake_terminal: QuakeTerminalConfig = QuakeTerminalConfig()
     ghost_toggle_hotkey: str = "super+f11"
+
+    @model_validator(mode="after")
+    def _validate_ghost_size(self) -> "Settings":
+        h, w = self.ghost_height_pixels, self.ghost_width_pixels
+        if h is None and w is None:
+            raise ValueError("One of ghost_height_pixels or ghost_width_pixels must be set")
+        if h is not None and w is not None:
+            raise ValueError("Only one of ghost_height_pixels or ghost_width_pixels can be set")
+        if (h is not None and h <= 0) or (w is not None and w <= 0):
+            raise ValueError("ghost_height_pixels / ghost_width_pixels must be > 0")
+        return self
 
 
 class AppState(BaseModel):

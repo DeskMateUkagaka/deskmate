@@ -11,8 +11,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from src.lib.compositor import get_window_position, set_window_position
-
-DEFAULT_HEIGHT = 540
+from src.lib.consts import DEFAULT_GHOST_HEIGHT
 
 GHOST_HTML = """\
 <!DOCTYPE html>
@@ -109,7 +108,8 @@ class GhostWindow(QWidget):
         self._emotion_files: dict[str, list[Path]] = {}
         self._current_expr: str = "neutral"
         self._variant_indices: dict[str, int] = {}
-        self._display_height: int = DEFAULT_HEIGHT
+        self._display_height: int | None = DEFAULT_GHOST_HEIGHT
+        self._display_width: int | None = None
         self._skin_dir: Path | None = None
         self._idle_override_path: str | None = None
 
@@ -117,9 +117,10 @@ class GhostWindow(QWidget):
         self._press_pos: QPoint | None = None
         self._dragging = False
 
-        # Track current image's natural size for image_bounds
+        # Track current image size for image_bounds
         self._img_width = 0
         self._img_height = 0
+        self._natural_height = 0  # original PNG height, for computing scale
 
         # WebEngineView setup
         self._web = QWebEngineView(self)
@@ -219,8 +220,21 @@ class GhostWindow(QWidget):
         self._update_image()
         self.expression_changed.emit(name)
 
-    def set_height(self, pixels: int) -> None:
+    def set_height(self, pixels: int | None) -> None:
+        """Set target display height (mutually exclusive with set_width)."""
+        if pixels is None:
+            return
         self._display_height = pixels
+        self._display_width = None
+        self._compute_display_size()
+        self._update_image()
+
+    def set_width(self, pixels: int | None) -> None:
+        """Set target display width (mutually exclusive with set_height)."""
+        if pixels is None:
+            return
+        self._display_width = pixels
+        self._display_height = None
         self._compute_display_size()
         self._update_image()
 
@@ -252,6 +266,7 @@ class GhostWindow(QWidget):
         h = self._img_height
         x = (self.width() - w) // 2
         y = (self.height() - h) // 2
+        nh = self._natural_height
         return {
             "centerX": x + w // 2,
             "centerY": y + h // 2,
@@ -259,6 +274,7 @@ class GhostWindow(QWidget):
             "bottom": y + h,
             "left": x,
             "right": x + w,
+            "scale": h / nh if nh > 0 else 1.0,
         }
 
     # ------------------------------------------------------------------
@@ -321,9 +337,14 @@ class GhostWindow(QWidget):
         pm = QPixmap(str(path))
         if pm.isNull():
             return
+        self._natural_height = pm.height()
         ratio = pm.width() / pm.height()
-        self._img_height = self._display_height
-        self._img_width = max(1, round(self._display_height * ratio))
+        if self._display_width is not None:
+            self._img_width = self._display_width
+            self._img_height = max(1, round(self._display_width / ratio))
+        else:
+            self._img_height = self._display_height or DEFAULT_GHOST_HEIGHT
+            self._img_width = max(1, round(self._img_height * ratio))
         # Window size = image size + small margin
         self.resize(self._img_width + 20, self._img_height + 20)
 
