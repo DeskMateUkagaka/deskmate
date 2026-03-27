@@ -28,7 +28,7 @@ from .protocol import EventFrame, ResponseFrame, parse_frame
 from .types import AuthParams, ClientInfo, ConnectParams, to_wire
 
 # Reconnect back-off sequence (seconds)
-_BACKOFF = [1, 2, 4, 8, 16, 30]
+_BACKOFF = [1, 2, 4, 8, 10]
 
 
 class GatewayError(Exception):
