@@ -103,6 +103,7 @@ class GhostWindow(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowTitle("deskmate-ghost")
 
         # Emotion -> [file paths]
         self._emotion_files: dict[str, list[Path]] = {}
@@ -224,14 +225,14 @@ class GhostWindow(QWidget):
         self._update_image()
 
     def save_position(self) -> tuple[float, float]:
-        pos = get_window_position(app_id="deskmate")
+        pos = get_window_position(title="deskmate-ghost")
         if pos:
             return pos
         pos = self.pos()
         return float(pos.x()), float(pos.y())
 
     def restore_position(self, x: float, y: float) -> None:
-        if set_window_position(app_id="deskmate", x=int(x), y=int(y)):
+        if set_window_position(title="deskmate-ghost", x=int(x), y=int(y)):
             return
         self.move(int(x), int(y))
 
