@@ -21,7 +21,7 @@ from src.lib.commands import load_cached_commands, parse_commands_response, save
 from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
-from src.lib.settings import SettingsManager
+from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
@@ -53,6 +53,10 @@ class DeskMate:
         self._settings_mgr = SettingsManager()
         self._settings = self._settings_mgr.load()
         logger.info("Settings loaded from %s", self._settings_mgr._path)
+
+        # Transient state (window positions, etc.)
+        self._state_mgr = AppStateManager()
+        self._state = self._state_mgr.load()
 
         # Skin
         self._skin_loader = SkinLoader(SKINS_DIR)
@@ -249,6 +253,7 @@ class DeskMate:
             return
         if cmd == "emo":
             import random
+
             expressions = list(self._ghost._emotion_files.keys())
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
@@ -391,7 +396,7 @@ class DeskMate:
             "Here's some **bold**, *italic*, and `inline code`.\n\n"
             "## A code block\n\n"
             "```python\n"
-            'def greet(name: str) -> str:\n'
+            "def greet(name: str) -> str:\n"
             '    """Say hello with style."""\n'
             '    return f"Hello, {name}!"\n\n'
             "for i in range(3):\n"
@@ -425,7 +430,7 @@ class DeskMate:
 
         def _tick():
             self._md_stream_pos = min(self._md_stream_pos + 10, len(self._md_stream_sample))
-            partial = self._md_stream_sample[:self._md_stream_pos]
+            partial = self._md_stream_sample[: self._md_stream_pos]
             self._bubble.update_text(self._md_stream_id, partial)
             if self._md_stream_pos >= len(self._md_stream_sample):
                 self._md_timer.stop()
@@ -625,11 +630,9 @@ class DeskMate:
         # Save ghost position
         x, y = self._ghost.save_position()
         logger.info("Saving ghost position: (%s, %s)", x, y)
-        self._settings.ghost_x = x
-        self._settings.ghost_y = y
         try:
-            self._settings_mgr.update(ghost_x=x, ghost_y=y)
-            logger.info("Ghost position saved to config")
+            self._state_mgr.update(ghost_x=x, ghost_y=y)
+            logger.info("Ghost position saved to state.yaml")
         except Exception as e:
             logger.warning("Failed to save position: %s", e)
 
@@ -671,7 +674,7 @@ class DeskMate:
 
     def _restore_ghost_position(self):
         """Restore ghost position after the window is visible (needed for swaymsg)."""
-        x, y = self._settings.ghost_x, self._settings.ghost_y
+        x, y = self._state.ghost_x, self._state.ghost_y
         logger.info("Restoring ghost position: saved=(%s, %s)", x, y)
         if (x or y) and self._is_position_visible(x, y):
             self._ghost.restore_position(x, y)

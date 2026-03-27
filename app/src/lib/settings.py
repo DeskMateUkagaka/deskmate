@@ -42,11 +42,9 @@ class QuakeTerminalConfig:
 class Settings:
     gateway_url: str = "ws://127.0.0.1:18789"
     gateway_token: str = ""
-    bubble_timeout_ms: int = 60000
+    bubble_timeout_ms: int = 30000
     proactive_enabled: bool = False
     proactive_interval_mins: int = 60
-    ghost_x: float = 0.0
-    ghost_y: float = 0.0
     current_skin_id: str = "default"
     ghost_height_pixels: int = 540
     popup_margin_top: float = 10.0
@@ -82,8 +80,6 @@ def _settings_from_dict(data: dict[str, Any]) -> Settings:
         "bubble_timeout_ms",
         "proactive_enabled",
         "proactive_interval_mins",
-        "ghost_x",
-        "ghost_y",
         "current_skin_id",
         "ghost_height_pixels",
         "popup_margin_top",
@@ -104,6 +100,53 @@ def _settings_from_dict(data: dict[str, Any]) -> Settings:
 def _settings_to_dict(s: Settings) -> dict[str, Any]:
     d = asdict(s)
     return d
+
+
+@dataclass
+class AppState:
+    """Transient app state (window positions, etc.) — stored in state.yaml, not config.yaml."""
+
+    ghost_x: float = 0.0
+    ghost_y: float = 0.0
+
+
+class AppStateManager:
+    """Manages transient state in state.yaml, separate from user config."""
+
+    def __init__(self, config_dir: Path | None = None):
+        self._config_dir = config_dir if config_dir is not None else _default_config_dir()
+        self._path = self._config_dir / "state.yaml"
+        self._state = AppState()
+
+    def load(self) -> AppState:
+        if self._path.exists():
+            try:
+                data = yaml.safe_load(self._path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    if "ghost_x" in data:
+                        self._state.ghost_x = float(data["ghost_x"])
+                    if "ghost_y" in data:
+                        self._state.ghost_y = float(data["ghost_y"])
+            except Exception as e:
+                logger.warning("Failed to read state file %s: %s", self._path, e)
+        return self._state
+
+    def save(self) -> None:
+        self._config_dir.mkdir(parents=True, exist_ok=True)
+        data = asdict(self._state)
+        self._path.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
+
+    def update(self, **kwargs: Any) -> AppState:
+        for key, value in kwargs.items():
+            if not hasattr(self._state, key):
+                raise ValueError(f"Unknown state field: {key!r}")
+            setattr(self._state, key, value)
+        self.save()
+        return self._state
+
+    @property
+    def state(self) -> AppState:
+        return self._state
 
 
 class SettingsManager:

@@ -94,6 +94,8 @@ Gateway callbacks arrive in the asyncio context and must be marshalled to the Qt
 
 Persisted to `~/.config/deskmate/config.yaml` (YAML with comment preservation). `SettingsManager` in `src/lib/settings.py`. Key fields: `gateway_url`, `gateway_token`, `current_skin_id`, `ghost_height_pixels`, `bubble_timeout_ms`, `idle_interval_seconds`, `quake_terminal.*`.
 
+Transient state (window positions) is stored separately in `~/.config/deskmate/state.yaml` via `AppStateManager` — this keeps frequently-changing values like `ghost_x`/`ghost_y` out of the user-edited config file.
+
 ### Skin Format
 
 ```
