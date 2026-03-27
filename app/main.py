@@ -91,6 +91,7 @@ class DeskMate:
         # Idle animation
         self._idle_manager = IdleAnimationManager(self._app)
         self._idle_manager.set_skin(self._skin)
+        self._idle_manager.set_interval(self._settings.idle_interval_seconds)
         self._idle_manager.idle_override.connect(self._ghost.set_idle_override)
         self._idle_manager.idle_cleared.connect(self._ghost.clear_idle_override)
 
@@ -248,50 +249,84 @@ class DeskMate:
         # Debug cheat codes — bypass gateway entirely
         cmd = text.strip().lower()
         if cmd == "ack":
-            self._show_local_bubble("ACK")
-            logger.info("Debug: ack")
+            self._debug_stream_text("ACK", label="ack")
             return
         if cmd == "emo":
             import random
-
             expressions = list(self._ghost._emotion_files.keys())
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
-            self._show_local_bubble(f"emotion test → {expr}")
-            logger.info(f"Debug: random expression -> {expr}")
+            self._debug_stream_text(f"emotion test → {expr}", label="emo")
             return
         if cmd == "md":
-            self._debug_stream_markdown()
+            self._debug_stream_text(
+                "# Hello from Markdown!\n\n"
+                "Here's some **bold**, *italic*, and `inline code`.\n\n"
+                "## A code block\n\n"
+                "```python\n"
+                "def greet(name: str) -> str:\n"
+                '    """Say hello with style."""\n'
+                '    return f"Hello, {name}!"\n\n'
+                "for i in range(3):\n"
+                '    print(greet("World"))\n'
+                "```\n\n"
+                "## A list\n\n"
+                "- First item\n"
+                "- Second item with **emphasis**\n"
+                "- Third item\n\n"
+                "> This is a blockquote. It should look nice.\n\n"
+                "| Header 1 | Header 2 |\n"
+                "|----------|----------|\n"
+                "| Cell A   | Cell B   |\n"
+                "| Cell C   | Cell D   |\n\n"
+                "And a [link](https://example.com) for good measure.",
+                label="md",
+            )
             return
         if cmd == "long":
             self._debug_stream_text(
                 "This is a deliberately long message to test horizontal growth of the bubble window. "
                 "It contains enough text to push the boundaries and verify that the layout handles "
-                "wide content gracefully without clipping or overflow issues. "
+                "wide content gracefully without clipping or overflow issues.\n\n"
                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor "
                 "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-                "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+                "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
+                "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+                "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
+                "deserunt mollit anim id est laborum.\n\n"
+                "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium "
+                "doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore "
+                "veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam "
+                "voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur "
+                "magni dolores eos qui ratione voluptatem sequi nesciunt.\n\n"
+                "Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, "
+                "adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore "
+                "magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum "
+                "exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi "
+                "consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse "
+                "quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas "
+                "nulla pariatur?\n\n"
+                "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis "
+                "praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias "
+                "excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui "
+                "officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem "
+                "rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est "
+                "eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere "
+                "possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
                 label="long",
+                duration_ms=10000,
             )
             return
 
         if not self._gateway:
-            self._show_local_bubble(
-                f"Not connected to gateway. Configure in settings.\n\nYou said: {text}"
+            self._debug_stream_text(
+                f"Not connected to gateway. Configure in settings.\n\nYou said: {text}",
+                label="local",
             )
             return
 
-        self._chat_state = "sending"
         self._current_response = ""
-
-        # Start streaming bubble
-        self._bubble_counter += 1
-        self._active_bubble_id = f"msg-{self._bubble_counter}"
-        self._bubble.start_streaming(self._active_bubble_id, "")
-
-        if not self._bubble.is_bubble_visible():
-            self._reposition_bubble()
-            self._bubble.show_bubble()
+        self._active_bubble_id = self._begin_streaming()
 
         # Send via gateway
         asyncio.run_coroutine_threadsafe(self._send_chat(text), self._loop)
@@ -357,19 +392,17 @@ class DeskMate:
                 self._bubble.update_text(self._active_bubble_id, display_text)
 
         elif state == "final":
-            self._chat_state = "idle"
             display_text = strip_all_tags(self._current_response)
 
             if self._active_bubble_id:
                 self._bubble.update_text(self._active_bubble_id, display_text)
-                self._bubble.finalize(self._active_bubble_id)
 
                 # Extract buttons
                 buttons = parse_buttons(self._current_response)
                 if buttons:
                     self._bubble.set_buttons(self._active_bubble_id, buttons)
 
-            self._active_bubble_id = None
+            self._end_streaming()
             self._current_response = ""
 
         elif state == "error":
@@ -377,92 +410,68 @@ class DeskMate:
             self._on_chat_error(error_msg)
 
         elif state == "aborted":
-            self._chat_state = "idle"
-            if self._active_bubble_id:
-                self._bubble.finalize(self._active_bubble_id)
-            self._active_bubble_id = None
-
-        # Restart idle countdown when chat returns to idle and bubble is not visible
-        if self._chat_state == "idle" and not self._bubble.is_bubble_visible():
-            self._idle_manager.start()
+            self._end_streaming()
 
     def _on_chat_error(self, error: str):
-        self._chat_state = "idle"
         if self._active_bubble_id:
             self._bubble.update_text(self._active_bubble_id, f"Error: {error}")
+        self._end_streaming()
+
+    # ------------------------------------------------------------------
+    # Streaming lifecycle (shared by gateway and debug cheat codes)
+    # ------------------------------------------------------------------
+
+    def _begin_streaming(self, label: str = "msg") -> str:
+        """Start a streaming bubble: stop idle, create item, show bubble. Returns item_id."""
+        self._idle_manager.stop()
+        self._chat_state = "streaming"
+        self._bubble_counter += 1
+        item_id = f"{label}-{self._bubble_counter}"
+        self._bubble.start_streaming(item_id, "")
+        if not self._bubble.is_bubble_visible():
+            self._reposition_bubble()
+            self._bubble.show_bubble()
+        return item_id
+
+    def _end_streaming(self) -> None:
+        """Finalize active bubble and restart idle."""
+        if self._active_bubble_id:
             self._bubble.finalize(self._active_bubble_id)
         self._active_bubble_id = None
+        self._chat_state = "idle"
+        self._idle_manager.reset()
 
-    def _show_local_bubble(self, text: str):
-        """Show a local message (not from gateway)."""
-        self._bubble_counter += 1
-        item_id = f"local-{self._bubble_counter}"
-        self._bubble.start_streaming(item_id, text)
-        self._bubble.finalize(item_id)
-
-        if not self._bubble.is_bubble_visible():
-            self._reposition_bubble()
-            self._bubble.show_bubble()
-
-    def _debug_stream_markdown(self):
-        """Stream sample markdown into the bubble, simulating gateway streaming."""
-        sample = (
-            "# Hello from Markdown!\n\n"
-            "Here's some **bold**, *italic*, and `inline code`.\n\n"
-            "## A code block\n\n"
-            "```python\n"
-            "def greet(name: str) -> str:\n"
-            '    """Say hello with style."""\n'
-            '    return f"Hello, {name}!"\n\n'
-            "for i in range(3):\n"
-            '    print(greet("World"))\n'
-            "```\n\n"
-            "## A list\n\n"
-            "- First item\n"
-            "- Second item with **emphasis**\n"
-            "- Third item\n\n"
-            "> This is a blockquote. It should look nice.\n\n"
-            "| Header 1 | Header 2 |\n"
-            "|----------|----------|\n"
-            "| Cell A   | Cell B   |\n"
-            "| Cell C   | Cell D   |\n\n"
-            "And a [link](https://example.com) for good measure."
-        )
-        self._debug_stream_text(sample, label="md")
-
-    def _debug_stream_text(self, text: str, *, label: str = "debug"):
-        """Stream text into the bubble, simulating gateway streaming."""
+    def _debug_stream_text(self, text: str, *, label: str = "debug", duration_ms: int = 1000):
+        """Stream text into the bubble over duration_ms, simulating gateway streaming."""
+        self._active_bubble_id = self._begin_streaming(label=f"debug-{label}")
         self._ghost.set_expression("thinking")
-        self._bubble_counter += 1
-        item_id = f"debug-{label}-{self._bubble_counter}"
-        self._bubble.start_streaming(item_id, "")
 
-        if not self._bubble.is_bubble_visible():
-            self._reposition_bubble()
-            self._bubble.show_bubble()
+        # Calculate chunk size to finish in ~duration_ms at 30ms intervals
+        tick_interval = 30
+        num_ticks = max(1, duration_ms // tick_interval)
+        chunk_size = max(1, len(text) // num_ticks)
 
-        # Stream ~10 chars at a time, ~30ms apart
         self._debug_stream_pos = 0
         self._debug_stream_sample = text
-        self._debug_stream_id = item_id
+        self._debug_stream_chunk = chunk_size
 
         def _tick():
             self._debug_stream_pos = min(
-                self._debug_stream_pos + 10, len(self._debug_stream_sample)
+                self._debug_stream_pos + self._debug_stream_chunk, len(self._debug_stream_sample)
             )
             partial = self._debug_stream_sample[: self._debug_stream_pos]
-            self._bubble.update_text(self._debug_stream_id, partial)
+            self._bubble.update_text(self._active_bubble_id, partial)
             if self._debug_stream_pos >= len(self._debug_stream_sample):
                 self._debug_timer.stop()
-                self._bubble.finalize(self._debug_stream_id)
                 self._ghost.set_expression("neutral")
+                self._end_streaming()
                 logger.info(f"Debug: {label} streaming complete")
 
         self._debug_timer = QTimer()
-        self._debug_timer.setInterval(30)
+        self._debug_timer.setInterval(tick_interval)
         self._debug_timer.timeout.connect(_tick)
         self._debug_timer.start()
-        logger.info(f"Debug: {label} streaming started")
+        logger.info(f"Debug: {label} streaming started ({len(text)} chars, ~{duration_ms}ms)")
 
     # ------------------------------------------------------------------
     # Bubble actions
