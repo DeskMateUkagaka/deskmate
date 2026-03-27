@@ -10,6 +10,7 @@ my-skin/
   neutral.png       # Required: fallback emotion
   happy.png         # Optional emotion PNGs
   sad.png
+  preview.png       # Used in skin picker (recommended)
   ...
 ```
 
@@ -58,38 +59,31 @@ bubble:
   max_bubble_width: 640
   max_bubble_height: 540
 
-input:
-  max_width: 640
-  max_height: 480
+idle_animations:
+  - file: idle-blink.apng
+    duration_ms: 500
+  - file: idle-yawn.apng
+    duration_ms: 2000
 ```
 
 ### Validation Rules
 
 - `neutral` emotion is required (used as fallback)
 - All declared emotion PNG files must exist on disk
-- `format_version` must be <= app's `SUPPORTED_FORMAT_VERSION` (currently 1)
+- `format_version` must be <= app's supported version (currently 1)
 
 ## Skin Directories
 
 | Location | Purpose | Source tag |
 |----------|---------|-----------|
-| `app/skins/` (dev) / bundled resources (prod) | Ships with the app | `"bundled"` |
-| `$APP_DATA_DIR/skins/` | User-downloaded community skins | `"community"` |
+| `app/skins/` | Ships with the app (bundled) | `"bundled"` |
+| `~/.config/deskmate/skins/` (planned) | User-downloaded community skins | `"community"` |
 
-`SkinManager` scans both directories on startup and after `reload_skins()`.
+`SkinLoader` scans the skins directory on startup and on `list_skins()`.
 
 ## Community Distribution — Pling/OCS
 
 Skins are shared via [Pling](https://www.pling.com) (OpenDesktop), the same platform that powers KDE's "Get New Stuff" buttons. Creators upload via the Pling web UI; users browse and install from within DeskMate.
-
-### API
-
-- **Base URL:** `https://api.pling.com/ocs/v1/`
-- **Auth:** None required for reads
-- **Browse:** `GET /content/data?format=json&categories=464&tags=deskmate,deskmate-v1&sortmode=new&pagesize=20`
-- **Download:** `downloadlink1` field in response (JWT-signed, time-limited URL)
-- **Sort modes:** `new` | `down` (most downloaded) | `high` (highest rated) | `alpha`
-- **Tag filtering:** `tags=` is a Pling-specific extension (not in OCS 1.7 spec). Exact token match, comma-separated = AND logic.
 
 ### Tag Convention for Creators
 
@@ -99,15 +93,9 @@ When uploading a skin to Pling, tag it with:
 - `deskmate-v1` — **required**, skin format version (static PNGs)
 - Additional tags for discoverability: `anime`, `cute`, `dark`, `pixel-art`, etc.
 
-Future format versions will use `deskmate-v2`, `deskmate-v3`, etc.
-
-### Category
-
-Currently using category **464** (Various Stuff). A dedicated DeskMate category should be requested from `contact@opendesktop.org`.
-
 ### ZIP Structure
 
-Skin ZIPs uploaded to Pling can have either structure — the installer handles both:
+Skin ZIPs uploaded to Pling can have either structure:
 
 ```
 # Option A: files at root
@@ -115,7 +103,6 @@ my-skin.zip
   manifest.yaml
   neutral.png
   happy.png
-  ...
 
 # Option B: single subfolder
 my-skin.zip
@@ -123,43 +110,26 @@ my-skin.zip
     manifest.yaml
     neutral.png
     happy.png
-    ...
 ```
 
-The installer skips `__MACOSX/` and `.DS_Store` files.
+## Implementation
 
-## In-App "Get Skins" Window
+### Python Backend (`app/src/lib/skin.py`)
 
-- **Window:** 1280x720, separate Tauri window (`label: "get-skins"`)
-- **Accessible from:** tray menu, right-click context menu
-- **Features:** search, sort (newest/downloads/rating), thumbnail grid, install with progress bar, "Installed" badge
-- **Post-install:** emits `skin-installed` Tauri event → skin picker auto-refreshes
+- `SkinLoader` — scan, load, validate skins
+- `SkinInfo` dataclass — metadata, emotions list, placements, theme, idle animations
+- `UiPlacement`, `BubbleTheme`, `IdleAnimation` — supporting dataclasses
+- `get_emotion_images(skin, emotion)` — returns file paths, falls back to neutral
+- `get_preview_image(skin_id)` — returns path to `preview.png` or None
 
-## Key Files
+### Skin Picker UI (`app/src/windows/skin_picker.py`)
 
-### Rust Backend
-- `app/src-tauri/src/skin/loader.rs` — `SkinManager`: scan, load, validate, install, switch
-- `app/src-tauri/src/skin/types.rs` — `SkinManifest`, `SkinInfo`, `BubbleTheme`, `UiPlacement`
-- `app/src-tauri/src/ocs/client.rs` — OCS API HTTP client (browse + streaming download)
-- `app/src-tauri/src/ocs/types.rs` — `OcsResponse`, `OcsContentItem`, `OcsBrowseParams`
-- `app/src-tauri/src/commands/skin.rs` — Tauri commands: list, switch, get emotion image, reload
-- `app/src-tauri/src/commands/ocs.rs` — Tauri commands: browse, download+install, get installed IDs
+- `SkinPickerWindow` — grid of skin cards with preview image, name, author
+- Blue highlight border on currently active skin
+- Click selects and emits `skin_selected(skin_id)` signal
 
-### React Frontend
-- `app/src/hooks/useSkin.ts` — skin state, emotion preloading, auto-reload on `skin-installed`
-- `app/src/hooks/useOcsSkins.ts` — OCS gallery state: search, sort, pagination, download progress
-- `app/src/windows/GetSkinsWindow.tsx` — Get Skins gallery UI
-- `app/src/windows/SkinPickerWindow.tsx` — local skin picker, auto-refreshes on `skin-installed`
-- `app/src/types/index.ts` — `SkinInfo`, `OcsContentItem`, `OcsBrowseParams`, `SkinDownloadProgress`
+### Orchestration (`app/main.py`)
 
-### Config
-- `app/src-tauri/tauri.conf.json` — window def for `get-skins`, CSP allows `images.pling.com`
-- `app/src-tauri/capabilities/default.json` — `get-skins` in windows array
-
-## Tauri Events
-
-| Event | Direction | Payload | Purpose |
-|-------|-----------|---------|---------|
-| `skin-selected` | SkinPickerWindow → App | `{ id: string }` | User selected a skin |
-| `skin-installed` | GetSkinsWindow → App/SkinPicker | `{ id: string }` | New skin downloaded from Pling |
-| `skin-download-progress` | Rust → GetSkinsWindow | `{ downloaded, total }` | Streaming download progress |
+- `_on_skin_selected(skin_id)` — loads new skin, updates ghost, saves to settings
+- `_show_skin_picker()` — populates grid with available skins, positions near ghost
+- Tray menu "Change Skin" opens the picker

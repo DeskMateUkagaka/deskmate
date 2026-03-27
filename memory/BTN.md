@@ -20,7 +20,7 @@ The AI can embed clickable buttons in chat responses using `[btn:msg]` tags, sim
 1. AI response text contains `[btn:msg]` tags anywhere in the content
 2. Tags are stripped during streaming so they never appear as raw text
 3. After streaming finalizes, buttons are extracted and rendered in the bubble
-4. Buttons appear to the LEFT of Copy / Pin / Dismiss
+4. Buttons appear in the bubble's action button row
 5. Clicking a button:
    - Removes all dynamic buttons from that bubble
    - Sends the button's `msg` as a new chat message to the AI
@@ -42,43 +42,31 @@ Here are your options [emotion:happy] [btn:Option A][btn:Option B]
 
 ```
 AI text with [btn:X]
-  → useOpenClaw: strips tags from display, parses buttons on final
-  → App.tsx: captures bubble ID before finalize(), sets buttons after
-  → BubbleWindow: renders buttons left of Copy/Pin/Dismiss
-  → User clicks → bubble-action event { action: 'button-click', message }
-  → App.tsx: clearButtons + sendMessage
+  → parse.py: strip_all_tags() removes from display, parse_buttons() extracts labels on final
+  → main.py: captures bubble ID before finalize(), sets buttons after
+  → BubbleWindow JS: renders buttons via setButtons()
+  → User clicks → QWebChannel bridge → action signal { 'button-click', item_id, message }
+  → main.py: _on_bubble_action() → re-sends message as new chat
 ```
 
-## Implementation Details
+## Implementation
 
-### Parsing (`useOpenClaw.ts`)
+### Parsing (`app/src/lib/parse.py`)
 
-- `parseButtons(text)` — regex `/\[btn:([^\]]+)\]/g`, returns first 3 trimmed non-empty labels
-- `stripButtonTags(text)` — regex `/\[btn:[^\]]+\]/g`, removes all tags
-- Tags stripped during streaming (delta handler) so they never flash in the bubble
-- Buttons only extracted on finalization (final handler)
+- `parse_buttons(text)` — regex `\[btn:([^\]]+)\]`, returns all trimmed non-empty labels
+- `strip_button_tags(text)` — regex `\[btn:[^\]]+\]`, removes all tags
+- `strip_all_tags(text)` — strips both emotion and button tags
 
-### State (`useBubble.ts`)
+### Rendering (`app/src/windows/bubble.py`)
 
-- `BubbleItem.buttons: string[]` — empty during streaming, populated on finalize
-- `setButtons(id, buttons)` — takes explicit ID (not activeBubbleIdRef, which is null after finalize)
-- `clearButtons(id)` — sets buttons to `[]` for a specific item
+- Buttons rendered via JS `setButtons(itemId, buttonsJson)` in the embedded HTML
+- Click handler calls `bridge.onAction(JSON.stringify({itemId, message}))` via QWebChannel
+- `_BubbleBridge` forwards to `BubbleWindow.action` signal
 
-### Rendering (`BubbleWindow.tsx`)
+### Orchestration (`app/main.py`)
 
-- Dynamic buttons rendered when `!item.isStreaming && item.buttons.length > 0`
-- Styled with `primaryPillStyle` (same as Copy/Pin)
-- `itemSignature` includes button content so the bubble resizes correctly when buttons are added/removed
-
-### Orchestration (`App.tsx`)
-
-- Finalization effect captures `getActiveBubbleId()` BEFORE `finalize()`, then calls `setButtons` with the captured ID
-- Uses `currentButtonsRef` (not state) to avoid re-triggering the effect on button state changes
-- Button click handler also closes the chat-input popup to prevent double-sends
-
-## Debug Shortcut
-
-Type `btn` in the chat input to test. Shows "Here are some options for you" with 3 buttons: Tell me more, Thanks, Goodbye.
+- `_on_chat_event()`: on "final" state, calls `parse_buttons()` then `bubble.set_buttons()`
+- `_on_bubble_action()`: on "button-click" action, re-sends button message via `_on_chat_send()`
 
 ## Known Limitations
 

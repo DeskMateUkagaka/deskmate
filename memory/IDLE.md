@@ -66,17 +66,31 @@ The `--loops 1` flag sets the APNG to play once (recommended). The `--delay 100`
 
 ## Architecture
 
-### Frontend
+### IdleAnimationManager (`app/src/lib/idle.py`)
 
-- **`useIdleAnimation` hook** (`app/src/hooks/useIdleAnimation.ts`) — timer management, state machine (IDLE → ANIMATING → restore → IDLE), random selection with jitter. Takes `idleIntervalSeconds` from user settings.
-- **`App.tsx`** — wires the hook, passes `idleOverrideUrl` as emotion override, passes `settings.idle_interval_seconds`, calls `resetIdleTimer()` from all interaction handlers
-- **`Ghost.tsx`** — `imageKey` prop appended as URL fragment (`#replay=N`) to force APNG re-decode without DOM element destruction (which causes unfixable bleed on WebKitGTK)
+A `QObject` with two `QTimer` instances (single-shot):
+- **`_idle_timer`**: fires after `idle_interval_seconds ± 10% jitter` to pick and start an animation
+- **`_anim_timer`**: fires after `duration_ms` to clear the animation and restart the idle cycle
 
-### Backend (Rust)
+Signals:
+- `idle_override(str)` — emitted with the animation file path; ghost displays it
+- `idle_cleared()` — emitted when animation ends; ghost restores current expression
 
-- **`SkinManifest` / `SkinInfo`** (`app/src-tauri/src/skin/types.rs`) — `idle_animations: Vec<IdleAnimation>` with serde defaults for backward compatibility. `idle_interval_seconds` lives in user `Settings` (`config.yaml`), not in the skin manifest.
-- **`SkinManager::load_skin()`** (`app/src-tauri/src/skin/loader.rs`) — validates idle animation files exist on disk, checks path traversal, enforces minimum values
-- **`get_idle_animation_path`** command — resolves filename to absolute path with allowlist + canonicalization guard
+Methods:
+- `start()` — begin the idle timer cycle
+- `stop()` — stop all timers, clear any playing animation
+- `reset()` — cancel current animation, restart timer (called on user interaction)
+- `set_skin(SkinInfo)` — update available animations from skin manifest
+- `set_interval(seconds)` — update the idle interval
+- `set_enabled(bool)` — enable/disable the system
+
+### Integration (`app/main.py`)
+
+- `idle_override` signal → `ghost.set_idle_override(path)` (loads and displays the image via QWebEngineView)
+- `idle_cleared` signal → `ghost.clear_idle_override()` (restores current expression)
+- `_on_chat_send()` calls `idle_manager.reset()` (user interaction)
+- Chat returning to idle + bubble not visible → `idle_manager.start()`
+- App launch → `idle_manager.start()`
 
 ### State Machine
 
@@ -96,29 +110,11 @@ ANIMATING ──────────> IDLE (duration_ms elapsed, expression 
 ### Interaction Events That Reset Timer
 
 - Mouse click on ghost (left or right)
-- Keyboard shortcuts (Enter, Escape, etc.)
-- Dragging the ghost
-- Chat state transitions (sending/streaming disables idle via `enabled` flag; timer restarts when chat returns to idle and bubble dismisses)
-
-### APNG Replay Mechanism
-
-APNG in `<img>` tags loops by default and doesn't restart when the same URL is re-assigned. To force replay from frame 1, the hook increments `idlePlayCount` each time an animation starts. App.tsx passes this as `imageKey` to Ghost.tsx, which appends it as a URL fragment (`#replay=N`) to the image src. The browser treats this as a new URL and re-decodes the APNG from frame 1, without destroying the DOM element.
-
-**Why not React `key`?** Using `key={imageKey}` would force React to destroy and recreate the `<img>` element. On WebKitGTK transparent windows, element destruction causes bleed artifacts (old pixels persist) that the subsequent nudge cannot always clear reliably. The URL fragment approach keeps the same DOM element alive, avoiding destruction bleed entirely.
-
-### Nudge Concurrency Guard
-
-Ghost.tsx runs a "nudge" cycle on each `<img onLoad>` to clear WebKitGTK compositor bleed artifacts (resize +1px → wait → restore). Rapid image source changes (APNG → static on interaction interrupt) can trigger concurrent nudges. A `nudgeInProgress` ref serializes these operations — if a new `onLoad` fires while a nudge is in progress, the second nudge is skipped.
+- Chat message sent
+- Chat state transitions (sending/streaming disables idle; timer restarts when chat returns to idle and bubble dismisses)
 
 ## Backward Compatibility
 
-- Skins without `idle_animations` work identically to before (serde defaults to empty Vec)
-- `idle_interval_seconds` defaults to 30.0 if absent
-- No `format_version` bump required — older app versions silently ignore unknown YAML fields via serde defaults
-- Existing `format_version: 1` skins continue to work without modification
-
-## Security
-
-- Idle animation filenames must be declared in the manifest (allowlist prevents arbitrary frontend requests)
-- Path canonicalization (`canonicalize()` + `starts_with(base_path)`) prevents path traversal both at load time and at request time
-- Community skins with `file: "../../etc/passwd"` in the manifest are rejected during skin loading
+- Skins without `idle_animations` work identically (empty list, no idle behavior)
+- `idle_interval_seconds` defaults to 30.0 if absent from config
+- Existing skins continue to work without modification
