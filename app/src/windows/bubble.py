@@ -42,12 +42,7 @@ html, body {
     height: 100vh;
     overflow-y: auto;
 }
-#items-container::-webkit-scrollbar { width: 5px; }
-#items-container::-webkit-scrollbar-track { background: transparent; }
-#items-container::-webkit-scrollbar-thumb {
-    background: rgba(150, 150, 170, 0.4);
-    border-radius: 3px;
-}
+#items-container::-webkit-scrollbar { display: none; }
 
 .bubble-item {
     background: rgba(30, 30, 35, 0.92);
@@ -502,7 +497,17 @@ function _renderContent(id, text, isStreaming) {
 
 function notifySized() {
     var container = _getContainer();
-    var h = container.scrollHeight;
+    // Sum actual item heights + gaps + padding (not scrollHeight,
+    // which grows unbounded once the container is scrollable)
+    var items = container.children;
+    var totalH = 0;
+    for (var i = 0; i < items.length; i++) {
+        totalH += items[i].offsetHeight;
+    }
+    var style = getComputedStyle(container);
+    var gap = parseFloat(style.gap) || 0;
+    var padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    var h = totalH + padY + Math.max(0, items.length - 1) * gap;
     if (_bridge) _bridge.onContentSized(JSON.stringify({height: h}));
 }
 
@@ -629,6 +634,7 @@ class BubbleWindow(QWidget):
         self._page.setHtml(BUBBLE_HTML)
         self._page.loadFinished.connect(self._on_load_finished)
         self._loaded = False
+        self._last_content_h = 0
 
         # Pending JS queue — runs once page is loaded
         self._pending_js: list[str] = []
@@ -721,9 +727,11 @@ class BubbleWindow(QWidget):
     def _on_content_sized(self, h: int) -> None:
         if h > 0:
             new_h = min(max(h + 16, 60), 560)
-            self.resize(self.width(), new_h)
-            self.content_sized.emit(new_h)
-            logger.debug(f"Bubble content height: {h} -> window height {new_h}")
+            if new_h != self._last_content_h:
+                self._last_content_h = new_h
+                self.resize(self.width(), new_h)
+                self.content_sized.emit(new_h)
+                logger.debug(f"Bubble content height: {h} -> window height {new_h}")
 
     def _on_bridge_dismiss(self, item_id: str) -> None:
         self._run_js(f"removeItem({self._js_str(item_id)});")
