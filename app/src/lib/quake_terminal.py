@@ -235,7 +235,7 @@ class QuakeTerminalManager(QObject):
         x, y, width, height = self._compute_geometry(config)
         args = _build_spawn_args(terminal, _WINDOW_TITLE, width, height, config.command)
 
-        logger.info(f"Spawning terminal: {" ".join(args)}")
+        logger.info(f"Spawning terminal: {' '.join(args)}")
         self._process = subprocess.Popen(args)
         logger.info(f"Terminal spawned (pid={self._process.pid})")
 

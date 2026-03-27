@@ -722,9 +722,7 @@ class BubbleWindow(QWidget):
         for js in self._pending_js:
             self._page.runJavaScript(js)
         self._pending_js.clear()
-        logger.debug(
-            f"BubbleWindow: page loaded, flushed {len(self._pending_js)} pending JS calls"
-        )
+        logger.debug(f"BubbleWindow: page loaded, flushed {len(self._pending_js)} pending JS calls")
 
     def _run_js(self, js: str) -> None:
         if self._loaded:

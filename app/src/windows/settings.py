@@ -288,6 +288,6 @@ class SettingsWindow(QWidget):
             "idle_interval_seconds": float(self._idle_interval.value()),
             "current_skin_id": self._skin_combo.currentText(),
         }
-        logger.info(f"Settings saved: gateway_url={updated["gateway_url"]}")
+        logger.info(f"Settings saved: gateway_url={updated['gateway_url']}")
         self.settings_saved.emit(updated)
         self.hide_settings()

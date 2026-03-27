@@ -105,10 +105,7 @@ class IdleAnimationManager(QObject):
         jitter = base_ms * (random.random() * 0.2 - 0.1)  # ±10%
         delay_ms = int(base_ms + jitter)
         logger.debug(
-            "[idle] starting idle timer: %dms (base=%dms, jitter=%+.0fms)",
-            delay_ms,
-            int(base_ms),
-            jitter,
+            f"[idle] starting idle timer: {delay_ms}ms (base={int(base_ms)}ms, jitter={jitter:+.0f}ms)"
         )
         self._idle_timer.start(delay_ms)
 

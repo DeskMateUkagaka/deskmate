@@ -534,7 +534,7 @@ class DeskMate:
         self._quake.toggle(self._settings.quake_terminal)
 
     def _on_quake_toggled(self, visible: bool):
-        logger.info(f"Quake terminal {"shown" if visible else "hidden"}")
+        logger.info(f"Quake terminal {'shown' if visible else 'hidden'}")
 
     def _toggle_ghost(self):
         if self._ghost.isVisible():
@@ -688,7 +688,7 @@ class DeskMate:
         logger.info("=" * 50)
         logger.info("DeskMate (PySide6) started")
         logger.info(f"Skin: {self._skin.name} | Expressions: {self._skin.emotions}")
-        logger.info(f"Gateway: {self._settings.gateway_url or "(not configured)"}")
+        logger.info(f"Gateway: {self._settings.gateway_url or '(not configured)'}")
         logger.info("Click character or press Enter to chat")
         logger.info("=" * 50)
 

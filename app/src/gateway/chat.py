@@ -41,7 +41,7 @@ class ChatSession:
         )
         payload = await self.client.request("chat.send", to_wire(params))
         run_id: str = payload["runId"]
-        logger.debug(f"chat.send ack: runId={run_id} status={payload.get("status")}")
+        logger.debug(f"chat.send ack: runId={run_id} status={payload.get('status')}")
         return run_id
 
     async def abort(self, session_key: str, run_id: str | None = None) -> None:
