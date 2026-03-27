@@ -24,4 +24,6 @@ dist-ssr
 *.sw?
 
 .omc/
+
+*.pyc
 __pycache__/
