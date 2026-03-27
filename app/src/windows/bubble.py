@@ -1,7 +1,6 @@
 """BubbleWindow — transparent window with QWebEngineView for rich chat content."""
 
 import json
-from pathlib import Path
 
 from loguru import logger
 from PySide6.QtCore import QObject, QPoint, QSize, Qt, Signal, Slot

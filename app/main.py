@@ -12,10 +12,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
-# Allow Ctrl+C to kill the app (Qt's event loop swallows SIGINT by default)
-signal.signal(signal.SIGINT, signal.SIG_DFL)
-
 from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
@@ -33,6 +29,10 @@ from src.windows.chat_input import ChatInputWindow
 from src.windows.ghost import GhostWindow
 from src.windows.settings import SettingsWindow
 from src.windows.skin_picker import SkinPickerWindow
+
+# Allow Ctrl+C to kill the app (Qt's event loop swallows SIGINT by default)
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 
 APP_DIR = Path(__file__).resolve().parent
 SKINS_DIR = APP_DIR / "skins"

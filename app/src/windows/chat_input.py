@@ -4,12 +4,10 @@ from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,

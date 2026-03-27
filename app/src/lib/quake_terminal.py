@@ -8,7 +8,6 @@ Usage (Sway config):
     bindsym Ctrl+Alt+grave exec pkill -USR1 -x python3
 """
 
-import os
 import platform
 import shutil
 import signal
