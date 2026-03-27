@@ -219,11 +219,18 @@ class _InputEdit(QTextEdit):
     def _update_height(self) -> None:
         doc = self.document()
         doc.setTextWidth(self.viewport().width() or 400)
-        lines = max(1, doc.blockCount())
-        # clamp
-        visible_lines = min(lines, _MAX_INPUT_LINES)
-        h = max(_MIN_HEIGHT_PX, visible_lines * _LINE_HEIGHT_PX + 8)
+        # Use document layout height to account for both hard newlines and soft wraps
+        content_h = int(doc.size().height()) + 8
+        max_h = _MAX_INPUT_LINES * _LINE_HEIGHT_PX + 8
+        h = max(_MIN_HEIGHT_PX, min(content_h, max_h))
         self.setFixedHeight(h)
+        # Show scrollbar only when content overflows
+        policy = (
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            if content_h > max_h
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.setVerticalScrollBarPolicy(policy)
         self.height_changed.emit(h)
 
 

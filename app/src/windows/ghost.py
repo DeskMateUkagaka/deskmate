@@ -4,7 +4,7 @@ from pathlib import Path
 
 from loguru import logger
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QUrl, Signal, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -332,8 +332,6 @@ class GhostWindow(QWidget):
         path = self._current_image_path()
         if not path or not path.exists():
             return
-        from PySide6.QtGui import QPixmap
-
         pm = QPixmap(str(path))
         if pm.isNull():
             return
