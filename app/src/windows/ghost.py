@@ -102,7 +102,8 @@ class GhostWindow(QWidget):
         self._idle_override_path: str | None = None
 
         # Drag/click detection
-        self._press_pos = QPoint()
+        self._press_pos: QPoint | None = None
+        self._dragging = False
 
         # Track current image's natural size for image_bounds
         self._img_width = 0
@@ -257,18 +258,26 @@ class GhostWindow(QWidget):
         if etype == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
                 self._press_pos = event.globalPosition().toPoint()
-                self.windowHandle().startSystemMove()
+                self._dragging = False
                 return True
             if event.button() == Qt.MouseButton.RightButton:
                 self.context_menu_requested.emit(event.globalPosition().toPoint())
                 return True
+        elif etype == QEvent.Type.MouseMove:
+            if self._press_pos and not self._dragging:
+                delta = (event.globalPosition().toPoint() - self._press_pos).manhattanLength()
+                if delta >= 5:
+                    self._dragging = True
+                    self.windowHandle().startSystemMove()
+                return True
         elif etype == QEvent.Type.MouseButtonRelease:
             if event.button() == Qt.MouseButton.LeftButton:
-                release_pos = event.globalPosition().toPoint()
-                if (release_pos - self._press_pos).manhattanLength() < 5:
-                    self.clicked.emit()
-                else:
+                if self._dragging:
                     self.position_changed.emit(self.pos())
+                else:
+                    self.clicked.emit()
+                self._press_pos = None
+                self._dragging = False
                 return True
         elif etype == QEvent.Type.ChildAdded:
             child = event.child()

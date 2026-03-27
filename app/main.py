@@ -140,7 +140,7 @@ class DeskMate:
 
     def _setup_connections(self):
         # Ghost signals
-        self._ghost.clicked.connect(self._show_chat_input)
+        self._ghost.clicked.connect(self._toggle_chat_input)
         self._ghost.position_changed.connect(self._on_ghost_moved)
         self._ghost.context_menu_requested.connect(self._show_ghost_context_menu)
         self._ghost.expression_changed.connect(lambda expr: logger.info("Expression: %s", expr))
@@ -161,10 +161,10 @@ class DeskMate:
     def _setup_shortcuts(self):
         # Enter/Return opens chat input (on ghost window)
         QShortcut(QKeySequence(Qt.Key.Key_Return), self._ghost).activated.connect(
-            self._show_chat_input
+            self._toggle_chat_input
         )
         QShortcut(QKeySequence(Qt.Key.Key_Enter), self._ghost).activated.connect(
-            self._show_chat_input
+            self._toggle_chat_input
         )
 
     def _build_context_menu(self) -> QMenu:
@@ -226,7 +226,10 @@ class DeskMate:
     # Chat flow
     # ------------------------------------------------------------------
 
-    def _show_chat_input(self):
+    def _toggle_chat_input(self):
+        if self._input.isVisible():
+            self._input.hide_input()
+            return
         self._reposition_input()
         self._input.show_input(self._input.pos())
         self._input.set_connection_status("connected" if self._gateway else "disconnected")
