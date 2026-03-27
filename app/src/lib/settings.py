@@ -5,26 +5,12 @@ from typing import Any
 
 import yaml
 from loguru import logger
+from platformdirs import user_config_dir
 from pydantic import BaseModel
 
 
 def _default_config_dir() -> Path:
-    try:
-        from platformdirs import user_config_dir
-
-        return Path(user_config_dir("deskmate"))
-    except ImportError:
-        pass
-
-    system = platform.system()
-    if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "deskmate"
-    if system == "Windows":
-        appdata = Path(sys.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-        return appdata / "deskmate"
-    # Linux / other
-    xdg = Path(sys.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return xdg / "deskmate"
+    return Path(user_config_dir("deskmate"))
 
 
 class QuakeTerminalConfig(BaseModel):
