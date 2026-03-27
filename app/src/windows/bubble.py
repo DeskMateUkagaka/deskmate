@@ -434,6 +434,9 @@ function removeItem(id) {
         if (item.el.parentNode) item.el.parentNode.removeChild(item.el);
         delete _items[id];
         notifySized();
+        if (Object.keys(_items).length === 0 && _bridge) {
+            _bridge.onAllDismissed();
+        }
     }, 220);
 }
 
@@ -524,6 +527,7 @@ class _BubbleBridge(QObject):
     dismiss_triggered = Signal(str)  # item_id
     pin_triggered = Signal(str)  # item_id
     content_sized = Signal(int, int)  # width, height
+    all_dismissed = Signal()
 
     @Slot(str)
     def onAction(self, payload: str) -> None:
@@ -539,6 +543,10 @@ class _BubbleBridge(QObject):
     def onPin(self, payload: str) -> None:
         data = json.loads(payload)
         self.pin_triggered.emit(str(data.get("id", "")))
+
+    @Slot()
+    def onAllDismissed(self) -> None:
+        self.all_dismissed.emit()
 
     @Slot(str)
     def onContentSized(self, payload: str) -> None:
@@ -574,6 +582,7 @@ class BubbleWindow(QWidget):
     # Re-exported from bridge for convenience
     action = Signal(str, str)  # item_id, label
     content_sized = Signal(int, int)  # width, height
+    all_dismissed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -605,6 +614,7 @@ class BubbleWindow(QWidget):
         self._bridge.content_sized.connect(self._on_content_sized)
         self._bridge.dismiss_triggered.connect(self._on_bridge_dismiss)
         self._bridge.pin_triggered.connect(self._on_bridge_pin)
+        self._bridge.all_dismissed.connect(self.all_dismissed)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
