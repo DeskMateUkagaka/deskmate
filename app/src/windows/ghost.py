@@ -81,6 +81,7 @@ class GhostWindow(QWidget):
 
     position_changed = Signal(QPoint)
     clicked = Signal()
+    context_menu_requested = Signal(QPoint)
     expression_changed = Signal(str)
 
     def __init__(self, parent=None):
@@ -251,6 +252,9 @@ class GhostWindow(QWidget):
             if event.button() == Qt.MouseButton.LeftButton:
                 self._press_pos = event.globalPosition().toPoint()
                 self.windowHandle().startSystemMove()
+                return True
+            if event.button() == Qt.MouseButton.RightButton:
+                self.context_menu_requested.emit(event.globalPosition().toPoint())
                 return True
         elif etype == QEvent.Type.MouseButtonRelease:
             if event.button() == Qt.MouseButton.LeftButton:

@@ -142,6 +142,7 @@ class DeskMate:
         # Ghost signals
         self._ghost.clicked.connect(self._show_chat_input)
         self._ghost.position_changed.connect(self._on_ghost_moved)
+        self._ghost.context_menu_requested.connect(self._show_ghost_context_menu)
         self._ghost.expression_changed.connect(lambda expr: logger.info("Expression: %s", expr))
 
         # Chat input signals
@@ -166,6 +167,16 @@ class DeskMate:
             self._show_chat_input
         )
 
+    def _build_context_menu(self) -> QMenu:
+        menu = QMenu()
+        menu.addAction("Show/Hide", self._toggle_ghost)
+        menu.addAction("Toggle Terminal", self._toggle_quake_terminal)
+        menu.addAction("Change Skin", self._show_skin_picker)
+        menu.addAction("Settings", self._show_settings)
+        menu.addSeparator()
+        menu.addAction("Quit", self._quit)
+        return menu
+
     def _setup_tray(self):
         icon_path = APP_DIR / "icon.png"
         if icon_path.exists():
@@ -174,18 +185,13 @@ class DeskMate:
             icon = QIcon.fromTheme("application-default-icon")
 
         self._tray = QSystemTrayIcon(icon, self._app)
-
-        menu = QMenu()
-        menu.addAction("Show/Hide", self._toggle_ghost)
-        menu.addAction("Toggle Terminal", self._toggle_quake_terminal)
-        menu.addAction("Change Skin", self._show_skin_picker)
-        menu.addAction("Settings", self._show_settings)
-        menu.addSeparator()
-        menu.addAction("Quit", self._quit)
-
-        self._tray.setContextMenu(menu)
+        self._tray.setContextMenu(self._build_context_menu())
         self._tray.setToolTip("DeskMate")
         self._tray.show()
+
+    def _show_ghost_context_menu(self, pos: QPoint):
+        menu = self._build_context_menu()
+        menu.exec(pos)
 
     # ------------------------------------------------------------------
     # Window positioning
