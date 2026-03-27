@@ -39,6 +39,14 @@ html, body {
     gap: 8px;
     padding: 8px;
     max-width: 640px;
+    height: 100vh;
+    overflow-y: auto;
+}
+#items-container::-webkit-scrollbar { width: 5px; }
+#items-container::-webkit-scrollbar-track { background: transparent; }
+#items-container::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 170, 0.4);
+    border-radius: 3px;
 }
 
 .bubble-item {
