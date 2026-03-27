@@ -458,6 +458,17 @@ function clearAll() {
     Object.keys(_items).forEach(function(id) { removeItem(id); });
 }
 
+function dismissOldest() {
+    var ids = Object.keys(_items);
+    // First try oldest unpinned
+    for (var i = 0; i < ids.length; i++) {
+        if (!_items[ids[i]].pinned) { removeItem(ids[i]); return true; }
+    }
+    // Then oldest pinned
+    if (ids.length > 0) { removeItem(ids[0]); return true; }
+    return false;
+}
+
 function _renderContent(id, text, isStreaming) {
     var item = _items[id];
     if (!item) return;
@@ -490,6 +501,13 @@ function notifySized() {
     var h = container.scrollHeight;
     if (_bridge) _bridge.onContentSized(JSON.stringify({width: w, height: h}));
 }
+
+// Keyboard: Escape / X dismiss oldest bubble
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' || e.key === 'x' || e.key === 'X') {
+        dismissOldest();
+    }
+});
 
 // notify once bridge is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -602,6 +620,7 @@ class BubbleWindow(QWidget):
         self._page.loadFinished.connect(self._on_load_finished)
         self._loaded = False
 
+
         # Pending JS queue — runs once page is loaded
         self._pending_js: list[str] = []
 
@@ -654,6 +673,10 @@ class BubbleWindow(QWidget):
     def clear(self) -> None:
         """Remove all bubble items."""
         self._run_js("clearAll();")
+
+    def _dismiss_oldest(self) -> None:
+        """Dismiss the oldest bubble item (unpinned first, then pinned)."""
+        self._run_js("dismissOldest();")
 
     def show_bubble(self) -> None:
         self.show()
@@ -733,7 +756,7 @@ class BubbleWindow(QWidget):
     def _on_content_sized(self, w: int, h: int) -> None:
         if w > 0 and h > 0:
             # Resize window to fit content (with a small margin)
-            new_w = min(max(w + 16, 200), 660)
+            new_w = min(max(w + 16, 320), 660)
             new_h = min(max(h + 16, 60), 560)
             self.resize(new_w, new_h)
             self.content_sized.emit(new_w, new_h)

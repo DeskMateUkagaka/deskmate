@@ -58,16 +58,28 @@ function getImageSize() {
     const img = document.getElementById('sprite');
     return JSON.stringify({width: img.naturalWidth, height: img.naturalHeight});
 }
+
+document.addEventListener('keydown', function(e) {
+    if ((e.key === 'Escape' || e.key === 'x' || e.key === 'X') && bridge) {
+        bridge.onDismissRequested();
+    }
+});
 </script>
 </body>
 </html>"""
 
 
 class _GhostBridge(QObject):
-    """QWebChannel bridge for JS -> Python callbacks (future use)."""
+    """QWebChannel bridge for JS -> Python callbacks."""
+
+    dismiss_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+    @Slot()
+    def onDismissRequested(self):
+        self.dismiss_requested.emit()
 
 
 class GhostWindow(QWidget):
@@ -80,6 +92,7 @@ class GhostWindow(QWidget):
     position_changed = Signal(QPoint)
     clicked = Signal()
     context_menu_requested = Signal(QPoint)
+    dismiss_requested = Signal()
     expression_changed = Signal(str)
 
     def __init__(self, parent=None):
@@ -124,6 +137,7 @@ class GhostWindow(QWidget):
 
         # Web channel
         self._bridge = _GhostBridge(self)
+        self._bridge.dismiss_requested.connect(self.dismiss_requested)
         channel = QWebChannel(page)
         channel.registerObject("bridge", self._bridge)
         page.setWebChannel(channel)
