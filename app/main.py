@@ -101,6 +101,7 @@ class DeskMate:
         # Silent /commands fetch state
         self._silent_fetch_run_id: str | None = None
         self._command_response_buffer: str = ""
+        self._slash_commands_fetch_in_flight = False
 
         # Async integration: use QTimer to pump asyncio
         self._loop = asyncio.new_event_loop()
@@ -258,6 +259,17 @@ class DeskMate:
         if cmd == "md":
             self._debug_stream_markdown()
             return
+        if cmd == "long":
+            self._debug_stream_text(
+                "This is a deliberately long message to test horizontal growth of the bubble window. "
+                "It contains enough text to push the boundaries and verify that the layout handles "
+                "wide content gracefully without clipping or overflow issues. "
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor "
+                "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+                "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+                label="long",
+            )
+            return
 
         if not self._gateway:
             self._show_local_bubble(
@@ -299,22 +311,26 @@ class DeskMate:
 
         # Intercept events from the silent /commands fetch — don't show in bubble
         if self._silent_fetch_run_id and run_id == self._silent_fetch_run_id:
-            if state == "delta" and message:
-                for block in message.get("content", []):
-                    if block.get("type") == "text" and block.get("text"):
-                        self._command_response_buffer += block["text"]
+            command_text = self._extract_text_content(message)
+            if state == "delta" and command_text:
+                self._command_response_buffer = command_text
             elif state == "final":
-                commands = parse_commands_response(self._command_response_buffer)
+                final_text = command_text or self._command_response_buffer
+                commands = parse_commands_response(final_text)
                 if commands:
                     save_cached_commands(self._settings_mgr._config_dir, commands)
                     self._input.set_commands(commands)
                     logger.info(f"Slash commands fetched and cached ({len(commands)} commands)")
+                else:
+                    logger.warning("Silent /commands fetch returned no parseable commands")
                 self._silent_fetch_run_id = None
                 self._command_response_buffer = ""
+                self._slash_commands_fetch_in_flight = False
             elif state in ("error", "aborted"):
                 logger.warning(f"Silent /commands fetch {state}")
                 self._silent_fetch_run_id = None
                 self._command_response_buffer = ""
+                self._slash_commands_fetch_in_flight = False
             return
 
         if state == "delta" and message:
@@ -408,10 +424,13 @@ class DeskMate:
             "| Cell C   | Cell D   |\n\n"
             "And a [link](https://example.com) for good measure."
         )
+        self._debug_stream_text(sample, label="md")
 
+    def _debug_stream_text(self, text: str, *, label: str = "debug"):
+        """Stream text into the bubble, simulating gateway streaming."""
         self._ghost.set_expression("thinking")
         self._bubble_counter += 1
-        item_id = f"debug-md-{self._bubble_counter}"
+        item_id = f"debug-{label}-{self._bubble_counter}"
         self._bubble.start_streaming(item_id, "")
 
         if not self._bubble.is_bubble_visible():
@@ -419,25 +438,25 @@ class DeskMate:
             self._bubble.show_bubble()
 
         # Stream ~10 chars at a time, ~30ms apart
-        self._md_stream_pos = 0
-        self._md_stream_sample = sample
-        self._md_stream_id = item_id
+        self._debug_stream_pos = 0
+        self._debug_stream_sample = text
+        self._debug_stream_id = item_id
 
         def _tick():
-            self._md_stream_pos = min(self._md_stream_pos + 10, len(self._md_stream_sample))
-            partial = self._md_stream_sample[: self._md_stream_pos]
-            self._bubble.update_text(self._md_stream_id, partial)
-            if self._md_stream_pos >= len(self._md_stream_sample):
-                self._md_timer.stop()
-                self._bubble.finalize(self._md_stream_id)
+            self._debug_stream_pos = min(self._debug_stream_pos + 10, len(self._debug_stream_sample))
+            partial = self._debug_stream_sample[: self._debug_stream_pos]
+            self._bubble.update_text(self._debug_stream_id, partial)
+            if self._debug_stream_pos >= len(self._debug_stream_sample):
+                self._debug_timer.stop()
+                self._bubble.finalize(self._debug_stream_id)
                 self._ghost.set_expression("neutral")
-                logger.info("Debug: md streaming complete")
+                logger.info(f"Debug: {label} streaming complete")
 
-        self._md_timer = QTimer()
-        self._md_timer.setInterval(30)
-        self._md_timer.timeout.connect(_tick)
-        self._md_timer.start()
-        logger.info("Debug: md streaming started")
+        self._debug_timer = QTimer()
+        self._debug_timer.setInterval(30)
+        self._debug_timer.timeout.connect(_tick)
+        self._debug_timer.start()
+        logger.info(f"Debug: {label} streaming started")
 
     # ------------------------------------------------------------------
     # Bubble actions
@@ -485,20 +504,40 @@ class DeskMate:
             logger.info(f"Slash commands loaded from cache ({len(cached)} commands)")
             return
 
-        if not self._gateway:
+        if not self._gateway or self._slash_commands_fetch_in_flight:
             return
 
+        self._slash_commands_fetch_in_flight = True
+        self._command_response_buffer = ""
         logger.info("Fetching slash commands from gateway")
         asyncio.run_coroutine_threadsafe(self._send_commands_fetch(), self._loop)
 
     async def _send_commands_fetch(self) -> None:
         from src.gateway.chat import ChatSession
 
+        assert self._gateway is not None
         session = ChatSession(self._gateway)
-        run_id = await session.send("main", "/commands")
+        try:
+            run_id = await session.send("main", "/commands")
+        except Exception as e:
+            logger.warning(f"Failed to fetch slash commands: {e}")
+            self._slash_commands_fetch_in_flight = False
+            self._silent_fetch_run_id = None
+            self._command_response_buffer = ""
+            return
+
+        self._silent_fetch_run_id = run_id
         logger.debug(f"Silent /commands fetch run_id={run_id}")
-        # Marshal back to Qt main thread to set the run_id
-        QTimer.singleShot(0, lambda: setattr(self, "_silent_fetch_run_id", run_id))
+
+    def _extract_text_content(self, message: dict | None) -> str:
+        if not message:
+            return ""
+
+        chunks: list[str] = []
+        for block in message.get("content", []):
+            if block.get("type") == "text" and block.get("text"):
+                chunks.append(block["text"])
+        return "".join(chunks)
 
     def _on_gateway_event(self, event):
         """Called from async thread — marshal to Qt main thread."""
@@ -510,6 +549,10 @@ class DeskMate:
     def _on_gateway_status(self, status: str):
         logger.info(f"Gateway status: {status}")
         QTimer.singleShot(0, lambda: self._input.set_connection_status(status))
+        if status == "disconnected":
+            self._silent_fetch_run_id = None
+            self._command_response_buffer = ""
+            self._slash_commands_fetch_in_flight = False
         if status == "connected":
             QTimer.singleShot(0, self._fetch_slash_commands)
 

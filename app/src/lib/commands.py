@@ -57,6 +57,9 @@ def load_cached_commands(cache_dir: Path) -> list[SlashCommand] | None:
         commands = [
             SlashCommand(name=c["name"], description=c["description"]) for c in raw_commands
         ]
+        if not commands:
+            logger.debug(f"Commands cache at {cache_path} is empty, ignoring")
+            return None
         logger.debug(f"Loaded {len(commands)} commands from cache")
         return commands
     except Exception as e:
