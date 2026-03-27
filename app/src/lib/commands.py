@@ -1,13 +1,12 @@
 """Slash command data and parsing for autocomplete support."""
 
 import json
-import logging
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _CACHE_FILENAME = "commands_cache.json"
 _CACHE_MAX_AGE_SECONDS = 86400  # 24 hours

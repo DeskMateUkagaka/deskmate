@@ -9,11 +9,10 @@ Returns None / False when the operation isn't supported or fails.
 """
 
 import json
-import logging
 import os
 import subprocess
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def compositor() -> str:

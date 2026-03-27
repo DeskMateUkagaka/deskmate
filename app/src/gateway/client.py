@@ -6,7 +6,6 @@ Install with: uv pip install websockets
 """
 
 import asyncio
-import logging
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -22,11 +21,11 @@ try:
 except ImportError:  # pragma: no cover
     _HAS_WEBSOCKETS = False
 
+from loguru import logger
+
 from .device_identity import DeviceIdentity
 from .protocol import EventFrame, ResponseFrame, parse_frame
 from .types import AuthParams, ClientInfo, ConnectParams, to_wire
-
-logger = logging.getLogger(__name__)
 
 # Reconnect back-off sequence (seconds)
 _BACKOFF = [1, 2, 4, 8, 16, 30]

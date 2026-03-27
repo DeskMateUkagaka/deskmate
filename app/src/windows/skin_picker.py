@@ -1,7 +1,6 @@
 """SkinPickerWindow — grid of available skins with preview images."""
 
-import logging
-
+from loguru import logger
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QKeyEvent, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
@@ -16,8 +15,6 @@ from PySide6.QtWidgets import (
 )
 
 from src.lib.skin import SkinInfo, SkinLoader
-
-logger = logging.getLogger(__name__)
 
 _CARD_SIZE = 140  # card width/height
 _PREVIEW_SIZE = 120  # preview image size

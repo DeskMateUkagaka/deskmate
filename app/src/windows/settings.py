@@ -1,7 +1,6 @@
 """SettingsWindow — dark-themed settings panel as a separate window."""
 
-import logging
-
+from loguru import logger
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
@@ -17,8 +16,6 @@ from PySide6.QtWidgets import (
 )
 
 from src.lib.settings import Settings
-
-logger = logging.getLogger(__name__)
 
 # Stylesheet constants for dark theme form elements
 _INPUT_STYLE = (

@@ -1,8 +1,8 @@
 """GhostWindow — transparent window using QWebEngineView for browser-quality sprite rendering."""
 
-import logging
 from pathlib import Path
 
+from loguru import logger
 from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
@@ -11,8 +11,6 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 from src.lib.compositor import get_window_position, set_window_position
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_HEIGHT = 540
 

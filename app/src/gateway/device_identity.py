@@ -3,7 +3,6 @@
 import base64
 import hashlib
 import json
-import logging
 import time
 from pathlib import Path
 
@@ -19,10 +18,9 @@ from cryptography.hazmat.primitives.serialization import (
     load_pem_private_key,
     load_pem_public_key,
 )
+from loguru import logger
 
 from .types import ClientInfo, DeviceParams
-
-logger = logging.getLogger(__name__)
 
 _DEFAULT_CLIENT_ID = "gateway-client"
 _DEFAULT_MODE = "ui"

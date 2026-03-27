@@ -6,7 +6,6 @@ Run: /usr/bin/python3 app/main.py
 """
 
 import asyncio
-import logging
 import signal
 import sys
 from pathlib import Path
@@ -14,6 +13,7 @@ from pathlib import Path
 # Allow Ctrl+C to kill the app (Qt's event loop swallows SIGINT by default)
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
@@ -28,13 +28,6 @@ from src.windows.chat_input import ChatInputWindow
 from src.windows.ghost import GhostWindow
 from src.windows.settings import SettingsWindow
 from src.windows.skin_picker import SkinPickerWindow
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s.%(msecs)03d] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
-logger = logging.getLogger("deskmate")
 
 APP_DIR = Path(__file__).resolve().parent
 SKINS_DIR = APP_DIR / "skins"

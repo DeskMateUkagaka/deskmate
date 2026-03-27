@@ -1,12 +1,11 @@
 """High-level ChatSession API built on top of GatewayClient."""
 
-import logging
 from uuid import uuid4
+
+from loguru import logger
 
 from .client import GatewayClient
 from .types import ChatSendParams, SessionInfo, to_wire
-
-logger = logging.getLogger(__name__)
 
 
 class ChatSession:

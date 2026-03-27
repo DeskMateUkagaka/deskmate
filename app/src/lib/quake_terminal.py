@@ -8,7 +8,6 @@ Usage (Sway config):
     bindsym Ctrl+Alt+grave exec pkill -USR1 -x python3
 """
 
-import logging
 import os
 import platform
 import shutil
@@ -17,11 +16,10 @@ import subprocess
 import threading
 from pathlib import Path
 
+from loguru import logger
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from src.lib.compositor import hide_window, show_window
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Terminal emulator definitions

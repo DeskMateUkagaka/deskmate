@@ -1,10 +1,9 @@
 """Frame serialization/deserialization for the OpenClaw gateway protocol."""
 
 import json
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass

@@ -1,17 +1,15 @@
 """BubbleWindow — transparent window with QWebEngineView for rich chat content."""
 
 import json
-import logging
 from pathlib import Path
 
+from loguru import logger
 from PySide6.QtCore import QObject, QPoint, QSize, Qt, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Embedded HTML template — full feature bubble with markdown, streaming,

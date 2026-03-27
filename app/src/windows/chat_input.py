@@ -1,7 +1,6 @@
 """ChatInputWindow — transparent popup for text input."""
 
-import logging
-
+from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
@@ -17,8 +16,6 @@ from PySide6.QtWidgets import (
 )
 
 from src.lib.commands import SlashCommand
-
-logger = logging.getLogger(__name__)
 
 # Connection status colours
 _STATUS_COLORS = {

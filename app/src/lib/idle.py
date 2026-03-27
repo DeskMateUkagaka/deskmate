@@ -1,13 +1,11 @@
 """IdleAnimationManager — plays idle animations on the ghost when chat is quiet."""
 
-import logging
 import random
 
+from loguru import logger
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from src.lib.skin import SkinInfo
-
-logger = logging.getLogger(__name__)
 
 
 class IdleAnimationManager(QObject):

@@ -1,11 +1,9 @@
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass

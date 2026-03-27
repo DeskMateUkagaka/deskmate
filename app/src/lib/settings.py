@@ -1,13 +1,11 @@
-import logging
 import platform
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
+from loguru import logger
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
 
 
 def _default_config_dir() -> Path:
