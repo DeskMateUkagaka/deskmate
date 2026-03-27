@@ -167,6 +167,10 @@ class DeskMate:
                 self._toggle_chat_input
             )
 
+        # Ctrl+Q to quit (on ghost or bubble)
+        for window in (self._ghost, self._bubble):
+            QShortcut(QKeySequence("Ctrl+Q"), window).activated.connect(self._quit)
+
     def _build_context_menu(self) -> QMenu:
         menu = QMenu()
         menu.addAction("Show/Hide", self._toggle_ghost)
@@ -443,7 +447,9 @@ class DeskMate:
         self._debug_stream_id = item_id
 
         def _tick():
-            self._debug_stream_pos = min(self._debug_stream_pos + 10, len(self._debug_stream_sample))
+            self._debug_stream_pos = min(
+                self._debug_stream_pos + 10, len(self._debug_stream_sample)
+            )
             partial = self._debug_stream_sample[: self._debug_stream_pos]
             self._bubble.update_text(self._debug_stream_id, partial)
             if self._debug_stream_pos >= len(self._debug_stream_sample):

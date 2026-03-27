@@ -620,7 +620,6 @@ class BubbleWindow(QWidget):
         self._page.loadFinished.connect(self._on_load_finished)
         self._loaded = False
 
-
         # Pending JS queue — runs once page is loaded
         self._pending_js: list[str] = []
 
