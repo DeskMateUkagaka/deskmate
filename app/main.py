@@ -156,13 +156,14 @@ class DeskMate:
         self._skin_picker.skin_selected.connect(self._on_skin_selected)
 
     def _setup_shortcuts(self):
-        # Enter/Return opens chat input (on ghost window)
-        QShortcut(QKeySequence(Qt.Key.Key_Return), self._ghost).activated.connect(
-            self._toggle_chat_input
-        )
-        QShortcut(QKeySequence(Qt.Key.Key_Enter), self._ghost).activated.connect(
-            self._toggle_chat_input
-        )
+        # Enter/Return opens chat input (on ghost or bubble window)
+        for window in (self._ghost, self._bubble):
+            QShortcut(QKeySequence(Qt.Key.Key_Return), window).activated.connect(
+                self._toggle_chat_input
+            )
+            QShortcut(QKeySequence(Qt.Key.Key_Enter), window).activated.connect(
+                self._toggle_chat_input
+            )
 
     def _build_context_menu(self) -> QMenu:
         menu = QMenu()
