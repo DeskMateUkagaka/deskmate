@@ -206,6 +206,8 @@ class _InputEdit(QTextEdit):
                 text = self.toPlainText().strip()
                 if text:
                     self.send_requested.emit(text)
+                else:
+                    self.dismiss_requested.emit()
             return
         if event.key() == Qt.Key.Key_Escape:
             self.dismiss_requested.emit()
