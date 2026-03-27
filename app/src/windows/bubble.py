@@ -493,9 +493,8 @@ function _renderContent(id, text, isStreaming) {
 
 function notifySized() {
     var container = _getContainer();
-    var w = container.scrollWidth;
     var h = container.scrollHeight;
-    if (_bridge) _bridge.onContentSized(JSON.stringify({width: w, height: h}));
+    if (_bridge) _bridge.onContentSized(JSON.stringify({height: h}));
 }
 
 // Keyboard: Escape / X dismiss oldest bubble
@@ -525,7 +524,7 @@ class _BubbleBridge(QObject):
     action_triggered = Signal(str, str)  # item_id, label
     dismiss_triggered = Signal(str)  # item_id
     pin_triggered = Signal(str)  # item_id
-    content_sized = Signal(int, int)  # width, height
+    content_sized = Signal(int)  # height
     all_dismissed = Signal()
 
     @Slot(str)
@@ -550,9 +549,8 @@ class _BubbleBridge(QObject):
     @Slot(str)
     def onContentSized(self, payload: str) -> None:
         data = json.loads(payload)
-        w = int(data.get("width", 0))
         h = int(data.get("height", 0))
-        self.content_sized.emit(w, h)
+        self.content_sized.emit(h)
 
 
 # ---------------------------------------------------------------------------
@@ -580,7 +578,7 @@ class BubbleWindow(QWidget):
 
     # Re-exported from bridge for convenience
     action = Signal(str, str)  # item_id, label
-    content_sized = Signal(int, int)  # width, height
+    content_sized = Signal(int)  # height
     all_dismissed = Signal()
 
     def __init__(self, parent=None):
@@ -711,14 +709,12 @@ class BubbleWindow(QWidget):
         else:
             self._pending_js.append(js)
 
-    def _on_content_sized(self, w: int, h: int) -> None:
-        if w > 0 and h > 0:
-            # Resize window to fit content (with a small margin)
-            new_w = min(max(w + 16, 320), 660)
+    def _on_content_sized(self, h: int) -> None:
+        if h > 0:
             new_h = min(max(h + 16, 60), 560)
-            self.resize(new_w, new_h)
-            self.content_sized.emit(new_w, new_h)
-            logger.debug(f"Bubble content sized: {w}x{h} -> window {new_w}x{new_h}")
+            self.resize(self.width(), new_h)
+            self.content_sized.emit(new_h)
+            logger.debug(f"Bubble content height: {h} -> window height {new_h}")
 
     def _on_bridge_dismiss(self, item_id: str) -> None:
         self._run_js(f"removeItem({self._js_str(item_id)});")

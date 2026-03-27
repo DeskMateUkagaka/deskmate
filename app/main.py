@@ -156,6 +156,7 @@ class DeskMate:
         # Bubble signals
         self._bubble.action.connect(self._on_bubble_action)
         self._bubble.all_dismissed.connect(lambda: self._ghost.set_expression("neutral"))
+        self._bubble.content_sized.connect(lambda _h: self._reposition_bubble())
 
         # Settings signals
         self._settings_win.settings_saved.connect(self._on_settings_saved)
