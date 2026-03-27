@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QPoint, QSize, Qt, Signal, Slot, QUrl
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, Signal, Slot, QUrl
 from PySide6.QtGui import QColor
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -98,10 +98,8 @@ class GhostWindow(QWidget):
         self._skin_dir: Path | None = None
         self._idle_override_path: str | None = None
 
-        # Drag state
-        self._dragging = False
-        self._drag_offset = QPoint()
-        self._drag_moved = False
+        # Drag/click detection
+        self._press_pos = QPoint()
 
         # Track current image's natural size for image_bounds
         self._img_width = 0
@@ -114,6 +112,9 @@ class GhostWindow(QWidget):
         self._web.setPage(page)
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
+        # Install event filter to intercept mouse events from QWebEngineView's
+        # internal child widgets (RenderWidgetHostViewQtDelegateWidget etc.)
+        self._web.installEventFilter(self)
         page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
         page.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
 
@@ -134,8 +135,18 @@ class GhostWindow(QWidget):
 
     def _on_page_loaded(self, ok: bool) -> None:
         self._page_loaded = ok
-        if ok and self._skin_dir:
-            self._update_image()
+        if ok:
+            # QWebEngineView creates its render widget asynchronously —
+            # install event filter on ALL descendants to capture mouse events
+            self._install_filters_recursive(self._web)
+            if self._skin_dir:
+                self._update_image()
+
+    def _install_filters_recursive(self, widget) -> None:
+        """Install event filter on widget and all its children, recursively."""
+        widget.installEventFilter(self)
+        for child in widget.findChildren(QWidget):
+            child.installEventFilter(self)
 
     # ------------------------------------------------------------------
     # Public API
@@ -223,28 +234,30 @@ class GhostWindow(QWidget):
         }
 
     # ------------------------------------------------------------------
-    # Qt overrides — drag + click
+    # Qt overrides — drag + click via event filter
     # ------------------------------------------------------------------
 
-    def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._dragging = True
-            self._drag_moved = False
-            self._drag_offset = event.globalPosition().toPoint() - self.pos()
-
-    def mouseMoveEvent(self, event) -> None:
-        if self._dragging:
-            self._drag_moved = True
-            self.move(event.globalPosition().toPoint() - self._drag_offset)
-            self.position_changed.emit(self.pos())
-
-    def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._dragging = False
-            if not self._drag_moved:
-                self.clicked.emit()
-            else:
-                self.position_changed.emit(self.pos())
+    def eventFilter(self, obj, event) -> bool:
+        """Intercept mouse events from QWebEngineView's internal child widgets."""
+        etype = event.type()
+        if etype == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._press_pos = event.globalPosition().toPoint()
+                self.windowHandle().startSystemMove()
+                return True
+        elif etype == QEvent.Type.MouseButtonRelease:
+            if event.button() == Qt.MouseButton.LeftButton:
+                release_pos = event.globalPosition().toPoint()
+                if (release_pos - self._press_pos).manhattanLength() < 5:
+                    self.clicked.emit()
+                else:
+                    self.position_changed.emit(self.pos())
+                return True
+        elif etype == QEvent.Type.ChildAdded:
+            child = event.child()
+            if hasattr(child, "installEventFilter"):
+                child.installEventFilter(self)
+        return super().eventFilter(obj, event)
 
     # ------------------------------------------------------------------
     # Internal

@@ -665,6 +665,9 @@ class BubbleWindow(QWidget):
         self.hide()
         logger.debug("Bubble hidden")
 
+    def is_bubble_visible(self) -> bool:
+        return self.isVisible()
+
     def reposition(
         self,
         ghost_pos: QPoint,
