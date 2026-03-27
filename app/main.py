@@ -630,7 +630,7 @@ class DeskMate:
             logger.warning(f"Failed to save position: {e}")
 
         if self._gateway:
-            self._gateway.stop()
+            self._loop.run_until_complete(self._gateway.stop())
 
         self._quake.cleanup()
         self._async_timer.stop()
