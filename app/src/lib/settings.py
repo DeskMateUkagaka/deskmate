@@ -1,11 +1,11 @@
 import logging
 import platform
 import sys
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,7 @@ def _default_config_dir() -> Path:
     return xdg / "deskmate"
 
 
-@dataclass
-class QuakeTerminalConfig:
+class QuakeTerminalConfig(BaseModel):
     enabled: bool = True
     hotkey: str = "ctrl+alt+`"
     terminal_emulator: str | None = None
@@ -38,8 +37,7 @@ class QuakeTerminalConfig:
     height_percent: int = 40
 
 
-@dataclass
-class Settings:
+class Settings(BaseModel):
     gateway_url: str = "ws://127.0.0.1:18789"
     gateway_token: str = ""
     bubble_timeout_ms: int = 30000
@@ -52,58 +50,11 @@ class Settings:
     popup_margin_left: float = 10.0
     popup_margin_right: float = 10.0
     idle_interval_seconds: float = 30.0
-    quake_terminal: QuakeTerminalConfig = field(default_factory=QuakeTerminalConfig)
+    quake_terminal: QuakeTerminalConfig = QuakeTerminalConfig()
     ghost_toggle_hotkey: str = "super+f11"
 
 
-def _quake_from_dict(data: dict[str, Any]) -> QuakeTerminalConfig:
-    cfg = QuakeTerminalConfig()
-    if "enabled" in data:
-        cfg.enabled = bool(data["enabled"])
-    if "hotkey" in data:
-        cfg.hotkey = str(data["hotkey"])
-    if "terminal_emulator" in data:
-        val = data["terminal_emulator"]
-        cfg.terminal_emulator = str(val) if val is not None else None
-    if "command" in data:
-        cfg.command = str(data["command"])
-    if "height_percent" in data:
-        cfg.height_percent = int(data["height_percent"])
-    return cfg
-
-
-def _settings_from_dict(data: dict[str, Any]) -> Settings:
-    s = Settings()
-    simple_fields = [
-        "gateway_url",
-        "gateway_token",
-        "bubble_timeout_ms",
-        "proactive_enabled",
-        "proactive_interval_mins",
-        "current_skin_id",
-        "ghost_height_pixels",
-        "popup_margin_top",
-        "popup_margin_bottom",
-        "popup_margin_left",
-        "popup_margin_right",
-        "idle_interval_seconds",
-        "ghost_toggle_hotkey",
-    ]
-    for f in simple_fields:
-        if f in data:
-            setattr(s, f, data[f])
-    if "quake_terminal" in data and isinstance(data["quake_terminal"], dict):
-        s.quake_terminal = _quake_from_dict(data["quake_terminal"])
-    return s
-
-
-def _settings_to_dict(s: Settings) -> dict[str, Any]:
-    d = asdict(s)
-    return d
-
-
-@dataclass
-class AppState:
+class AppState(BaseModel):
     """Transient app state (window positions, etc.) — stored in state.yaml, not config.yaml."""
 
     ghost_x: float = 0.0
@@ -123,24 +74,18 @@ class AppStateManager:
             try:
                 data = yaml.safe_load(self._path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
-                    if "ghost_x" in data:
-                        self._state.ghost_x = float(data["ghost_x"])
-                    if "ghost_y" in data:
-                        self._state.ghost_y = float(data["ghost_y"])
+                    self._state = AppState.model_validate(data)
             except Exception as e:
                 logger.warning("Failed to read state file %s: %s", self._path, e)
         return self._state
 
     def save(self) -> None:
         self._config_dir.mkdir(parents=True, exist_ok=True)
-        data = asdict(self._state)
+        data = self._state.model_dump()
         self._path.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
 
     def update(self, **kwargs: Any) -> AppState:
-        for key, value in kwargs.items():
-            if not hasattr(self._state, key):
-                raise ValueError(f"Unknown state field: {key!r}")
-            setattr(self._state, key, value)
+        self._state = self._state.model_copy(update=kwargs)
         self.save()
         return self._state
 
@@ -179,7 +124,7 @@ class SettingsManager:
             self._settings = Settings()
             return self._settings
 
-        self._settings = _settings_from_dict(data)
+        self._settings = Settings.model_validate(data)
         logger.info("Loaded settings from %s", self._path)
         return self._settings
 
@@ -196,7 +141,7 @@ class SettingsManager:
 
         header, key_comments, trailer = _extract_comments(existing_contents)
 
-        data = _settings_to_dict(self._settings)
+        data = self._settings.model_dump()
         raw_yaml = yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
         output_lines: list[str] = []
@@ -222,10 +167,7 @@ class SettingsManager:
 
     def update(self, **kwargs: Any) -> Settings:
         """Update specific fields and save. Returns the updated Settings."""
-        for key, value in kwargs.items():
-            if not hasattr(self._settings, key):
-                raise ValueError(f"Unknown settings field: {key!r}")
-            setattr(self._settings, key, value)
+        self._settings = self._settings.model_copy(update=kwargs)
         self.save()
         return self._settings
 
