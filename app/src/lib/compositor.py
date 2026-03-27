@@ -48,7 +48,8 @@ def _sway_get_position(app_id: str) -> tuple[float, float] | None:
     try:
         result = subprocess.run(
             ["swaymsg", "-t", "get_tree"],
-            capture_output=True, timeout=2,
+            capture_output=True,
+            timeout=2,
         )
         if result.returncode != 0:
             return None
@@ -94,7 +95,9 @@ def _sway_set_position(app_id: str, x: int, y: int) -> bool:
         # 'move absolute position' uses global coordinates matching get_tree's rect
         result = subprocess.run(
             f"swaymsg '[app_id=\"{app_id}\"] move absolute position {x} {y}'",
-            shell=True, capture_output=True, timeout=2,
+            shell=True,
+            capture_output=True,
+            timeout=2,
         )
         if result.returncode == 0:
             return True

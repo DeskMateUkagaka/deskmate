@@ -19,7 +19,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from src.lib.compositor import show_window, hide_window
+from src.lib.compositor import hide_window, show_window
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,6 @@ def _build_spawn_args(
     return [terminal, "-e", *cmd_parts]
 
 
-
 # ---------------------------------------------------------------------------
 # Manager
 # ---------------------------------------------------------------------------
@@ -243,7 +242,9 @@ class QuakeTerminalManager(QObject):
         logger.info("Terminal spawned (pid=%d)", self._process.pid)
 
         # Give the terminal a moment to create its window before positioning
-        QTimer.singleShot(400, lambda: show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height))
+        QTimer.singleShot(
+            400, lambda: show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height)
+        )
 
         self._visible = True
         self.toggled.emit(True)

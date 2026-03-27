@@ -3,11 +3,11 @@
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, Signal, Slot, QUrl
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QColor
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 from src.lib.compositor import get_window_position, set_window_position
@@ -119,7 +119,9 @@ class GhostWindow(QWidget):
         # internal child widgets (RenderWidgetHostViewQtDelegateWidget etc.)
         self._web.installEventFilter(self)
         page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, False)
-        page.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        page.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True
+        )
 
         # Web channel
         self._bridge = _GhostBridge(self)
@@ -191,7 +193,11 @@ class GhostWindow(QWidget):
 
     def set_expression(self, name: str) -> None:
         if name not in self._emotion_files:
-            name = "neutral" if "neutral" in self._emotion_files else next(iter(self._emotion_files), "")
+            name = (
+                "neutral"
+                if "neutral" in self._emotion_files
+                else next(iter(self._emotion_files), "")
+            )
         if not name or name == self._current_expr:
             return
         self._current_expr = name
@@ -289,6 +295,7 @@ class GhostWindow(QWidget):
         if not path or not path.exists():
             return
         from PySide6.QtGui import QPixmap
+
         pm = QPixmap(str(path))
         if pm.isNull():
             return

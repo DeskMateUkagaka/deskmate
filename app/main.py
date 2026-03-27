@@ -241,6 +241,7 @@ class DeskMate:
         # Debug: "emo" switches to a random expression
         if text.strip().lower() == "emo":
             import random
+
             expressions = list(self._ghost._emotion_files.keys())
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
@@ -582,8 +583,10 @@ class DeskMate:
         for screen in self._app.screens():
             geom = screen.availableGeometry()
             # Consider visible if the point is within the screen bounds (with some margin)
-            if (geom.left() - 100 <= x <= geom.right() + 100
-                    and geom.top() - 100 <= y <= geom.bottom() + 100):
+            if (
+                geom.left() - 100 <= x <= geom.right() + 100
+                and geom.top() - 100 <= y <= geom.bottom() + 100
+            ):
                 logger.info("Position (%s, %s) is on screen %s (%s)", x, y, screen.name(), geom)
                 return True
         screens = [(s.name(), s.availableGeometry()) for s in self._app.screens()]
