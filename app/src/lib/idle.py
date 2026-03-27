@@ -120,7 +120,7 @@ class IdleAnimationManager(QObject):
         anim = random.choice(anims)
         path = str(self._skin.path / anim.file)  # type: ignore[union-attr]
 
-        logger.debug("[idle] timer fired, playing: %s (duration=%dms)", anim.file, anim.duration_ms)
+        logger.debug(f"[idle] timer fired, playing: {anim.file} (duration={anim.duration_ms}ms)")
 
         self._animating = True
         self.idle_override.emit(path)

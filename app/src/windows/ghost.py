@@ -171,13 +171,13 @@ class GhostWindow(QWidget):
                 if p.exists():
                     paths.append(p)
                 else:
-                    logger.warning("Skin asset not found: %s", p)
+                    logger.warning(f"Skin asset not found: {p}")
             if paths:
                 self._emotion_files[expr] = paths
                 self._variant_indices[expr] = 0
 
         if not self._emotion_files:
-            logger.error("No skin assets loaded from %s", skin_dir)
+            logger.error(f"No skin assets loaded from {skin_dir}")
             return
 
         self._current_expr = next(
@@ -188,7 +188,7 @@ class GhostWindow(QWidget):
         # Compute display dimensions from first image
         self._compute_display_size()
         self._update_image()
-        logger.info("Skin loaded: %d expressions from %s", len(self._emotion_files), skin_dir)
+        logger.info(f"Skin loaded: {len(self._emotion_files)} expressions from {skin_dir}")
 
     def set_expression(self, name: str) -> None:
         if name not in self._emotion_files:

@@ -174,7 +174,7 @@ class QuakeTerminalManager(QObject):
         # Check if previously spawned process is still alive
         if self._process is not None and self._process.poll() is not None:
             logger.info(
-                "Terminal process exited (returncode=%d), resetting state", self._process.returncode
+                f"Terminal process exited (returncode={self._process.returncode}), resetting state"
             )
             self._process = None
             self._visible = False
@@ -192,7 +192,7 @@ class QuakeTerminalManager(QObject):
     def cleanup(self) -> None:
         """Kill the terminal process on app exit."""
         if self._process is not None and self._process.poll() is None:
-            logger.info("Terminating quake terminal process (pid=%d)", self._process.pid)
+            logger.info(f"Terminating quake terminal process (pid={self._process.pid})")
             self._process.terminate()
             self._process = None
         self._visible = False
@@ -235,9 +235,9 @@ class QuakeTerminalManager(QObject):
         x, y, width, height = self._compute_geometry(config)
         args = _build_spawn_args(terminal, _WINDOW_TITLE, width, height, config.command)
 
-        logger.info("Spawning terminal: %s", " ".join(args))
+        logger.info(f"Spawning terminal: {" ".join(args)}")
         self._process = subprocess.Popen(args)
-        logger.info("Terminal spawned (pid=%d)", self._process.pid)
+        logger.info(f"Terminal spawned (pid={self._process.pid})")
 
         # Give the terminal a moment to create its window before positioning
         QTimer.singleShot(

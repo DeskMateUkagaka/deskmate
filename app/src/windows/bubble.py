@@ -708,7 +708,7 @@ class BubbleWindow(QWidget):
             win_y = max(sg.top(), min(win_y, sg.bottom() - self.height()))
 
         self.move(win_x, win_y)
-        logger.debug("Bubble repositioned to (%d, %d)", win_x, win_y)
+        logger.debug(f"Bubble repositioned to ({win_x}, {win_y})")
 
     # ------------------------------------------------------------------
     # Internal
@@ -723,7 +723,7 @@ class BubbleWindow(QWidget):
             self._page.runJavaScript(js)
         self._pending_js.clear()
         logger.debug(
-            "BubbleWindow: page loaded, flushed %d pending JS calls", len(self._pending_js)
+            f"BubbleWindow: page loaded, flushed {len(self._pending_js)} pending JS calls"
         )
 
     def _run_js(self, js: str) -> None:
@@ -739,7 +739,7 @@ class BubbleWindow(QWidget):
             new_h = min(max(h + 16, 60), 560)
             self.resize(new_w, new_h)
             self.content_sized.emit(new_w, new_h)
-            logger.debug("Bubble content sized: %dx%d -> window %dx%d", w, h, new_w, new_h)
+            logger.debug(f"Bubble content sized: {w}x{h} -> window {new_w}x{new_h}")
 
     def _on_bridge_dismiss(self, item_id: str) -> None:
         self._run_js(f"removeItem({self._js_str(item_id)});")

@@ -87,7 +87,7 @@ class GatewayClient:
         self._identity = DeviceIdentity.load_or_create(self._data_dir)
         self._stop_event.clear()
         self._task = asyncio.create_task(self._connection_loop(), name="gateway-client")
-        logger.info("GatewayClient started, connecting to %s", url)
+        logger.info(f"GatewayClient started, connecting to {url}")
 
     async def stop(self) -> None:
         """Signal the connection loop to stop and wait for it to finish."""
@@ -125,7 +125,7 @@ class GatewayClient:
         if status == self._status:
             return
         self._status = status
-        logger.debug("GatewayClient status -> %s", status)
+        logger.debug(f"GatewayClient status -> {status}")
         if self.on_status_change is not None:
             try:
                 self.on_status_change(status)
@@ -157,7 +157,7 @@ class GatewayClient:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning("WebSocket error: %s", exc)
+                logger.warning(f"WebSocket error: {exc}")
             finally:
                 self._ws = None
                 self._set_status("disconnected")
@@ -168,7 +168,7 @@ class GatewayClient:
 
             backoff = _BACKOFF[min(attempt, len(_BACKOFF) - 1)]
             attempt += 1
-            logger.info("Reconnecting in %ds (attempt %d)...", backoff, attempt)
+            logger.info(f"Reconnecting in {backoff}s (attempt {attempt})...")
             try:
                 await asyncio.wait_for(self._stop_event.wait(), timeout=float(backoff))
             except asyncio.TimeoutError:
@@ -201,9 +201,9 @@ class GatewayClient:
             frame = parse_frame(raw)
             if isinstance(frame, EventFrame) and frame.event == "connect.challenge":
                 nonce = (frame.payload or {}).get("nonce", "")
-                logger.debug("Received challenge nonce: %s", nonce)
+                logger.debug(f"Received challenge nonce: {nonce}")
                 return nonce
-            logger.debug("Pre-auth message ignored: %s", raw[:100])
+            logger.debug(f"Pre-auth message ignored: {raw[:100]}")
         raise GatewayError("WebSocket closed before challenge arrived")
 
     async def _authenticate(self, ws, nonce: str) -> None:
@@ -220,7 +220,7 @@ class GatewayClient:
         req_id = str(uuid.uuid4())
         frame_json = _make_request(req_id, "connect", to_wire(connect_params))
         await ws.send(frame_json)
-        logger.debug("Sent connect request (id=%s)", req_id)
+        logger.debug(f"Sent connect request (id={req_id})")
 
         # Wait for the response to our connect request
         async for raw in ws:
@@ -234,13 +234,13 @@ class GatewayClient:
                 logger.info("Gateway authenticated (HelloOk)")
                 return
             # Events before auth response are unusual but not fatal — log and continue
-            logger.debug("Pre-auth-response message: %s", raw[:100])
+            logger.debug(f"Pre-auth-response message: {raw[:100]}")
         raise GatewayError("WebSocket closed before connect response")
 
     def _dispatch_response(self, frame: ResponseFrame) -> None:
         future = self._pending.pop(frame.id, None)
         if future is None:
-            logger.debug("No pending request for response id=%s", frame.id)
+            logger.debug(f"No pending request for response id={frame.id}")
             return
         if future.done():
             return

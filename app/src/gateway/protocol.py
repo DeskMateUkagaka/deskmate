@@ -69,6 +69,6 @@ def parse_frame(text: str) -> RequestFrame | ResponseFrame | EventFrame:
             seq=data.get("seq"),
         )
 
-    logger.warning("Unknown frame shape: %s", text[:200])
+    logger.warning(f"Unknown frame shape: {text[:200]}")
     # Return a best-effort EventFrame so callers can at least log it
     return EventFrame(event="__unknown__", payload=data)

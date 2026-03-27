@@ -130,7 +130,7 @@ class SkinPickerWindow(QWidget):
         self.adjustSize()
         self.show()
         self.raise_()
-        logger.info("SkinPickerWindow shown with %d skins", len(skins))
+        logger.info(f"SkinPickerWindow shown with {len(skins)} skins")
 
     def hide_picker(self) -> None:
         self.hide()
@@ -267,6 +267,6 @@ class SkinPickerWindow(QWidget):
         self._scroll.setFixedHeight(scroll_h)
 
     def _on_card_clicked(self, skin_id: str) -> None:
-        logger.info("Skin selected: %s", skin_id)
+        logger.info(f"Skin selected: {skin_id}")
         self.skin_selected.emit(skin_id)
         self.hide_picker()

@@ -60,7 +60,7 @@ class DeviceIdentity:
 
     @classmethod
     def _load(cls, path: Path) -> "DeviceIdentity":
-        logger.debug("Loading device identity from %s", path)
+        logger.debug(f"Loading device identity from {path}")
         raw = json.loads(path.read_text())
         signing_key = load_pem_private_key(raw["private_key_pem"].encode(), password=None)
         verifying_key = load_pem_public_key(raw["public_key_pem"].encode())
@@ -98,7 +98,7 @@ class DeviceIdentity:
         }
         path.write_text(json.dumps(payload, indent=2))
         path.chmod(0o600)
-        logger.info("Device identity saved to %s (device_id=%s)", path, device_id)
+        logger.info(f"Device identity saved to {path} (device_id={device_id})")
 
         return cls(device_id=device_id, signing_key=signing_key, verifying_key=verifying_key)
 

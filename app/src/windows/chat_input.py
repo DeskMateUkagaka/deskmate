@@ -292,7 +292,7 @@ class ChatInputWindow(QWidget):
         self._editor.setFocus()
         self._editor.clear()
         self._popup.hide()
-        logger.debug("ChatInputWindow shown at (%d, %d)", pos.x(), pos.y())
+        logger.debug(f"ChatInputWindow shown at ({pos.x()}, {pos.y()})")
 
     def hide_input(self) -> None:
         self._popup.hide()
@@ -305,12 +305,12 @@ class ChatInputWindow(QWidget):
         color = _STATUS_COLORS.get(status, _STATUS_COLORS["disconnected"])
         self._status_dot.set_color(color)
         self._status_label.setText(status.capitalize())
-        logger.debug("Connection status: %s", status)
+        logger.debug(f"Connection status: {status}")
 
     def set_commands(self, commands: list[SlashCommand]) -> None:
         """Store slash commands for autocomplete."""
         self._commands = commands
-        logger.debug("Loaded %d slash commands for autocomplete", len(commands))
+        logger.debug(f"Loaded {len(commands)} slash commands for autocomplete")
 
     # ------------------------------------------------------------------
     # Qt overrides
@@ -383,7 +383,7 @@ class ChatInputWindow(QWidget):
         self._editor.clear()
         self._popup.hide()
         self.message_sent.emit(text)
-        logger.debug("Message sent: %r", text[:80])
+        logger.debug(f"Message sent: {text[:80]}")
 
     def _on_dismiss(self) -> None:
         self.hide_input()

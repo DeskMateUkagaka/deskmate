@@ -74,7 +74,7 @@ class AppStateManager:
                 if isinstance(data, dict):
                     self._state = AppState.model_validate(data)
             except Exception as e:
-                logger.warning("Failed to read state file %s: %s", self._path, e)
+                logger.warning(f"Failed to read state file {self._path}: {e}")
         return self._state
 
     def save(self) -> None:
@@ -105,25 +105,25 @@ class SettingsManager:
     def load(self) -> Settings:
         """Load from YAML, return defaults if missing or unreadable."""
         if not self._path.exists():
-            logger.info("No settings file found at %s, using defaults", self._path)
+            logger.info(f"No settings file found at {self._path}, using defaults")
             self._settings = Settings()
             return self._settings
 
         try:
             contents = self._path.read_text(encoding="utf-8")
         except OSError as e:
-            logger.warning("Failed to read settings file %s: %s", self._path, e)
+            logger.warning(f"Failed to read settings file {self._path}: {e}")
             self._settings = Settings()
             return self._settings
 
         data = yaml.safe_load(contents)
         if not isinstance(data, dict):
-            logger.warning("Settings file %s has unexpected format, using defaults", self._path)
+            logger.warning(f"Settings file {self._path} has unexpected format, using defaults")
             self._settings = Settings()
             return self._settings
 
         self._settings = Settings.model_validate(data)
-        logger.info("Loaded settings from %s", self._path)
+        logger.info(f"Loaded settings from {self._path}")
         return self._settings
 
     def save(self) -> None:
@@ -135,7 +135,7 @@ class SettingsManager:
             try:
                 existing_contents = self._path.read_text(encoding="utf-8")
             except OSError as e:
-                logger.warning("Could not read existing settings for comment preservation: %s", e)
+                logger.warning(f"Could not read existing settings for comment preservation: {e}")
 
         header, key_comments, trailer = _extract_comments(existing_contents)
 
@@ -161,7 +161,7 @@ class SettingsManager:
 
         text = "\n".join(output_lines) + "\n"
         self._path.write_text(text, encoding="utf-8")
-        logger.info("Saved settings to %s", self._path)
+        logger.info(f"Saved settings to {self._path}")
 
     def update(self, **kwargs: Any) -> Settings:
         """Update specific fields and save. Returns the updated Settings."""

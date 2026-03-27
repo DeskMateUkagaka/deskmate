@@ -38,7 +38,7 @@ def parse_commands_response(text: str) -> list[SlashCommand]:
             name = m.group(1)
             description = m.group(2).strip()
             commands.append(SlashCommand(name=name, description=description))
-    logger.debug("Parsed %d slash commands", len(commands))
+    logger.debug(f"Parsed {len(commands)} slash commands")
     return commands
 
 
@@ -57,10 +57,10 @@ def load_cached_commands(cache_dir: Path) -> list[SlashCommand] | None:
         commands = [
             SlashCommand(name=c["name"], description=c["description"]) for c in raw_commands
         ]
-        logger.debug("Loaded %d commands from cache", len(commands))
+        logger.debug(f"Loaded {len(commands)} commands from cache")
         return commands
     except Exception as e:
-        logger.warning("Failed to load commands cache: %s", e)
+        logger.warning(f"Failed to load commands cache: {e}")
         return None
 
 
@@ -74,6 +74,6 @@ def save_cached_commands(cache_dir: Path, commands: list[SlashCommand]) -> None:
     }
     try:
         cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        logger.debug("Saved %d commands to cache at %s", len(commands), cache_path)
+        logger.debug(f"Saved {len(commands)} commands to cache at {cache_path}")
     except Exception as e:
-        logger.warning("Failed to save commands cache: %s", e)
+        logger.warning(f"Failed to save commands cache: {e}")

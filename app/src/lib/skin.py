@@ -163,7 +163,7 @@ class SkinLoader:
         """Scan skins directory and return all valid skins."""
         skins: list[SkinInfo] = []
         if not self._skins_dir.exists():
-            logger.warning("Skins directory not found: %s", self._skins_dir)
+            logger.warning(f"Skins directory not found: {self._skins_dir}")
             return skins
 
         for entry in sorted(self._skins_dir.iterdir()):
@@ -175,9 +175,9 @@ class SkinLoader:
             try:
                 info = _load_manifest(skin_id, entry, "bundled")
                 skins.append(info)
-                logger.info("Loaded skin: %s (%s) [bundled]", info.name, skin_id)
+                logger.info(f"Loaded skin: {info.name} ({skin_id}) [bundled]")
             except Exception as e:
-                logger.warning("Failed to load skin at %s: %s", entry, e)
+                logger.warning(f"Failed to load skin at {entry}: {e}")
 
         return skins
 

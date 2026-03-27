@@ -45,7 +45,7 @@ class DeskMate:
         # Settings
         self._settings_mgr = SettingsManager()
         self._settings = self._settings_mgr.load()
-        logger.info("Settings loaded from %s", self._settings_mgr._path)
+        logger.info(f"Settings loaded from {self._settings_mgr._path}")
 
         # Transient state (window positions, etc.)
         self._state_mgr = AppStateManager()
@@ -57,11 +57,11 @@ class DeskMate:
             self._skin = self._skin_loader.load_skin(self._settings.current_skin_id)
         except FileNotFoundError:
             logger.warning(
-                "Skin '%s' not found, falling back to 'default'", self._settings.current_skin_id
+                f"Skin '{self._settings.current_skin_id}' not found, falling back to 'default'"
             )
             self._skin = self._skin_loader.load_skin("default")
             self._settings.current_skin_id = "default"
-        logger.info("Skin loaded: %s (%d emotions)", self._skin.name, len(self._skin.emotions))
+        logger.info(f"Skin loaded: {self._skin.name} ({len(self._skin.emotions)} emotions)")
 
         # Windows
         self._ghost = GhostWindow()
@@ -140,7 +140,7 @@ class DeskMate:
         self._ghost.clicked.connect(self._toggle_chat_input)
         self._ghost.position_changed.connect(self._on_ghost_moved)
         self._ghost.context_menu_requested.connect(self._show_ghost_context_menu)
-        self._ghost.expression_changed.connect(lambda expr: logger.info("Expression: %s", expr))
+        self._ghost.expression_changed.connect(lambda expr: logger.info(f"Expression: {expr}"))
 
         # Chat input signals
         self._input.message_sent.connect(self._on_chat_send)
@@ -233,7 +233,7 @@ class DeskMate:
 
     def _on_chat_send(self, text: str):
         self._input.hide_input()
-        logger.info("User message: %s", text[:80])
+        logger.info(f"User message: {text[:80]}")
 
         # User interaction — reset idle countdown
         self._idle_manager.reset()
@@ -251,7 +251,7 @@ class DeskMate:
             expr = random.choice(expressions)
             self._ghost.set_expression(expr)
             self._show_local_bubble(f"emotion test → {expr}")
-            logger.info("Debug: random expression -> %s", expr)
+            logger.info(f"Debug: random expression -> {expr}")
             return
         if cmd == "md":
             self._debug_stream_markdown()
@@ -284,9 +284,9 @@ class DeskMate:
         session = ChatSession(self._gateway)
         try:
             run_id = await session.send("main", text)
-            logger.info("Chat sent, run_id=%s", run_id)
+            logger.info(f"Chat sent, run_id={run_id}")
         except Exception as e:
-            logger.error("Chat send failed: %s", e)
+            logger.error(f"Chat send failed: {e}")
             self._on_chat_error(str(e))
 
     def _on_chat_event(self, event):
@@ -306,11 +306,11 @@ class DeskMate:
                 if commands:
                     save_cached_commands(self._settings_mgr._config_dir, commands)
                     self._input.set_commands(commands)
-                    logger.info("Slash commands fetched and cached (%d commands)", len(commands))
+                    logger.info(f"Slash commands fetched and cached ({len(commands)} commands)")
                 self._silent_fetch_run_id = None
                 self._command_response_buffer = ""
             elif state in ("error", "aborted"):
-                logger.warning("Silent /commands fetch %s", state)
+                logger.warning(f"Silent /commands fetch {state}")
                 self._silent_fetch_run_id = None
                 self._command_response_buffer = ""
             return
@@ -447,7 +447,7 @@ class DeskMate:
         elif action == "pin":
             self._bubble.pin(item_id)
         elif action == "button-click" and message:
-            logger.info("Button clicked: %s", message)
+            logger.info(f"Button clicked: {message}")
             self._on_chat_send(message)
 
     # ------------------------------------------------------------------
@@ -473,14 +473,14 @@ class DeskMate:
             ),
             self._loop,
         )
-        logger.info("Gateway connecting to %s", self._settings.gateway_url)
+        logger.info(f"Gateway connecting to {self._settings.gateway_url}")
 
     def _fetch_slash_commands(self) -> None:
         """Check cache then silently send /commands to gateway if stale."""
         cached = load_cached_commands(self._settings_mgr._config_dir)
         if cached is not None:
             self._input.set_commands(cached)
-            logger.info("Slash commands loaded from cache (%d commands)", len(cached))
+            logger.info(f"Slash commands loaded from cache ({len(cached)} commands)")
             return
 
         if not self._gateway:
@@ -494,7 +494,7 @@ class DeskMate:
 
         session = ChatSession(self._gateway)
         run_id = await session.send("main", "/commands")
-        logger.debug("Silent /commands fetch run_id=%s", run_id)
+        logger.debug(f"Silent /commands fetch run_id={run_id}")
         # Marshal back to Qt main thread to set the run_id
         QTimer.singleShot(0, lambda: setattr(self, "_silent_fetch_run_id", run_id))
 
@@ -506,7 +506,7 @@ class DeskMate:
             QTimer.singleShot(0, lambda: self._on_chat_event(payload))
 
     def _on_gateway_status(self, status: str):
-        logger.info("Gateway status: %s", status)
+        logger.info(f"Gateway status: {status}")
         QTimer.singleShot(0, lambda: self._input.set_connection_status(status))
         if status == "connected":
             QTimer.singleShot(0, self._fetch_slash_commands)
@@ -534,7 +534,7 @@ class DeskMate:
         self._quake.toggle(self._settings.quake_terminal)
 
     def _on_quake_toggled(self, visible: bool):
-        logger.info("Quake terminal %s", "shown" if visible else "hidden")
+        logger.info(f"Quake terminal {"shown" if visible else "hidden"}")
 
     def _toggle_ghost(self):
         if self._ghost.isVisible():
@@ -561,11 +561,11 @@ class DeskMate:
         self._skin_picker.move(x, y)
 
     def _on_skin_selected(self, skin_id: str):
-        logger.info("Switching skin to: %s", skin_id)
+        logger.info(f"Switching skin to: {skin_id}")
         try:
             new_skin = self._skin_loader.load_skin(skin_id)
         except (FileNotFoundError, ValueError) as e:
-            logger.error("Failed to load skin '%s': %s", skin_id, e)
+            logger.error(f"Failed to load skin '{skin_id}': {e}")
             return
         self._skin = new_skin
         emotions_map = self._load_emotions_map(new_skin)
@@ -574,8 +574,8 @@ class DeskMate:
         try:
             self._settings_mgr.update(current_skin_id=skin_id)
         except Exception as e:
-            logger.warning("Failed to save skin setting: %s", e)
-        logger.info("Skin switched to: %s", new_skin.name)
+            logger.warning(f"Failed to save skin setting: {e}")
+        logger.info(f"Skin switched to: {new_skin.name}")
 
     def _show_settings(self):
         available_skins = [d.name for d in SKINS_DIR.iterdir() if d.is_dir()]
@@ -605,7 +605,7 @@ class DeskMate:
         try:
             self._settings_mgr.update(**updated)
         except Exception as e:
-            logger.warning("Failed to persist settings: %s", e)
+            logger.warning(f"Failed to persist settings: {e}")
 
         # Apply ghost height immediately
         self._ghost.set_height(self._settings.ghost_height_pixels)
@@ -622,12 +622,12 @@ class DeskMate:
     def _quit(self):
         # Save ghost position
         x, y = self._ghost.save_position()
-        logger.info("Saving ghost position: (%s, %s)", x, y)
+        logger.info(f"Saving ghost position: ({x}, {y})")
         try:
             self._state_mgr.update(ghost_x=x, ghost_y=y)
             logger.info("Ghost position saved to state.yaml")
         except Exception as e:
-            logger.warning("Failed to save position: %s", e)
+            logger.warning(f"Failed to save position: {e}")
 
         if self._gateway:
             self._gateway.stop()
@@ -649,10 +649,10 @@ class DeskMate:
                 geom.left() - 100 <= x <= geom.right() + 100
                 and geom.top() - 100 <= y <= geom.bottom() + 100
             ):
-                logger.info("Position (%s, %s) is on screen %s (%s)", x, y, screen.name(), geom)
+                logger.info(f"Position ({x}, {y}) is on screen {screen.name()} ({geom})")
                 return True
         screens = [(s.name(), s.availableGeometry()) for s in self._app.screens()]
-        logger.warning("Position (%s, %s) is off-screen. Available screens: %s", x, y, screens)
+        logger.warning(f"Position ({x}, {y}) is off-screen. Available screens: {screens}")
         return False
 
     def _default_ghost_position(self):
@@ -662,16 +662,16 @@ class DeskMate:
             sg = screen.availableGeometry()
             x = sg.right() - self._ghost.width() - 50
             y = sg.center().y() - self._ghost.height() // 2
-            logger.info("Using default ghost position: (%d, %d) on %s", x, y, screen.name())
+            logger.info(f"Using default ghost position: ({x}, {y}) on {screen.name()}")
             self._ghost.restore_position(float(x), float(y))
 
     def _restore_ghost_position(self):
         """Restore ghost position after the window is visible (needed for swaymsg)."""
         x, y = self._state.ghost_x, self._state.ghost_y
-        logger.info("Restoring ghost position: saved=(%s, %s)", x, y)
+        logger.info(f"Restoring ghost position: saved=({x}, {y})")
         if (x or y) and self._is_position_visible(x, y):
             self._ghost.restore_position(x, y)
-            logger.info("Ghost position restored to (%s, %s)", x, y)
+            logger.info(f"Ghost position restored to ({x}, {y})")
         else:
             logger.info("Saved position unusable, falling back to default")
             self._default_ghost_position()
@@ -687,8 +687,8 @@ class DeskMate:
 
         logger.info("=" * 50)
         logger.info("DeskMate (PySide6) started")
-        logger.info("Skin: %s | Expressions: %s", self._skin.name, self._skin.emotions)
-        logger.info("Gateway: %s", self._settings.gateway_url or "(not configured)")
+        logger.info(f"Skin: {self._skin.name} | Expressions: {self._skin.emotions}")
+        logger.info(f"Gateway: {self._settings.gateway_url or "(not configured)"}")
         logger.info("Click character or press Enter to chat")
         logger.info("=" * 50)
 

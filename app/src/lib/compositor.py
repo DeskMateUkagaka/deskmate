@@ -36,10 +36,10 @@ def get_window_position(*, app_id: str) -> tuple[float, float] | None:
     comp = compositor()
     if comp == "sway":
         pos = _sway_get_position(app_id)
-        logger.info("get_window_position(%s): compositor=%s pos=%s", app_id, comp, pos)
+        logger.info(f"get_window_position({app_id}): compositor={comp} pos={pos}")
         return pos
     # Future: hyprland, x11, etc.
-    logger.info("get_window_position(%s): compositor=%s (unsupported)", app_id, comp)
+    logger.info(f"get_window_position({app_id}): compositor={comp} (unsupported)")
     return None
 
 
@@ -58,7 +58,7 @@ def _sway_get_position(app_id: str) -> tuple[float, float] | None:
             r = node["rect"]
             return float(r["x"]), float(r["y"])
     except Exception as e:
-        logger.warning("swaymsg get_tree failed: %s", e)
+        logger.warning(f"swaymsg get_tree failed: {e}")
     return None
 
 
@@ -80,10 +80,10 @@ def _sway_find_node(node: dict, app_id: str) -> dict | None:
 def set_window_position(*, app_id: str, x: int, y: int) -> bool:
     """Tell the compositor to move a window. Returns True on success."""
     comp = compositor()
-    logger.info("set_window_position(%s, x=%d, y=%d): compositor=%s", app_id, x, y, comp)
+    logger.info(f"set_window_position({app_id}, x={x}, y={y}): compositor={comp}")
     if comp == "sway":
         ok = _sway_set_position(app_id, x, y)
-        logger.info("set_window_position result: %s", ok)
+        logger.info(f"set_window_position result: {ok}")
         return ok
     # Future: hyprland, x11, etc.
     return False
@@ -100,9 +100,9 @@ def _sway_set_position(app_id: str, x: int, y: int) -> bool:
         )
         if result.returncode == 0:
             return True
-        logger.warning("swaymsg move failed: %s", result.stderr.decode().strip())
+        logger.warning(f"swaymsg move failed: {result.stderr.decode().strip()}")
     except Exception as e:
-        logger.warning("swaymsg move failed: %s", e)
+        logger.warning(f"swaymsg move failed: {e}")
     return False
 
 
@@ -119,14 +119,14 @@ def show_window(*, title: str, x: int, y: int, width: int, height: int) -> None:
         cmd = f"swaymsg '{criteria} move position {x} {y}, resize set {width} {height}, focus'"
         result = subprocess.run(cmd, shell=True, capture_output=True)
         if result.returncode != 0:
-            logger.warning("swaymsg show failed: %s", result.stderr.decode().strip())
+            logger.warning(f"swaymsg show failed: {result.stderr.decode().strip()}")
     elif comp == "x11":
         result = subprocess.run(
             ["xdotool", "search", "--name", title, "windowmap"],
             capture_output=True,
         )
         if result.returncode != 0:
-            logger.warning("xdotool windowmap failed: %s", result.stderr.decode().strip())
+            logger.warning(f"xdotool windowmap failed: {result.stderr.decode().strip()}")
 
 
 def hide_window(*, title: str) -> None:
@@ -137,11 +137,11 @@ def hide_window(*, title: str) -> None:
         cmd = f"swaymsg '{criteria} move position 0 -9999'"
         result = subprocess.run(cmd, shell=True, capture_output=True)
         if result.returncode != 0:
-            logger.warning("swaymsg hide failed: %s", result.stderr.decode().strip())
+            logger.warning(f"swaymsg hide failed: {result.stderr.decode().strip()}")
     elif comp == "x11":
         result = subprocess.run(
             ["xdotool", "search", "--name", title, "windowunmap"],
             capture_output=True,
         )
         if result.returncode != 0:
-            logger.warning("xdotool windowunmap failed: %s", result.stderr.decode().strip())
+            logger.warning(f"xdotool windowunmap failed: {result.stderr.decode().strip()}")
