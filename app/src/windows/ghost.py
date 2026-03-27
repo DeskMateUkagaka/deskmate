@@ -10,6 +10,8 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
+from src.lib.compositor import get_window_position, set_window_position
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_HEIGHT = 540
@@ -202,10 +204,15 @@ class GhostWindow(QWidget):
         self._update_image()
 
     def save_position(self) -> tuple[float, float]:
+        pos = get_window_position(app_id="deskmate")
+        if pos:
+            return pos
         pos = self.pos()
         return float(pos.x()), float(pos.y())
 
     def restore_position(self, x: float, y: float) -> None:
+        if set_window_position(app_id="deskmate", x=int(x), y=int(y)):
+            return
         self.move(int(x), int(y))
 
     def current_expression(self) -> str:

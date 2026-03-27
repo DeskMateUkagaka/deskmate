@@ -551,10 +551,12 @@ class DeskMate:
     def _quit(self):
         # Save ghost position
         x, y = self._ghost.save_position()
+        logger.info("Saving ghost position: (%s, %s)", x, y)
         self._settings.ghost_x = x
         self._settings.ghost_y = y
         try:
             self._settings_mgr.update(ghost_x=x, ghost_y=y)
+            logger.info("Ghost position saved to config")
         except Exception as e:
             logger.warning("Failed to save position: %s", e)
 
@@ -569,20 +571,45 @@ class DeskMate:
     # Run
     # ------------------------------------------------------------------
 
-    def run(self) -> int:
-        # Restore ghost position
-        if self._settings.ghost_x or self._settings.ghost_y:
-            self._ghost.restore_position(self._settings.ghost_x, self._settings.ghost_y)
-        else:
-            screen = self._app.primaryScreen()
-            if screen:
-                sg = screen.availableGeometry()
-                self._ghost.move(
-                    sg.right() - self._ghost.width() - 50,
-                    sg.center().y() - self._ghost.height() // 2,
-                )
+    def _is_position_visible(self, x: float, y: float) -> bool:
+        """Check if (x, y) is within any connected screen's geometry."""
+        for screen in self._app.screens():
+            geom = screen.availableGeometry()
+            # Consider visible if the point is within the screen bounds (with some margin)
+            if (geom.left() - 100 <= x <= geom.right() + 100
+                    and geom.top() - 100 <= y <= geom.bottom() + 100):
+                logger.info("Position (%s, %s) is on screen %s (%s)", x, y, screen.name(), geom)
+                return True
+        screens = [(s.name(), s.availableGeometry()) for s in self._app.screens()]
+        logger.warning("Position (%s, %s) is off-screen. Available screens: %s", x, y, screens)
+        return False
 
+    def _default_ghost_position(self):
+        """Move ghost to default position (bottom-right of primary screen)."""
+        screen = self._app.primaryScreen()
+        if screen:
+            sg = screen.availableGeometry()
+            x = sg.right() - self._ghost.width() - 50
+            y = sg.center().y() - self._ghost.height() // 2
+            logger.info("Using default ghost position: (%d, %d) on %s", x, y, screen.name())
+            self._ghost.restore_position(float(x), float(y))
+
+    def _restore_ghost_position(self):
+        """Restore ghost position after the window is visible (needed for swaymsg)."""
+        x, y = self._settings.ghost_x, self._settings.ghost_y
+        logger.info("Restoring ghost position: saved=(%s, %s)", x, y)
+        if (x or y) and self._is_position_visible(x, y):
+            self._ghost.restore_position(x, y)
+            logger.info("Ghost position restored to (%s, %s)", x, y)
+        else:
+            logger.info("Saved position unusable, falling back to default")
+            self._default_ghost_position()
+
+    def run(self) -> int:
         self._ghost.show()
+
+        # Restore position after show — swaymsg needs the window to be visible first
+        QTimer.singleShot(100, self._restore_ghost_position)
 
         # Start idle animation cycle
         self._idle_manager.start()

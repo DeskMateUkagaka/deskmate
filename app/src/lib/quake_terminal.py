@@ -19,6 +19,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from src.lib.compositor import show_window, hide_window
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -132,55 +134,6 @@ def _build_spawn_args(
     return [terminal, "-e", *cmd_parts]
 
 
-# ---------------------------------------------------------------------------
-# Compositor detection and positioning
-# ---------------------------------------------------------------------------
-
-
-def _compositor() -> str:
-    """Return 'sway', 'hyprland', 'x11', or 'unknown'."""
-    if os.environ.get("SWAYSOCK"):
-        return "sway"
-    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
-        return "hyprland"
-    if os.environ.get("DISPLAY"):
-        return "x11"
-    return "unknown"
-
-
-def _sway_show(title: str, x: int, y: int, width: int, height: int) -> None:
-    criteria = f'[title="^{title}$"]'
-    cmd = f"swaymsg '{criteria} move position {x} {y}, resize set {width} {height}, focus'"
-    result = subprocess.run(cmd, shell=True, capture_output=True)
-    if result.returncode != 0:
-        logger.warning("swaymsg show failed: %s", result.stderr.decode().strip())
-
-
-def _sway_hide(title: str) -> None:
-    criteria = f'[title="^{title}$"]'
-    cmd = f"swaymsg '{criteria} move position 0 -9999'"
-    result = subprocess.run(cmd, shell=True, capture_output=True)
-    if result.returncode != 0:
-        logger.warning("swaymsg hide failed: %s", result.stderr.decode().strip())
-
-
-def _x11_show(title: str) -> None:
-    result = subprocess.run(
-        ["xdotool", "search", "--name", title, "windowmap"],
-        capture_output=True,
-    )
-    if result.returncode != 0:
-        logger.warning("xdotool windowmap failed: %s", result.stderr.decode().strip())
-
-
-def _x11_hide(title: str) -> None:
-    result = subprocess.run(
-        ["xdotool", "search", "--name", title, "windowunmap"],
-        capture_output=True,
-    )
-    if result.returncode != 0:
-        logger.warning("xdotool windowunmap failed: %s", result.stderr.decode().strip())
-
 
 # ---------------------------------------------------------------------------
 # Manager
@@ -290,11 +243,7 @@ class QuakeTerminalManager(QObject):
         logger.info("Terminal spawned (pid=%d)", self._process.pid)
 
         # Give the terminal a moment to create its window before positioning
-        comp = _compositor()
-        if comp == "sway":
-            QTimer.singleShot(400, lambda: _sway_show(_WINDOW_TITLE, x, y, width, height))
-        elif comp == "x11":
-            QTimer.singleShot(400, lambda: _x11_show(_WINDOW_TITLE))
+        QTimer.singleShot(400, lambda: show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height))
 
         self._visible = True
         self.toggled.emit(True)
@@ -302,23 +251,11 @@ class QuakeTerminalManager(QObject):
 
     def _show(self, config) -> None:
         x, y, width, height = self._compute_geometry(config)
-        comp = _compositor()
-        if comp == "sway":
-            _sway_show(_WINDOW_TITLE, x, y, width, height)
-        elif comp == "x11":
-            _x11_show(_WINDOW_TITLE)
-        else:
-            logger.warning("Cannot show terminal on compositor '%s'", comp)
+        show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height)
         self._visible = True
         self.toggled.emit(True)
 
     def _hide(self) -> None:
-        comp = _compositor()
-        if comp == "sway":
-            _sway_hide(_WINDOW_TITLE)
-        elif comp == "x11":
-            _x11_hide(_WINDOW_TITLE)
-        else:
-            logger.warning("Cannot hide terminal on compositor '%s'", comp)
+        hide_window(title=_WINDOW_TITLE)
         self._visible = False
         self.toggled.emit(False)
