@@ -376,6 +376,7 @@ function updateItem(id, text, isStreaming) {
     if (!_items[id]) { addItem(id, text, isStreaming); return; }
     _renderContent(id, text, isStreaming);
     _getContainer().scrollTop = _getContainer().scrollHeight;
+    notifySized();
 }
 
 function finalizeItem(id) {
