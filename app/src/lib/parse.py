@@ -1,10 +1,10 @@
 import re
 
 
-def parse_emotion(text: str) -> str:
-    """Extract the last [emotion:X] tag from text. Returns 'neutral' if none found."""
+def parse_emotion(text: str) -> str | None:
+    """Extract the last [emotion:X] tag from text. Returns None if none found."""
     matches = re.findall(r"\[emotion:(\w+)\]", text)
-    return matches[-1] if matches else "neutral"
+    return matches[-1] if matches else None
 
 
 def strip_emotion_tags(text: str) -> str:

@@ -424,8 +424,11 @@ class DeskMate:
 
         if state == "delta" and message:
             content_blocks = message.get("content", [])
-            parts = [block["text"] for block in content_blocks
-                     if block.get("type") == "text" and block.get("text")]
+            parts = [
+                block["text"]
+                for block in content_blocks
+                if block.get("type") == "text" and block.get("text")
+            ]
             if parts:
                 self._current_response = "".join(parts)
             self._on_stream_delta(self._current_response)
@@ -451,6 +454,8 @@ class DeskMate:
         """Start a streaming bubble: stop idle, create item, show bubble. Returns item_id."""
         self._idle_manager.stop()
         self._chat_state = "streaming"
+        self._current_emotion = "thinking"
+        self._ghost.set_expression("thinking")
         self._bubble_counter += 1
         item_id = f"{label}-{self._bubble_counter}"
         self._bubble.start_streaming(item_id, "")
@@ -471,6 +476,13 @@ class DeskMate:
 
     def _on_stream_final(self, raw_text: str) -> None:
         """Finalize streaming: update bubble, extract buttons, end streaming."""
+        emotion = parse_emotion(raw_text)
+        if emotion:
+            self._current_emotion = emotion
+            self._ghost.set_expression(emotion)
+        elif self._current_emotion == "thinking":
+            self._current_emotion = "neutral"
+            self._ghost.set_expression("neutral")
         display_text = strip_all_tags(raw_text)
         if self._active_bubble_id:
             self._bubble.update_text(self._active_bubble_id, display_text)
@@ -512,6 +524,9 @@ class DeskMate:
                 self._on_stream_final(self._debug_stream_sample)
                 logger.info(f"Debug: {label} streaming complete")
 
+        if hasattr(self, "_debug_timer") and self._debug_timer is not None:
+            self._debug_timer.stop()
+            self._debug_timer.deleteLater()
         self._debug_timer = QTimer()
         self._debug_timer.setInterval(tick_interval)
         self._debug_timer.timeout.connect(_tick)
