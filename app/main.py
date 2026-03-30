@@ -726,6 +726,7 @@ class DeskMate:
             f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin"
         )
         self._ghost.set_skin(emotions_map, new_skin.path)
+        self._idle_manager.set_skin(new_skin)
         logger.debug("_on_skin_selected: set_skin done, saving settings")
         self._settings.current_skin_id = skin_id
         try:
