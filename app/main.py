@@ -152,6 +152,7 @@ class DeskMate:
         self._ghost.window_mapped.connect(self._restore_ghost_position)
         self._ghost.context_menu_requested.connect(self._show_ghost_context_menu)
         self._ghost.dismiss_requested.connect(self._bubble._dismiss_oldest)
+        self._ghost.pin_requested.connect(self._bubble._pin_newest)
         self._ghost.expression_changed.connect(lambda expr: logger.info(f"Expression: {expr}"))
 
         # Chat input signals
