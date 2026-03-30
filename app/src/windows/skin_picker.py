@@ -34,9 +34,7 @@ class _SkinCard(QWidget):
         self._skin_id = skin.id
         self._selected = is_selected
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (
-            _CARD_DESC_EXTRA if skin.description else 0
-        )
+        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (_CARD_DESC_EXTRA if skin.description else 0)
         self.setFixedSize(_CARD_SIZE, card_h)
 
         layout = QVBoxLayout(self)
@@ -281,9 +279,7 @@ class SkinPickerWindow(QWidget):
         rows = (len(skins) + _GRID_COLS - 1) // _GRID_COLS
         visible_rows = min(rows, max_visible_rows)
         has_any_description = any(s.description for s in skins)
-        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (
-            _CARD_DESC_EXTRA if has_any_description else 0
-        )
+        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (_CARD_DESC_EXTRA if has_any_description else 0)
         scroll_h = visible_rows * (card_h + 10) + 10
         self._scroll.setFixedHeight(scroll_h)
 

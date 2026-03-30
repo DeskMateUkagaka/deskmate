@@ -364,6 +364,13 @@ class DeskMate:
                 label="md",
             )
             return
+        if cmd == "btn":
+            self._debug_stream_text(
+                "Here are some actions you can take:"
+                " [btn:Hi][btn:Thanks][btn:Tell me more]",
+                label="btn",
+            )
+            return
         if cmd == "long":
             self._debug_stream_text(
                 "This is a deliberately long message to test horizontal growth of the bubble window. "
