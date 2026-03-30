@@ -683,12 +683,27 @@ class DeskMate:
     def _on_gateway_status(self, status: str):
         logger.info(f"Gateway status: {status}")
         QTimer.singleShot(0, lambda: self._input.set_connection_status(status))
+        if status == "connecting":
+            QTimer.singleShot(0, lambda: self._apply_connecting_state(True))
         if status == "disconnected":
+            QTimer.singleShot(0, lambda: self._apply_connecting_state(True))
             self._silent_fetch_run_id = None
             self._command_response_buffer = ""
             self._slash_commands_fetch_in_flight = False
         if status == "connected":
+            QTimer.singleShot(0, lambda: self._apply_connecting_state(False))
             QTimer.singleShot(0, self._fetch_slash_commands)
+
+    def _apply_connecting_state(self, connecting: bool) -> None:
+        """Set ghost expression and overlay for connecting/disconnected state."""
+        if connecting:
+            self._idle_manager.stop()
+            self._ghost.set_expression("thinking")
+            self._ghost.set_overlay("CONNECTING")
+        else:
+            self._ghost.set_overlay("")
+            self._ghost.set_expression("neutral")
+            self._idle_manager.start()
 
     # ------------------------------------------------------------------
     # Asyncio integration

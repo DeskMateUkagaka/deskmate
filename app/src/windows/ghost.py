@@ -36,10 +36,24 @@ html, body {
     image-rendering: auto; /* browser's best quality (Lanczos/bicubic) */
     pointer-events: none;
 }
+#overlay {
+    position: absolute;
+    bottom: 12%;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: bold;
+    color: #e04040;
+    text-shadow: 0 0 4px rgba(0,0,0,0.7);
+    pointer-events: none;
+    display: none;
+}
 </style>
 </head>
 <body>
 <img id="sprite" src="" />
+<div id="overlay"></div>
 <script>
 let bridge = null;
 new QWebChannel(qt.webChannelTransport, function(channel) {
@@ -56,6 +70,16 @@ function setImage(url, width, height) {
 function getImageSize() {
     const img = document.getElementById('sprite');
     return JSON.stringify({width: img.naturalWidth, height: img.naturalHeight});
+}
+
+function setOverlay(text) {
+    const el = document.getElementById('overlay');
+    if (text) {
+        el.textContent = text;
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
 }
 
 document.addEventListener('keydown', function(e) {
@@ -273,6 +297,11 @@ class GhostWindow(QWidget):
     def clear_idle_override(self) -> None:
         self._idle_override_path = None
         self._update_image()
+
+    def set_overlay(self, text: str) -> None:
+        """Show or hide a text overlay on the ghost (e.g. 'CONNECTING')."""
+        js_text = _js_str(text) if text else '""'
+        self._web.page().runJavaScript(f"setOverlay({js_text});")
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
