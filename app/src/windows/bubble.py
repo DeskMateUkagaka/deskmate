@@ -315,15 +315,20 @@ function inlinemd(s) {
 
 // ---- Item management ----
 var _items = {};   // id -> { el, timerId, totalMs, startTime, pinned, animFrame, rawText }
+var _lastClickedItemId = null;
 
 function _getContainer() { return document.getElementById('items-container'); }
 
 function addItem(id, text, isStreaming) {
     if (_items[id]) return;
+    _lastClickedItemId = id;
 
     var wrap = document.createElement('div');
     wrap.className = 'bubble-item';
     wrap.id = 'item-' + id;
+    wrap.addEventListener('mousedown', function() {
+        _lastClickedItemId = id;
+    });
 
     var header = document.createElement('div');
     header.className = 'bubble-header';
@@ -521,6 +526,23 @@ function copyNewest() {
     return true;
 }
 
+function copyLastClickedOrNewest() {
+    if (_lastClickedItemId && _items[_lastClickedItemId]) {
+        callBridge('onCopy', {id: _lastClickedItemId});
+        return true;
+    }
+    return copyNewest();
+}
+
+function copySelectionOrLastClicked() {
+    var selectedText = window.getSelection().toString();
+    if (selectedText) {
+        callBridge('onCopyText', {text: selectedText});
+        return true;
+    }
+    return copyLastClickedOrNewest();
+}
+
 function _renderContent(id, text, isStreaming) {
     var item = _items[id];
     if (!item) return;
@@ -565,14 +587,17 @@ function notifySized() {
     if (_bridge) _bridge.onContentSized(JSON.stringify({height: h}));
 }
 
-// Keyboard: Escape/X dismiss oldest, P pin newest, C copy newest
+// Keyboard: Escape/X dismiss oldest, P pin newest, C copy last clicked
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' || e.key === 'x' || e.key === 'X') {
         dismissOldest();
     } else if (e.key === 'p' || e.key === 'P') {
         pinNewest();
     } else if (e.key === 'c' || e.key === 'C') {
-        copyNewest();
+        copyLastClickedOrNewest();
+    } else if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        copySelectionOrLastClicked();
     }
 });
 
@@ -774,6 +799,14 @@ class BubbleWindow(QWidget):
     def copy_newest(self) -> None:
         """Copy the most recent bubble item to the system clipboard."""
         self._run_js("copyNewest();")
+
+    def copy_last_clicked_or_newest(self) -> None:
+        """Copy the last clicked bubble item, or newest if none was clicked."""
+        self._run_js("copyLastClickedOrNewest();")
+
+    def copy_selection_or_last_clicked(self) -> None:
+        """Copy selected text, else last clicked bubble, else newest bubble."""
+        self._run_js("copySelectionOrLastClicked();")
 
     def set_max_height(self, h: int) -> None:
         """Set max window height and update CSS content max-height accordingly."""
