@@ -151,6 +151,7 @@ Detailed design docs in `memory/`:
 - `QUAKE.md` — Quake-style dropdown terminal
 - `SKINS.md` — Skin format and skin picker
 - `BLEED.md` — WebKitGTK bleed bug documentation (historical, no longer affects PySide6 version)
+- `SWAY_CRASH.md` — wlroots 0.19.3 assertion crash in `wlr_scene_subsurface_tree_set_clip` (upstream bug, no app-side fix)
 
 ## Legacy Tauri App
 
