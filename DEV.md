@@ -29,6 +29,7 @@ Type these into the chat input. They bypass the gateway entirely — no connecti
 - **`emo`** — Switch to a random non-neutral expression. Tests ghost expression rendering.
 - **`md`** — Stream a sample Markdown document (headers, bold, code blocks, tables, lists, blockquote, link) into the bubble. Simulates real gateway streaming at ~10 chars/30ms. Tests bubble markdown rendering and streaming cursor animation.
 - **`btn`** — Stream a short message with 3 `[btn:...]` tags. Tests dynamic button rendering and click-to-send behavior.
+- **`link`** — Stream a message with autolink (`<URL>`), bare URL, and markdown link formats. Tests URL rendering and click-to-open behavior.
 - **`long`** — Stream a sample message which is very lengthy, without the markdowns. It is long enough to induce the scroll bar within the bubble.
 
 ## Rendering Quality: QPainter vs QWebEngineView (Chromium)

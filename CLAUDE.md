@@ -139,7 +139,7 @@ Sway with fractional scale (e.g., 1.333x) causes blurry rendering in ALL Qt/GTK 
 ## Debugging
 
 - All logging goes to stdout via Python `logging` module
-- Debug command: type `emo` in chat input to switch to a random expression
+- Debug cheat codes (type in chat input): `ack` (echo test), `emo` (random expression), `md` (markdown test), `btn` (action buttons), `link` (URL rendering test), `long` (long text test)
 - `SIGUSR1` toggles quake terminal: `pkill -USR1 -x python3`
 
 ## Feature Documentation

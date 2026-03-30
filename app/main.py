@@ -385,6 +385,16 @@ class DeskMate:
                 label="md",
             )
             return
+        if cmd == "link":
+            self._debug_stream_text(
+                "Here are some links:\n\n"
+                "Autolink: <https://example.com/path?q=hello&lang=en>\n\n"
+                "Bare URL: https://example.com/path?q=hello&lang=en\n\n"
+                "Markdown: [Click here](https://example.com)\n\n"
+                "Mixed: check <https://example.org> and https://example.net too",
+                label="link",
+            )
+            return
         if cmd == "btn":
             self._debug_stream_text(
                 "Here are some actions you can take: [btn:Hi][btn:Thanks][btn:Tell me more]",

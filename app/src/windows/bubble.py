@@ -4,7 +4,7 @@ import json
 
 from loguru import logger
 from PySide6.QtCore import QObject, Qt, Signal, Slot
-from PySide6.QtGui import QColor, QGuiApplication
+from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -304,13 +304,21 @@ function md(text) {
 }
 
 function inlinemd(s) {
+    // Escape HTML first to prevent raw <URL> from being swallowed as tags
+    s = escapeHtml(s);
     return s
         .replace(/`([^`]+)`/g, '<code>$1</code>')
         .replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>')
         .replace(/\\*(.+?)\\*/g, '<em>$1</em>')
         .replace(/\\_\\_(.+?)\\_\\_ /g, '<strong>$1</strong>')
         .replace(/\\_(.+?)\\_/g, '<em>$1</em>')
-        .replace(/\\[(.+?)\\]\\((.+?)\\)/g, '<a href="$2" target="_blank">$1</a>');
+        .replace(/&lt;(https?:\\/\\/.*?)&gt;/g, function(m, url) {
+            return '<a href="' + url.replace(/&amp;/g, '&') + '">' + url + '</a>';
+        })
+        .replace(/\\[(.+?)\\]\\((.+?)\\)/g, '<a href="$2">$1</a>')
+        .replace(/(^|[^">/])(https?:\\/\\/[^\\s<"']+)/g, function(m, pre, url) {
+            return pre + '<a href="' + url.replace(/&amp;/g, '&') + '">' + url + '</a>';
+        });
 }
 
 // ---- Item management ----
@@ -672,6 +680,17 @@ class _TransparentWebPage(QWebEnginePage):
         super().__init__(parent)
         self.setBackgroundColor(QColor(0, 0, 0, 0))
 
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        logger.debug(
+            f"[bubble] navigation: url={url.toString()} type={nav_type} main_frame={is_main_frame}"
+        )
+        if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
+            logger.info(f"[bubble] opening link: {url.toString()}")
+            ok = QDesktopServices.openUrl(url)
+            logger.info(f"[bubble] QDesktopServices.openUrl returned: {ok}")
+            return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
 
 # ---------------------------------------------------------------------------
 # BubbleWindow
@@ -708,6 +727,7 @@ class BubbleWindow(QWidget):
         self._web.setPage(self._page)
         self._web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._web.setStyleSheet("background: transparent;")
+        self._web.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.ShowScrollBars, True)
         self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
 
@@ -833,6 +853,8 @@ class BubbleWindow(QWidget):
 
     def _on_load_finished(self, ok: bool) -> None:
         if not ok:
+            if self._loaded:
+                return  # rejected navigation (e.g. link click intercepted), not a real failure
             logger.error("BubbleWindow: page load failed")
             return
         self._loaded = True
