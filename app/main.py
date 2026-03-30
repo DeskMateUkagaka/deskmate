@@ -146,6 +146,7 @@ class DeskMate:
         # Ghost signals
         self._ghost.clicked.connect(self._toggle_chat_input)
         self._ghost.position_changed.connect(self._on_ghost_moved)
+        self._ghost.window_mapped.connect(self._restore_ghost_position)
         self._ghost.context_menu_requested.connect(self._show_ghost_context_menu)
         self._ghost.dismiss_requested.connect(self._bubble._dismiss_oldest)
         self._ghost.expression_changed.connect(lambda expr: logger.info(f"Expression: {expr}"))
@@ -292,6 +293,8 @@ class DeskMate:
         self._move_window(self._input, pos.screen_x, pos.screen_y)
 
     def _on_ghost_moved(self, pos: QPoint):
+        x, y = self._ghost.save_position()
+        self._state.ghost_x, self._state.ghost_y = x, y
         if self._bubble.is_bubble_visible():
             self._reposition_bubble()
         if self._input.isVisible():
@@ -671,11 +674,15 @@ class DeskMate:
 
     def _toggle_ghost(self):
         if self._ghost.isVisible():
+            # Save position while ghost is still visible (swaymsg can find it)
+            x, y = self._ghost.save_position()
+            self._state.ghost_x, self._state.ghost_y = x, y
             self._ghost.hide()
             self._bubble.hide_bubble()
             self._input.hide_input()
         else:
             self._ghost.show()
+            # Restore happens via window_mapped signal (deferred until compositor maps the window)
 
     def _show_skin_picker(self):
         skins = self._skin_loader.list_skins()
@@ -811,9 +818,7 @@ class DeskMate:
 
     def run(self) -> int:
         self._ghost.show()
-
-        # Restore position after show — swaymsg needs the window to be visible first
-        QTimer.singleShot(100, self._restore_ghost_position)
+        # Position restore happens via window_mapped signal
 
         # Start idle animation cycle
         self._idle_manager.start()

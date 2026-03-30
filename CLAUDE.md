@@ -125,8 +125,10 @@ Manifest can also define `bubble_placement`, `input_placement` (UiPlacement with
 
 ### Wayland (Sway)
 
-- `QWidget.move()` is ignored — the compositor controls window position. Ghost drag uses `startSystemMove()` which delegates to the compositor natively.
-- Popup positioning works via Qt's built-in positioning (no `swaymsg` needed for popups since Qt handles initial placement).
+- **`QWidget.move()` and `QWidget.pos()` are unreliable** — the compositor controls window positions. Use `compositor.py`'s `get_window_position()` / `set_window_position()` (swaymsg IPC) instead.
+- **`startSystemMove()` swallows all subsequent mouse events** — after a compositor-driven drag, Qt never receives `MouseButtonRelease`. The `position_changed` signal does NOT fire on Sway. To get the ghost's position after drag, query swaymsg directly via `save_position()`.
+- **Windows must be visible before swaymsg can target them.** After `show()`, the compositor needs ~20ms to map the window. Use the `window_mapped` signal pattern: `showEvent` → `QTimer.singleShot(20, signal.emit)` → caller repositions in the signal handler. Never call `set_window_position()` immediately after `show()`.
+- **All windows need `setWindowTitle()`** so swaymsg can target them by title (e.g., `deskmate-ghost`, `deskmate-bubble`, `deskmate-input`).
 - `app_id` is set to `deskmate` via `setDesktopFileName("deskmate")`.
 - Quake terminal uses `swaymsg '[title="deskmate-quake"] ...'` for show/hide/position.
 

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from loguru import logger
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QUrl, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -93,6 +93,7 @@ class GhostWindow(QWidget):
     context_menu_requested = Signal(QPoint)
     dismiss_requested = Signal()
     expression_changed = Signal(str)
+    window_mapped = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -241,11 +242,14 @@ class GhostWindow(QWidget):
     def save_position(self) -> tuple[float, float]:
         pos = get_window_position(title="deskmate-ghost")
         if pos:
+            logger.debug(f"save_position: compositor returned ({pos[0]}, {pos[1]})")
             return pos
         pos = self.pos()
+        logger.debug(f"save_position: Qt fallback ({pos.x()}, {pos.y()})")
         return float(pos.x()), float(pos.y())
 
     def restore_position(self, x: float, y: float) -> None:
+        logger.debug(f"restore_position: ({x}, {y})")
         if set_window_position(title="deskmate-ghost", x=int(x), y=int(y)):
             return
         self.move(int(x), int(y))
@@ -260,6 +264,10 @@ class GhostWindow(QWidget):
     def clear_idle_override(self) -> None:
         self._idle_override_path = None
         self._update_image()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        QTimer.singleShot(20, self.window_mapped.emit)
 
     def image_bounds(self) -> dict:
         w = self._img_width
