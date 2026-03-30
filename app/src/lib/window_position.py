@@ -90,8 +90,12 @@ def calc_window_position(
     else:  # "center" or default
         ideal_x, ideal_y = target_x - width // 2, target_y - height // 2
 
-    screen_x = max(screen.x + margins.left, min(ideal_x, screen.x + screen.width - width - margins.right))
-    screen_y = max(screen.y + margins.top, min(ideal_y, screen.y + screen.height - height - margins.bottom))
+    screen_x = max(
+        screen.x + margins.left, min(ideal_x, screen.x + screen.width - width - margins.right)
+    )
+    screen_y = max(
+        screen.y + margins.top, min(ideal_y, screen.y + screen.height - height - margins.bottom)
+    )
 
     return WindowPosition(
         screen_x=screen_x,

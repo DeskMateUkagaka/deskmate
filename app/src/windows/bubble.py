@@ -702,7 +702,9 @@ class BubbleWindow(QWidget):
         """Set max window height and update CSS content max-height accordingly."""
         self._max_window_height = h
         content_h = max(h - 16, 100)
-        self._run_js(f"document.documentElement.style.setProperty('--max-content-height', '{content_h}px');")
+        self._run_js(
+            f"document.documentElement.style.setProperty('--max-content-height', '{content_h}px');"
+        )
 
     def show_bubble(self) -> None:
         self.show()

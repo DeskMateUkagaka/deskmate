@@ -22,12 +22,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from src.gateway.chat import ChatSession
 from src.gateway.client import GatewayClient
 from src.lib.commands import load_cached_commands, parse_commands_response, save_cached_commands
+from src.lib.compositor import get_screen_at, get_window_position, set_window_position
 from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader, UiPlacement
-from src.lib.compositor import get_screen_at, get_window_position, set_window_position
 from src.lib.window_position import ScreenRect, calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
@@ -722,7 +722,9 @@ class DeskMate:
         logger.debug(f"_on_skin_selected: skin loaded, setting on ghost")
         self._skin = new_skin
         emotions_map = self._load_emotions_map(new_skin)
-        logger.debug(f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin")
+        logger.debug(
+            f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin"
+        )
         self._ghost.set_skin(emotions_map, new_skin.path)
         logger.debug("_on_skin_selected: set_skin done, saving settings")
         self._settings.current_skin_id = skin_id

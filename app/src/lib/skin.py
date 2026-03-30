@@ -4,6 +4,7 @@ from typing import Any
 
 import yaml
 from loguru import logger
+from platformdirs import user_data_dir
 
 
 @dataclass
@@ -155,34 +156,51 @@ def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
     )
 
 
+def _default_user_skins_dir() -> Path:
+    return Path(user_data_dir("deskmate")) / "skins"
+
+
 class SkinLoader:
-    def __init__(self, skins_dir: Path):
+    def __init__(self, skins_dir: Path, user_skins_dir: Path | None = None):
         self._skins_dir = skins_dir
+        self._user_skins_dir = user_skins_dir or _default_user_skins_dir()
+        logger.info(f"User skins directory: {self._user_skins_dir}")
 
-    def list_skins(self) -> list[SkinInfo]:
-        """Scan skins directory and return all valid skins."""
+    def _scan_dir(self, directory: Path, source: str) -> list[SkinInfo]:
         skins: list[SkinInfo] = []
-        if not self._skins_dir.exists():
-            logger.warning(f"Skins directory not found: {self._skins_dir}")
+        if not directory.exists():
             return skins
-
-        for entry in sorted(self._skins_dir.iterdir()):
+        for entry in sorted(directory.iterdir()):
             if not entry.is_dir():
                 continue
             if not (entry / "manifest.yaml").exists():
                 continue
             skin_id = entry.name
             try:
-                info = _load_manifest(skin_id, entry, "bundled")
+                info = _load_manifest(skin_id, entry, source)
                 skins.append(info)
-                logger.info(f"Loaded skin: {info.name} ({skin_id}) [bundled]")
+                logger.info(f"Loaded skin: {info.name} ({skin_id}) [{source}]")
             except Exception as e:
                 logger.warning(f"Failed to load skin at {entry}: {e}")
+        return skins
 
+    def list_skins(self) -> list[SkinInfo]:
+        """Scan bundled and user skins directories, return all valid skins."""
+        skins = self._scan_dir(self._skins_dir, "bundled")
+        seen_ids = {s.id for s in skins}
+        for skin in self._scan_dir(self._user_skins_dir, "community"):
+            if skin.id in seen_ids:
+                logger.warning(f"User skin '{skin.id}' shadows bundled skin, using user version")
+                skins = [s for s in skins if s.id != skin.id]
+            seen_ids.add(skin.id)
+            skins.append(skin)
         return skins
 
     def load_skin(self, skin_id: str) -> SkinInfo:
-        """Load a specific skin by ID. Raises FileNotFoundError or ValueError on failure."""
+        """Load a specific skin by ID. User skins take priority over bundled."""
+        user_path = self._user_skins_dir / skin_id
+        if user_path.is_dir() and (user_path / "manifest.yaml").exists():
+            return _load_manifest(skin_id, user_path, "community")
         skin_path = self._skins_dir / skin_id
         if not skin_path.is_dir():
             raise FileNotFoundError(f"Skin directory not found: {skin_path}")
@@ -207,5 +225,8 @@ class SkinLoader:
 
     def get_preview_image(self, skin_id: str) -> Path | None:
         """Return the path to preview.png for the skin picker, or None if absent."""
-        preview = self._skins_dir / skin_id / "preview.png"
-        return preview if preview.exists() else None
+        for d in (self._user_skins_dir, self._skins_dir):
+            preview = d / skin_id / "preview.png"
+            if preview.exists():
+                return preview
+        return None
