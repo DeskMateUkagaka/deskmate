@@ -275,7 +275,11 @@ class DeskMate:
             p = self._skin.bubble_placement
         else:
             p = UiPlacement(x=20, y=-self._bubble.height() + 60, origin="bottom-left")
-        self._position_window(self._bubble, p)
+        pos = self._position_window(self._bubble, p)
+        # Set max height to available space from bubble top to screen bottom
+        sr = self._ghost_screen_rect()
+        available = (sr.y + sr.height) - pos.screen_y
+        self._bubble.set_max_height(max(available, 100))
 
     def _reposition_input(self):
         if self._skin and self._skin.input_placement:

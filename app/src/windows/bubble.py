@@ -98,7 +98,7 @@ html, body {
     line-height: 1.55;
     overflow-wrap: break-word;
     word-break: break-word;
-    max-height: 480px;
+    max-height: var(--max-content-height, 480px);
     overflow-y: auto;
 }
 
@@ -608,6 +608,7 @@ class BubbleWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowTitle("deskmate-bubble")
         self.resize(648, 400)
+        self._max_window_height = 560
 
         # WebView
         self._web = QWebEngineView(self)
@@ -697,6 +698,12 @@ class BubbleWindow(QWidget):
         """Dismiss the oldest bubble item (unpinned first, then pinned)."""
         self._run_js("dismissOldest();")
 
+    def set_max_height(self, h: int) -> None:
+        """Set max window height and update CSS content max-height accordingly."""
+        self._max_window_height = h
+        content_h = max(h - 16, 100)
+        self._run_js(f"document.documentElement.style.setProperty('--max-content-height', '{content_h}px');")
+
     def show_bubble(self) -> None:
         self.show()
         logger.debug("Bubble shown")
@@ -730,7 +737,7 @@ class BubbleWindow(QWidget):
 
     def _on_content_sized(self, h: int) -> None:
         if h > 0:
-            new_h = min(max(h + 16, 60), 560)
+            new_h = min(max(h + 16, 60), self._max_window_height)
             if new_h != self._last_content_h:
                 self._last_content_h = new_h
                 self.resize(self.width(), new_h)
