@@ -6,6 +6,7 @@ Run: /usr/bin/python3 app/main.py
 """
 
 import asyncio
+import os
 import random
 import signal
 import sys
@@ -16,6 +17,14 @@ from loguru import logger
 
 # Log to file so we can see what happened after a DE crash
 logger.add(Path.home() / "deskmate.log", rotation="1 MB", retention=3)
+
+# PySide6 ships its own Qt plugins which may lack the system IME plugin (e.g.
+# fcitx5).  Prepend the system Qt6 plugin path so the compositor's input method
+# is available.  Must happen before QApplication is created.
+_SYS_QT6_PLUGINS = Path("/usr/lib/qt6/plugins")
+if _SYS_QT6_PLUGINS.is_dir():
+    existing = os.environ.get("QT_PLUGIN_PATH", "")
+    os.environ["QT_PLUGIN_PATH"] = str(_SYS_QT6_PLUGINS) + (f":{existing}" if existing else "")
 from PySide6.QtCore import QPoint, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
@@ -366,8 +375,7 @@ class DeskMate:
             return
         if cmd == "btn":
             self._debug_stream_text(
-                "Here are some actions you can take:"
-                " [btn:Hi][btn:Thanks][btn:Tell me more]",
+                "Here are some actions you can take: [btn:Hi][btn:Thanks][btn:Tell me more]",
                 label="btn",
             )
             return
