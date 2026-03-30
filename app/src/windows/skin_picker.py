@@ -125,12 +125,16 @@ class SkinPickerWindow(QWidget):
 
     def show_picker(self, skins: list[SkinInfo], current_skin_id: str) -> None:
         """Populate grid and show."""
+        logger.debug(f"show_picker: {len(skins)} skins, current={current_skin_id}")
         self._current_skin_id = current_skin_id
         self._populate_grid(skins)
+        logger.debug("show_picker: grid populated, adjusting size")
         self.adjustSize()
+        logger.debug("show_picker: calling show()")
         self.show()
+        logger.debug("show_picker: calling raise_()")
         self.raise_()
-        logger.info(f"SkinPickerWindow shown with {len(skins)} skins")
+        logger.debug("show_picker: done")
 
     def hide_picker(self) -> None:
         self.hide()

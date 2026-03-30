@@ -13,6 +13,9 @@ from pathlib import Path
 
 import yaml
 from loguru import logger
+
+# Log to file so we can see what happened after a DE crash
+logger.add(Path.home() / "deskmate.log", rotation="1 MB", retention=3)
 from PySide6.QtCore import QPoint, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
@@ -685,37 +688,45 @@ class DeskMate:
             # Restore happens via window_mapped signal (deferred until compositor maps the window)
 
     def _show_skin_picker(self):
+        logger.debug("_show_skin_picker: listing skins")
         skins = self._skin_loader.list_skins()
+        logger.debug(f"_show_skin_picker: got {len(skins)} skins, calling show_picker")
         self._skin_picker.show_picker(skins, self._settings.current_skin_id)
+        logger.debug("_show_skin_picker: show_picker returned, positioning")
         # Position near ghost window
-        ghost_pos = self._ghost.pos()
+        gx, gy = self._ghost_screen_pos()
         ghost_w = self._ghost.width()
         picker_w = self._skin_picker.width()
-        x = ghost_pos.x() + ghost_w // 2 - picker_w // 2
-        y = ghost_pos.y() - self._skin_picker.height() - 10
+        x = gx + ghost_w // 2 - picker_w // 2
+        y = gy - self._skin_picker.height() - 10
         screen = self._app.primaryScreen()
         if screen:
             sg = screen.availableGeometry()
             x = max(sg.left(), min(x, sg.right() - picker_w))
             y = max(sg.top(), min(y, sg.bottom() - self._skin_picker.height()))
+        logger.debug(f"_show_skin_picker: moving to ({x}, {y})")
         self._skin_picker.move(x, y)
+        logger.debug("_show_skin_picker: done")
 
     def _on_skin_selected(self, skin_id: str):
-        logger.info(f"Switching skin to: {skin_id}")
+        logger.info(f"_on_skin_selected: switching to {skin_id}")
         try:
             new_skin = self._skin_loader.load_skin(skin_id)
         except (FileNotFoundError, ValueError) as e:
             logger.error(f"Failed to load skin '{skin_id}': {e}")
             return
+        logger.debug(f"_on_skin_selected: skin loaded, setting on ghost")
         self._skin = new_skin
         emotions_map = self._load_emotions_map(new_skin)
+        logger.debug(f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin")
         self._ghost.set_skin(emotions_map, new_skin.path)
+        logger.debug("_on_skin_selected: set_skin done, saving settings")
         self._settings.current_skin_id = skin_id
         try:
             self._settings_mgr.update(current_skin_id=skin_id)
         except Exception as e:
             logger.warning(f"Failed to save skin setting: {e}")
-        logger.info(f"Skin switched to: {new_skin.name}")
+        logger.info(f"_on_skin_selected: complete, skin={new_skin.name}")
 
     def _show_settings(self):
         available_skins = [d.name for d in SKINS_DIR.iterdir() if d.is_dir()]
