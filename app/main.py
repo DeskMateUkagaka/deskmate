@@ -195,7 +195,7 @@ class DeskMate:
         return menu
 
     def _setup_tray(self):
-        icon_path = APP_DIR / "icon.png"
+        icon_path = APP_DIR / "icons" / "icon.png"
         if icon_path.exists():
             icon = QIcon(str(icon_path))
         else:
