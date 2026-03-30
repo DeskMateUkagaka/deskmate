@@ -574,14 +574,10 @@ class DeskMate:
     # Bubble actions
     # ------------------------------------------------------------------
 
-    def _on_bubble_action(self, action: str, item_id: str, message: str):
-        if action == "dismiss":
-            self._bubble.dismiss(item_id)
-        elif action == "pin":
-            self._bubble.pin(item_id)
-        elif action == "button-click" and message:
-            logger.info(f"Button clicked: {message}")
-            self._on_chat_send(message)
+    def _on_bubble_action(self, item_id: str, message: str):
+        logger.info(f"Button clicked: {message}")
+        self._bubble.set_buttons(item_id, [])
+        self._on_chat_send(message)
 
     # ------------------------------------------------------------------
     # Gateway connection
