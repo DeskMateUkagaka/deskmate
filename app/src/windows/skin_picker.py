@@ -20,10 +20,12 @@ _CARD_SIZE = 140  # card width/height
 _PREVIEW_SIZE = 120  # preview image size
 _GRID_COLS = 3
 _WINDOW_WIDTH = _GRID_COLS * (_CARD_SIZE + 10) + 40
+_CARD_TEXT_HEIGHT = 36  # height reserved for name + author
+_CARD_DESC_EXTRA = 14  # extra height when description is present
 
 
 class _SkinCard(QWidget):
-    """Single skin card: preview image + name + author."""
+    """Single skin card: preview image + name + author + optional description."""
 
     clicked = Signal(str)  # emits skin_id
 
@@ -32,7 +34,10 @@ class _SkinCard(QWidget):
         self._skin_id = skin.id
         self._selected = is_selected
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedSize(_CARD_SIZE, _CARD_SIZE + 36)
+        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (
+            _CARD_DESC_EXTRA if skin.description else 0
+        )
+        self.setFixedSize(_CARD_SIZE, card_h)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 6)
@@ -77,6 +82,15 @@ class _SkinCard(QWidget):
             author_label.setStyleSheet("color: #888; font-size: 10px;")
             author_label.setMaximumWidth(_CARD_SIZE - 16)
             layout.addWidget(author_label)
+
+        # Description
+        if skin.description:
+            desc_label = QLabel(skin.description, self)
+            desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            desc_label.setStyleSheet("color: #666; font-size: 9px;")
+            desc_label.setMaximumWidth(_CARD_SIZE - 16)
+            desc_label.setWordWrap(True)
+            layout.addWidget(desc_label)
 
     def paintEvent(self, _event) -> None:
         p = QPainter(self)
@@ -266,7 +280,10 @@ class SkinPickerWindow(QWidget):
         max_visible_rows = 4
         rows = (len(skins) + _GRID_COLS - 1) // _GRID_COLS
         visible_rows = min(rows, max_visible_rows)
-        card_h = _CARD_SIZE + 36
+        has_any_description = any(s.description for s in skins)
+        card_h = _CARD_SIZE + _CARD_TEXT_HEIGHT + (
+            _CARD_DESC_EXTRA if has_any_description else 0
+        )
         scroll_h = visible_rows * (card_h + 10) + 10
         self._scroll.setFixedHeight(scroll_h)
 
