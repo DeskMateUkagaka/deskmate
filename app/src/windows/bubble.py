@@ -514,6 +514,13 @@ function pinNewest() {
     return false;
 }
 
+function copyNewest() {
+    var ids = Object.keys(_items);
+    if (ids.length === 0) return false;
+    callBridge('onCopy', {id: ids[ids.length - 1]});
+    return true;
+}
+
 function _renderContent(id, text, isStreaming) {
     var item = _items[id];
     if (!item) return;
@@ -558,12 +565,14 @@ function notifySized() {
     if (_bridge) _bridge.onContentSized(JSON.stringify({height: h}));
 }
 
-// Keyboard: Escape / X dismiss oldest bubble, P pin most recent
+// Keyboard: Escape/X dismiss oldest, P pin newest, C copy newest
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' || e.key === 'x' || e.key === 'X') {
         dismissOldest();
     } else if (e.key === 'p' || e.key === 'P') {
         pinNewest();
+    } else if (e.key === 'c' || e.key === 'C') {
+        copyNewest();
     }
 });
 
@@ -761,6 +770,10 @@ class BubbleWindow(QWidget):
     def _pin_newest(self) -> None:
         """Pin the most recent unpinned bubble item."""
         self._run_js("pinNewest();")
+
+    def copy_newest(self) -> None:
+        """Copy the most recent bubble item to the system clipboard."""
+        self._run_js("copyNewest();")
 
     def set_max_height(self, h: int) -> None:
         """Set max window height and update CSS content max-height accordingly."""

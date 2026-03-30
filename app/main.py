@@ -190,6 +190,13 @@ class DeskMate:
                 self._toggle_chat_input
             )
 
+        # Copy newest bubble from ghost or bubble focus
+        for window in (self._ghost, self._bubble):
+            QShortcut(QKeySequence(Qt.Key.Key_C), window).activated.connect(
+                self._bubble.copy_newest
+            )
+            QShortcut(QKeySequence("Shift+C"), window).activated.connect(self._bubble.copy_newest)
+
         # Ctrl+Q to quit (on ghost or bubble)
         for window in (self._ghost, self._bubble):
             QShortcut(QKeySequence("Ctrl+Q"), window).activated.connect(self._quit)

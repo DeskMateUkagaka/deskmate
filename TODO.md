@@ -2,18 +2,8 @@
 
 ## Framework Migration: Tauri -> PySide6
 
-- [ ] Copy (from md)
-- [ ] Copy (from bubble PIN/Close area button)
 - [ ] Port quake-style terminal
 - [ ] Port command autocomplete
-- [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
-  - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
-  - Bundle size: ~150-200MB due to QtWebEngine (Chromium)
-  - Build on each platform separately (no cross-compilation)
-- [ ] CI/CD for cross-platform builds (GitHub Actions)
-  - Linux: AppImage or Flatpak
-  - Windows: .exe via PyInstaller + NSIS/Inno Setup
-  - macOS: .app bundle + .dmg
 
 ## Immediate Product Gaps
 
@@ -25,6 +15,10 @@
 - [ ] Installation instructions
   - [ ] Human part - need a bootstrap before the AI can handle stuff on its own
   - [ ] AI part
+- [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
+  - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
+  - Bundle size: ~150-200MB due to QtWebEngine (Chromium)
+  - Build on each platform separately (no cross-compilation)
 
 ## Runtime Verification
 
@@ -168,7 +162,6 @@
 - [x] Dynamic ghost window sizing from skin image dimensions
 - [x] Settings stored in `config.yaml`
 - [x] Gateway URL/token editable from the Settings window
-- [x] Backend support for `chat_abort`
 - [x] Reconnection loop with exponential backoff in the gateway client
 - [x] Bubble Markdown rendering with themed code blocks
 - [x] Copy text from the bubble
