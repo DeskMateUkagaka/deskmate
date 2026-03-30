@@ -531,10 +531,11 @@ function _renderContent(id, text, isStreaming) {
             btn.textContent = 'copy';
             btn.onclick = function() {
                 var code = pre.querySelector('code');
-                if (code) navigator.clipboard.writeText(code.innerText).then(function() {
+                if (code) {
+                    callBridge('onCopyText', {text: code.innerText});
                     btn.textContent = 'copied!';
                     setTimeout(function() { btn.textContent = 'copy'; }, 1500);
-                });
+                }
             };
             pre.appendChild(btn);
         }
@@ -587,6 +588,7 @@ class _BubbleBridge(QObject):
     dismiss_triggered = Signal(str)  # item_id
     pin_triggered = Signal(str)  # item_id
     copy_triggered = Signal(str)  # item_id
+    code_copy_triggered = Signal(str)  # raw code text
     content_sized = Signal(int)  # height
     all_dismissed = Signal()
 
@@ -609,6 +611,11 @@ class _BubbleBridge(QObject):
     def onCopy(self, payload: str) -> None:
         data = json.loads(payload)
         self.copy_triggered.emit(str(data.get("id", "")))
+
+    @Slot(str)
+    def onCopyText(self, payload: str) -> None:
+        data = json.loads(payload)
+        self.code_copy_triggered.emit(str(data.get("text", "")))
 
     @Slot()
     def onAllDismissed(self) -> None:
@@ -682,6 +689,7 @@ class BubbleWindow(QWidget):
         self._bridge.dismiss_triggered.connect(self._on_bridge_dismiss)
         self._bridge.pin_triggered.connect(self._on_bridge_pin)
         self._bridge.copy_triggered.connect(self._on_bridge_copy)
+        self._bridge.code_copy_triggered.connect(self._copy_raw_text_to_clipboard)
         self._bridge.all_dismissed.connect(self.all_dismissed)
 
         layout = QVBoxLayout(self)
@@ -812,8 +820,12 @@ class BubbleWindow(QWidget):
         js = f"(_items[{self._js_str(item_id)}] && _items[{self._js_str(item_id)}].rawText) || '';"
         self._page.runJavaScript(js, lambda text: self._copy_text_to_clipboard(item_id, text))
 
-    def _copy_text_to_clipboard(self, item_id: str, text: str) -> None:
+    @staticmethod
+    def _copy_raw_text_to_clipboard(text: str) -> None:
         QGuiApplication.clipboard().setText(text or "")
+
+    def _copy_text_to_clipboard(self, item_id: str, text: str) -> None:
+        self._copy_raw_text_to_clipboard(text)
         self._run_js(f"flashCopyButton({self._js_str(item_id)});")
 
     @staticmethod
