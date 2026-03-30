@@ -2,20 +2,10 @@
 
 ## Framework Migration: Tauri -> PySide6
 
-- [ ] Port ghost window (transparent character sprite, expression switching, drag)
-- [ ] Port bubble window (QWebEngineView for rich content, streaming, markdown)
-- [ ] Port chat input window
-- [ ] Port settings window
-- [ ] Port skin picker window
-- [ ] Port OpenClaw gateway WebSocket client (Rust -> Python)
-- [ ] Port device identity / Ed25519 signing
-- [ ] Port skin loader (manifest.yaml, expression variants)
-- [ ] Port idle animation system
-- [ ] Port tray icon + context menu
-- [x] Port quake-style terminal
-- [x] Port command autocomplete
-- [x] Port settings persistence
-- [ ] Port window position save/restore
+- [ ] Copy (from md)
+- [ ] Copy (from bubble PIN/Close area button)
+- [ ] Port quake-style terminal
+- [ ] Port command autocomplete
 - [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
   - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
   - Bundle size: ~150-200MB due to QtWebEngine (Chromium)

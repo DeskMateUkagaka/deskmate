@@ -4,7 +4,7 @@ import json
 
 from loguru import logger
 from PySide6.QtCore import QObject, Qt, Signal, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -69,7 +69,7 @@ html, body {
     animation: fadeOut 0.2s ease-in forwards;
 }
 
-/* ---- header row (pin + dismiss button) ---- */
+/* ---- header row (copy + pin + dismiss button) ---- */
 .bubble-header {
     display: flex;
     justify-content: flex-end;
@@ -92,6 +92,14 @@ html, body {
 }
 .btn-icon:hover { color: #e0e0e0; background: rgba(255,255,255,0.08); }
 .btn-icon.pinned { color: #7aa2f7; }
+.btn-icon.copy-btn {
+    font-size: 15px;
+    padding: 1px 3px;
+}
+.btn-icon.copy-btn.copied {
+    color: #73daca;
+    background: rgba(115, 218, 202, 0.14);
+}
 
 /* ---- content area ---- */
 .bubble-content {
@@ -306,7 +314,7 @@ function inlinemd(s) {
 }
 
 // ---- Item management ----
-var _items = {};   // id -> { el, timerId, totalMs, startTime, pinned, animFrame }
+var _items = {};   // id -> { el, timerId, totalMs, startTime, pinned, animFrame, rawText }
 
 function _getContainer() { return document.getElementById('items-container'); }
 
@@ -320,6 +328,12 @@ function addItem(id, text, isStreaming) {
     var header = document.createElement('div');
     header.className = 'bubble-header';
 
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-icon copy-btn';
+    copyBtn.textContent = '\ud83d\udccb';  // 📋
+    copyBtn.title = 'Copy to clipboard';
+    copyBtn.onclick = function() { callBridge('onCopy', {id: id}); };
+
     var pinBtn = document.createElement('button');
     pinBtn.className = 'btn-icon pin-btn';
     pinBtn.textContent = '\\u{1F4CC}';  // 📌
@@ -332,6 +346,7 @@ function addItem(id, text, isStreaming) {
     dismissBtn.title = 'Dismiss';
     dismissBtn.onclick = function() { callBridge('onDismiss', {id: id}); };
 
+    header.appendChild(copyBtn);
     header.appendChild(pinBtn);
     header.appendChild(dismissBtn);
 
@@ -362,12 +377,15 @@ function addItem(id, text, isStreaming) {
         btnRowEl: btnRow,
         progressWrap: progressWrap,
         progressFill: progressFill,
+        copyBtn: copyBtn,
         pinBtn: pinBtn,
         timerId: null,
         animFrame: null,
+        copyResetTimer: null,
         totalMs: 0,
         startTime: 0,
         pinned: false,
+        rawText: text,
     };
 
     _renderContent(id, text, isStreaming);
@@ -435,6 +453,7 @@ function removeItem(id) {
     if (!item) return;
     if (item.timerId) clearTimeout(item.timerId);
     if (item.animFrame) cancelAnimationFrame(item.animFrame);
+    if (item.copyResetTimer) clearTimeout(item.copyResetTimer);
     item.el.classList.add('dismissing');
     setTimeout(function() {
         if (item.el.parentNode) item.el.parentNode.removeChild(item.el);
@@ -455,6 +474,21 @@ function pinItem(id) {
     item.progressWrap.style.display = 'none';
     item.pinBtn.classList.add('pinned');
     item.pinBtn.title = 'Pinned';
+}
+
+function flashCopyButton(id) {
+    var item = _items[id];
+    if (!item || !item.copyBtn) return;
+    item.copyBtn.classList.add('copied');
+    item.copyBtn.textContent = '\u2713';
+    item.copyBtn.title = 'Copied';
+    if (item.copyResetTimer) clearTimeout(item.copyResetTimer);
+    item.copyResetTimer = setTimeout(function() {
+        item.copyBtn.classList.remove('copied');
+        item.copyBtn.textContent = '\ud83d\udccb';
+        item.copyBtn.title = 'Copy to clipboard';
+        item.copyResetTimer = null;
+    }, 1200);
 }
 
 function clearAll() {
@@ -483,6 +517,7 @@ function pinNewest() {
 function _renderContent(id, text, isStreaming) {
     var item = _items[id];
     if (!item) return;
+    item.rawText = text;
     var html = md(text);
     if (isStreaming) {
         html += '<span class="cursor"></span>';
@@ -551,6 +586,7 @@ class _BubbleBridge(QObject):
     action_triggered = Signal(str, str)  # item_id, label
     dismiss_triggered = Signal(str)  # item_id
     pin_triggered = Signal(str)  # item_id
+    copy_triggered = Signal(str)  # item_id
     content_sized = Signal(int)  # height
     all_dismissed = Signal()
 
@@ -568,6 +604,11 @@ class _BubbleBridge(QObject):
     def onPin(self, payload: str) -> None:
         data = json.loads(payload)
         self.pin_triggered.emit(str(data.get("id", "")))
+
+    @Slot(str)
+    def onCopy(self, payload: str) -> None:
+        data = json.loads(payload)
+        self.copy_triggered.emit(str(data.get("id", "")))
 
     @Slot()
     def onAllDismissed(self) -> None:
@@ -640,6 +681,7 @@ class BubbleWindow(QWidget):
         self._bridge.content_sized.connect(self._on_content_sized)
         self._bridge.dismiss_triggered.connect(self._on_bridge_dismiss)
         self._bridge.pin_triggered.connect(self._on_bridge_pin)
+        self._bridge.copy_triggered.connect(self._on_bridge_copy)
         self._bridge.all_dismissed.connect(self.all_dismissed)
 
         layout = QVBoxLayout(self)
@@ -765,6 +807,14 @@ class BubbleWindow(QWidget):
 
     def _on_bridge_pin(self, item_id: str) -> None:
         self._run_js(f"pinItem({self._js_str(item_id)});")
+
+    def _on_bridge_copy(self, item_id: str) -> None:
+        js = f"(_items[{self._js_str(item_id)}] && _items[{self._js_str(item_id)}].rawText) || '';"
+        self._page.runJavaScript(js, lambda text: self._copy_text_to_clipboard(item_id, text))
+
+    def _copy_text_to_clipboard(self, item_id: str, text: str) -> None:
+        QGuiApplication.clipboard().setText(text or "")
+        self._run_js(f"flashCopyButton({self._js_str(item_id)});")
 
     @staticmethod
     def _js_str(text: str) -> str:
