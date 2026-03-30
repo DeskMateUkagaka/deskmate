@@ -24,6 +24,7 @@ from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader, UiPlacement
+from src.lib.compositor import get_window_position, set_window_position
 from src.lib.window_position import calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
@@ -152,6 +153,7 @@ class DeskMate:
         # Chat input signals
         self._input.message_sent.connect(self._on_chat_send)
         self._input.dismissed.connect(self._input.hide_input)
+        self._input.window_mapped.connect(self._reposition_input)
 
         # Bubble signals
         self._bubble.action.connect(self._on_bubble_action)
@@ -222,13 +224,28 @@ class DeskMate:
             return sg.width(), sg.height()
         return 1920, 1080
 
+    def _ghost_screen_pos(self) -> tuple[int, int]:
+        """Get ghost's real screen position (compositor-aware)."""
+        comp_pos = get_window_position(title="deskmate-ghost")
+        if comp_pos:
+            return int(comp_pos[0]), int(comp_pos[1])
+        pos = self._ghost.pos()
+        return pos.x(), pos.y()
+
+    def _move_window(self, window, x: int, y: int) -> None:
+        """Move window using compositor IPC if available, else QWidget.move()."""
+        title = window.windowTitle()
+        if title and set_window_position(title=title, x=x, y=y):
+            return
+        window.move(x, y)
+
     def _position_window(self, window, placement):
         """Position *window* relative to ghost using shared anchor + clamping."""
-        ghost_pos = self._ghost.pos()
+        gx, gy = self._ghost_screen_pos()
         bounds = self._ghost.image_bounds()
         ax, ay = calc_anchor(
-            ghost_pos.x(),
-            ghost_pos.y(),
+            gx,
+            gy,
             bounds,
             placement.x,
             placement.y,
@@ -243,7 +260,7 @@ class DeskMate:
             sw,
             sh,
         )
-        window.move(pos.screen_x, pos.screen_y)
+        self._move_window(window, pos.screen_x, pos.screen_y)
         return pos
 
     def _reposition_bubble(self):
@@ -258,10 +275,10 @@ class DeskMate:
             self._position_window(self._input, self._skin.input_placement)
             return
         # Default: centered below the sprite's bottom edge with a small gap.
-        ghost_pos = self._ghost.pos()
+        gx, gy = self._ghost_screen_pos()
         bounds = self._ghost.image_bounds()
-        ax = ghost_pos.x() + bounds["centerX"]
-        ay = ghost_pos.y() + bounds["bottom"] + 10
+        ax = gx + bounds["centerX"]
+        ay = gy + bounds["bottom"] + 10
         sw, sh = self._calc_screen_rect()
         pos = calc_window_position(
             ax,
@@ -272,7 +289,7 @@ class DeskMate:
             sw,
             sh,
         )
-        self._input.move(pos.screen_x, pos.screen_y)
+        self._move_window(self._input, pos.screen_x, pos.screen_y)
 
     def _on_ghost_moved(self, pos: QPoint):
         if self._bubble.is_bubble_visible():
@@ -288,8 +305,8 @@ class DeskMate:
         if self._input.isVisible():
             self._input.hide_input()
             return
-        self._reposition_input()
         self._input.show_input(self._input.pos())
+        # Reposition happens via window_mapped signal (deferred until compositor maps the window)
         self._input.set_connection_status("connected" if self._gateway else "disconnected")
 
     def _on_chat_send(self, text: str):

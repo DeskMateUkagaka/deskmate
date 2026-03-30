@@ -1,7 +1,7 @@
 """ChatInputWindow — transparent popup for text input."""
 
 from loguru import logger
-from PySide6.QtCore import QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -281,6 +281,7 @@ class ChatInputWindow(QWidget):
 
     message_sent = Signal(str)  # User pressed Enter with non-empty text
     dismissed = Signal()  # User pressed Escape
+    window_mapped = Signal()  # Fired once after the window is shown (compositor has mapped it)
     resized = Signal(int, int)  # Content size changed (width, height)
 
     def __init__(self, parent=None):
@@ -291,6 +292,7 @@ class ChatInputWindow(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowTitle("deskmate-input")
 
         self._commands: list[SlashCommand] = []
         self._connection_status = "disconnected"
@@ -332,6 +334,12 @@ class ChatInputWindow(QWidget):
     # ------------------------------------------------------------------
     # Qt overrides
     # ------------------------------------------------------------------
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        # Defer signal so the Wayland compositor has time to map the window
+        # before callers query its position via IPC (swaymsg).
+        QTimer.singleShot(20, self.window_mapped.emit)
 
     def paintEvent(self, _event) -> None:
         p = QPainter(self)

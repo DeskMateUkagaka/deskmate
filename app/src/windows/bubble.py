@@ -606,6 +606,7 @@ class BubbleWindow(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowTitle("deskmate-bubble")
         self.resize(648, 400)
 
         # WebView
