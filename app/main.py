@@ -27,8 +27,8 @@ from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader, UiPlacement
-from src.lib.compositor import get_window_position, set_window_position
-from src.lib.window_position import calc_anchor, calc_window_position
+from src.lib.compositor import get_screen_at, get_window_position, set_window_position
+from src.lib.window_position import ScreenRect, calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
 from src.windows.ghost import GhostWindow
@@ -220,13 +220,17 @@ class DeskMate:
         else:
             self._ghost.set_height(self._settings.ghost_height_pixels)
 
-    def _calc_screen_rect(self):
-        """Return (width, height) of the primary screen's available area."""
+    def _ghost_screen_rect(self) -> ScreenRect:
+        """Return the screen geometry containing the ghost (global coords)."""
+        gx, gy = self._ghost_screen_pos()
+        comp_screen = get_screen_at(gx, gy)
+        if comp_screen:
+            return ScreenRect(*comp_screen)
         screen = self._app.primaryScreen()
         if screen:
             sg = screen.availableGeometry()
-            return sg.width(), sg.height()
-        return 1920, 1080
+            return ScreenRect(sg.x(), sg.y(), sg.width(), sg.height())
+        return ScreenRect(0, 0, 1920, 1080)
 
     def _ghost_screen_pos(self) -> tuple[int, int]:
         """Get ghost's real screen position (compositor-aware)."""
@@ -254,15 +258,14 @@ class DeskMate:
             placement.x,
             placement.y,
         )
-        sw, sh = self._calc_screen_rect()
+        sr = self._ghost_screen_rect()
         pos = calc_window_position(
             ax,
             ay,
             window.width(),
             window.height(),
             placement.origin,
-            sw,
-            sh,
+            screen=sr,
         )
         self._move_window(window, pos.screen_x, pos.screen_y)
         return pos
@@ -283,15 +286,14 @@ class DeskMate:
         bounds = self._ghost.image_bounds()
         ax = gx + bounds["centerX"]
         ay = gy + bounds["bottom"] + 10
-        sw, sh = self._calc_screen_rect()
+        sr = self._ghost_screen_rect()
         pos = calc_window_position(
             ax,
             ay,
             self._input.width(),
             self._input.height(),
             "center",
-            sw,
-            sh,
+            screen=sr,
         )
         self._move_window(self._input, pos.screen_x, pos.screen_y)
 
@@ -699,11 +701,9 @@ class DeskMate:
         picker_w = self._skin_picker.width()
         x = gx + ghost_w // 2 - picker_w // 2
         y = gy - self._skin_picker.height() - 10
-        screen = self._app.primaryScreen()
-        if screen:
-            sg = screen.availableGeometry()
-            x = max(sg.left(), min(x, sg.right() - picker_w))
-            y = max(sg.top(), min(y, sg.bottom() - self._skin_picker.height()))
+        sr = self._ghost_screen_rect()
+        x = max(sr.x, min(x, sr.x + sr.width - picker_w))
+        y = max(sr.y, min(y, sr.y + sr.height - self._skin_picker.height()))
         logger.debug(f"_show_skin_picker: moving to ({x}, {y})")
         self._skin_picker.move(x, y)
         logger.debug("_show_skin_picker: done")
@@ -733,17 +733,15 @@ class DeskMate:
         available_skins.sort()
 
         # Position near the ghost
-        ghost_pos = self._ghost.pos()
-        x = ghost_pos.x() - self._settings_win.width() - 10
-        y = ghost_pos.y()
+        gx, gy = self._ghost_screen_pos()
+        x = gx - self._settings_win.width() - 10
+        y = gy
         # Keep on screen
-        screen = self._app.primaryScreen()
-        if screen:
-            sg = screen.availableGeometry()
-            if x < sg.left():
-                x = ghost_pos.x() + self._ghost.width() + 10
-            if y + self._settings_win.height() > sg.bottom():
-                y = sg.bottom() - self._settings_win.height()
+        sr = self._ghost_screen_rect()
+        if x < sr.x:
+            x = gx + self._ghost.width() + 10
+        if y + self._settings_win.height() > sr.y + sr.height:
+            y = sr.y + sr.height - self._settings_win.height()
         self._settings_win.move(x, y)
 
         self._settings_win.show_settings(self._settings, available_skins)

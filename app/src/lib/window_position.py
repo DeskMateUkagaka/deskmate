@@ -48,21 +48,33 @@ def calc_anchor(
     return (ghost_x + px, ghost_y + py)
 
 
+class ScreenRect(NamedTuple):
+    x: int = 0
+    y: int = 0
+    width: int = 1920
+    height: int = 1080
+
+
 def calc_window_position(
     target_x: int,
     target_y: int,
     width: int,
     height: int,
     origin: Origin,
-    screen_width: int,
-    screen_height: int,
+    screen_width: int = 0,
+    screen_height: int = 0,
     margins: ScreenMargins = ScreenMargins(),
+    screen: ScreenRect | None = None,
 ) -> WindowPosition:
     """Compute a clamped screen position for a window.
 
     target_x/y: anchor point in screen coordinates.
     origin: which point of the window the anchor refers to.
+    screen: full screen geometry (global coords). If provided, screen_width/height are ignored.
     """
+    if screen is None:
+        screen = ScreenRect(0, 0, screen_width, screen_height)
+
     if origin == "top-left":
         ideal_x, ideal_y = target_x, target_y
     elif origin == "top-center":
@@ -78,8 +90,8 @@ def calc_window_position(
     else:  # "center" or default
         ideal_x, ideal_y = target_x - width // 2, target_y - height // 2
 
-    screen_x = max(margins.left, min(ideal_x, screen_width - width - margins.right))
-    screen_y = max(margins.top, min(ideal_y, screen_height - height - margins.bottom))
+    screen_x = max(screen.x + margins.left, min(ideal_x, screen.x + screen.width - width - margins.right))
+    screen_y = max(screen.y + margins.top, min(ideal_y, screen.y + screen.height - height - margins.bottom))
 
     return WindowPosition(
         screen_x=screen_x,

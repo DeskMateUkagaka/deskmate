@@ -27,6 +27,41 @@ def compositor() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Get screen geometry containing a point
+# ---------------------------------------------------------------------------
+
+
+def get_screen_at(x: int, y: int) -> tuple[int, int, int, int] | None:
+    """Return (x, y, width, height) of the output containing the given point."""
+    comp = compositor()
+    if comp == "sway":
+        return _sway_get_screen_at(x, y)
+    return None
+
+
+def _sway_get_screen_at(px: int, py: int) -> tuple[int, int, int, int] | None:
+    try:
+        result = subprocess.run(
+            ["swaymsg", "-t", "get_outputs"],
+            capture_output=True,
+            timeout=2,
+        )
+        if result.returncode != 0:
+            return None
+        outputs = json.loads(result.stdout)
+        for out in outputs:
+            if not out.get("active"):
+                continue
+            r = out.get("rect", {})
+            ox, oy, ow, oh = r.get("x", 0), r.get("y", 0), r.get("width", 0), r.get("height", 0)
+            if ox <= px < ox + ow and oy <= py < oy + oh:
+                return (ox, oy, ow, oh)
+    except Exception as e:
+        logger.warning(f"swaymsg get_outputs failed: {e}")
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Get window position
 # ---------------------------------------------------------------------------
 
