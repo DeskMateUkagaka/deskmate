@@ -748,9 +748,6 @@ class DeskMate:
         logger.info(f"_on_skin_selected: complete, skin={new_skin.name}")
 
     def _show_settings(self):
-        available_skins = [d.name for d in SKINS_DIR.iterdir() if d.is_dir()]
-        available_skins.sort()
-
         # Position near the ghost
         gx, gy = self._ghost_screen_pos()
         x = gx - self._settings_win.width() - 10
@@ -763,7 +760,7 @@ class DeskMate:
             y = sr.y + sr.height - self._settings_win.height()
         self._settings_win.move(x, y)
 
-        self._settings_win.show_settings(self._settings, available_skins)
+        self._settings_win.show_settings(self._settings)
 
     def _on_settings_saved(self, updated: dict) -> None:
         old_url = self._settings.gateway_url

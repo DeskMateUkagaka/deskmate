@@ -2,9 +2,8 @@
 
 from loguru import logger
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QComboBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -109,20 +108,13 @@ class SettingsWindow(QWidget):
     # Public API
     # ------------------------------------------------------------------
 
-    def show_settings(self, settings: Settings, skins: list[str]) -> None:
+    def show_settings(self, settings: Settings) -> None:
         """Populate form fields from settings and show the window."""
         self._gateway_url.setText(settings.gateway_url)
         self._gateway_token.setText(settings.gateway_token)
         self._bubble_timeout.setValue(round(settings.bubble_timeout_ms / 1000))
         self._ghost_height.setValue(settings.ghost_height_pixels)
         self._idle_interval.setValue(int(settings.idle_interval_seconds))
-
-        self._skin_combo.clear()
-        for skin_id in skins:
-            self._skin_combo.addItem(skin_id)
-        idx = self._skin_combo.findText(settings.current_skin_id)
-        if idx >= 0:
-            self._skin_combo.setCurrentIndex(idx)
 
         self.show()
         self.raise_()
@@ -158,6 +150,12 @@ class SettingsWindow(QWidget):
         p.drawPath(path)
 
         p.end()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.hide_settings()
+            return
+        super().keyPressEvent(event)
 
     # ------------------------------------------------------------------
     # Internal
@@ -220,16 +218,10 @@ class SettingsWindow(QWidget):
         self._ghost_height.setSuffix(" px")
         self._ghost_height.setStyleSheet(_INPUT_STYLE)
 
-        self._skin_combo = QComboBox(self)
-        self._skin_combo.setStyleSheet(_INPUT_STYLE)
-
         gh_label = QLabel("Ghost height", self)
         gh_label.setStyleSheet(_LABEL_STYLE)
-        skin_label = QLabel("Skin", self)
-        skin_label.setStyleSheet(_LABEL_STYLE)
 
         app_form.addRow(gh_label, self._ghost_height)
-        app_form.addRow(skin_label, self._skin_combo)
         root.addLayout(app_form)
 
         # --- Section: Behaviour ---
@@ -286,7 +278,6 @@ class SettingsWindow(QWidget):
             "bubble_timeout_ms": self._bubble_timeout.value() * 1000,
             "ghost_height_pixels": self._ghost_height.value(),
             "idle_interval_seconds": float(self._idle_interval.value()),
-            "current_skin_id": self._skin_combo.currentText(),
         }
         logger.info(f"Settings saved: gateway_url={updated['gateway_url']}")
         self.settings_saved.emit(updated)
