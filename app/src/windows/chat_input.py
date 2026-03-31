@@ -135,7 +135,7 @@ class _InputEdit(QTextEdit):
     """Single/multi-line text editor that:
     - Emits send_requested on Enter
     - Emits dismiss_requested on Escape
-    - Adds a newline on Shift+Enter
+    - Adds a newline on Shift+Enter or Alt+Enter
     - Grows up to _MAX_INPUT_LINES rows, then scrolls
     - Delegates Up/Down/Tab/Enter to autocomplete when popup is active
     """
@@ -208,8 +208,15 @@ class _InputEdit(QTextEdit):
                 return
 
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                super().keyPressEvent(event)  # newline
+            modifiers = event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier
+            if modifiers in {
+                Qt.KeyboardModifier.ShiftModifier,
+                Qt.KeyboardModifier.AltModifier,
+                Qt.KeyboardModifier.ShiftModifier | Qt.KeyboardModifier.AltModifier,
+            }:
+                self.insertPlainText("\n")
+                cursor = self.textCursor()
+                self.text_changed_for_ac.emit(self.toPlainText(), cursor.position())
             else:
                 text = self.toPlainText().strip()
                 if text:
@@ -273,7 +280,7 @@ class ChatInputWindow(QWidget):
 
     Keyboard behaviour:
     - Enter       → send message (message_sent signal)
-    - Shift+Enter → newline
+    - Shift+Enter or Alt+Enter → newline
     - Escape      → dismiss (dismissed signal)
 
     The window auto-grows as the user types, up to _MAX_INPUT_LINES rows.
@@ -385,7 +392,7 @@ class ChatInputWindow(QWidget):
         status_row.addWidget(self._status_label)
         status_row.addStretch()
 
-        hint = QLabel("Enter to send · Shift+Enter for newline · Esc to close", self)
+        hint = QLabel("Enter to send · Shift/Alt+Enter for newline · Esc to close", self)
         hint.setStyleSheet("color: rgba(120,120,140,0.55); font-size: 10px;")
         status_row.addWidget(hint)
 

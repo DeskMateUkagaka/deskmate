@@ -2,7 +2,7 @@
 
 ## Immediate Product Gaps
 
-- [ ] Get Skins
+- [x] Get Skins
 - [ ] Add a conversation history / quake-style terminal window
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
@@ -13,7 +13,6 @@
   - [ ] AI part
 - [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
   - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
-  - Bundle size: ~150-200MB due to QtWebEngine (Chromium)
   - Build on each platform separately (no cross-compilation)
 
 ## Runtime Verification
