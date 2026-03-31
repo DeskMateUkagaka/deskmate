@@ -18,7 +18,7 @@ from pathlib import Path
 from loguru import logger
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from src.lib.compositor import hide_window, show_window
+from src.lib.compositor import compositor
 
 # ---------------------------------------------------------------------------
 # Terminal emulator definitions
@@ -238,9 +238,11 @@ class QuakeTerminalManager(QObject):
         self._process = subprocess.Popen(args)
         logger.info(f"Terminal spawned (pid={self._process.pid})")
 
-        # Give the terminal a moment to create its window before positioning
-        QTimer.singleShot(
-            400, lambda: show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height)
+        # Wait for the compositor to see the window, then position it
+        comp = compositor()
+        comp.wait_for_window(
+            _WINDOW_TITLE,
+            lambda: comp.show_window(_WINDOW_TITLE, x, y, width, height),
         )
 
         self._visible = True
@@ -249,11 +251,11 @@ class QuakeTerminalManager(QObject):
 
     def _show(self, config) -> None:
         x, y, width, height = self._compute_geometry(config)
-        show_window(title=_WINDOW_TITLE, x=x, y=y, width=width, height=height)
+        compositor().show_window(_WINDOW_TITLE, x, y, width, height)
         self._visible = True
         self.toggled.emit(True)
 
     def _hide(self) -> None:
-        hide_window(title=_WINDOW_TITLE)
+        compositor().hide_window(_WINDOW_TITLE)
         self._visible = False
         self.toggled.emit(False)

@@ -10,7 +10,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from src.lib.compositor import get_window_position, set_window_position
+from src.lib.compositor import compositor
 from src.lib.consts import DEFAULT_GHOST_HEIGHT
 
 GHOST_HTML = """\
@@ -273,7 +273,7 @@ class GhostWindow(QWidget):
         self._update_image()
 
     def save_position(self) -> tuple[float, float]:
-        pos = get_window_position(title="deskmate-ghost")
+        pos = compositor().get_window_position("deskmate-ghost")
         if pos:
             logger.debug(f"save_position: compositor returned ({pos[0]}, {pos[1]})")
             return pos
@@ -283,7 +283,7 @@ class GhostWindow(QWidget):
 
     def restore_position(self, x: float, y: float) -> None:
         logger.debug(f"restore_position: ({x}, {y})")
-        if set_window_position(title="deskmate-ghost", x=int(x), y=int(y)):
+        if compositor().set_window_position("deskmate-ghost", int(x), int(y)):
             return
         self.move(int(x), int(y))
 

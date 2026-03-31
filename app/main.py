@@ -35,7 +35,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from src.gateway.chat import ChatSession
 from src.gateway.client import GatewayClient
 from src.lib.commands import load_cached_commands, parse_commands_response, save_cached_commands
-from src.lib.compositor import get_screen_at, get_window_position, set_window_position
+from src.lib.compositor import compositor
 from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
@@ -258,7 +258,7 @@ class DeskMate:
     def _ghost_screen_rect(self) -> ScreenRect:
         """Return the screen geometry containing the ghost (global coords)."""
         gx, gy = self._ghost_screen_pos()
-        comp_screen = get_screen_at(gx, gy)
+        comp_screen = compositor().get_screen_at(gx, gy)
         if comp_screen:
             return ScreenRect(*comp_screen)
         screen = self._app.primaryScreen()
@@ -269,7 +269,7 @@ class DeskMate:
 
     def _ghost_screen_pos(self) -> tuple[int, int]:
         """Get ghost's real screen position (compositor-aware)."""
-        comp_pos = get_window_position(title="deskmate-ghost")
+        comp_pos = compositor().get_window_position("deskmate-ghost")
         if comp_pos:
             return int(comp_pos[0]), int(comp_pos[1])
         pos = self._ghost.pos()
@@ -278,7 +278,7 @@ class DeskMate:
     def _move_window(self, window, x: int, y: int) -> None:
         """Move window using compositor IPC if available, else QWidget.move()."""
         title = window.windowTitle()
-        if title and set_window_position(title=title, x=x, y=y):
+        if title and compositor().set_window_position(title, x, y):
             return
         window.move(x, y)
 
