@@ -1,11 +1,5 @@
 # DeskMate v1 TODO
 
-## Framework Migration: Tauri -> PySide6
-
-- [ ] Port quake-style terminal
-- [ ] Port command autocomplete
-- [ ] Auto completion sort of works but not displays properly
-
 ## Immediate Product Gaps
 
 - [ ] Add a conversation history / quake-style terminal window

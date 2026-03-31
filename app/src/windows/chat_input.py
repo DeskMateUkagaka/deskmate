@@ -39,8 +39,9 @@ class _AutocompletePopup(QWidget):
     command_selected = Signal(object)  # SlashCommand
 
     def __init__(self, parent: QWidget):
-        super().__init__(parent, Qt.WindowType.SubWindow)
+        super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setStyleSheet(
             "QWidget {"
             "  background: rgba(40, 40, 45, 0.98);"
@@ -95,7 +96,7 @@ class _AutocompletePopup(QWidget):
             )
             label.setStyleSheet("background: transparent; padding: 2px 4px;")
             label.setFont(QFont("Segoe UI", 10))
-            item.setSizeHint(QSize(self._list.width(), _POPUP_ITEM_HEIGHT))
+            item.setSizeHint(QSize(0, _POPUP_ITEM_HEIGHT))
             self._list.addItem(item)
             self._list.setItemWidget(item, label)
 
@@ -399,10 +400,12 @@ class ChatInputWindow(QWidget):
         self._editor.setPlaceholderText("Type a message…")
         root.addWidget(self._editor)
 
-        # Autocomplete popup (child of this window, floats above editor)
+        # Autocomplete list lives inside this window so it never steals focus.
         self._popup = _AutocompletePopup(self)
         self._popup.command_selected.connect(self._on_command_selected)
         self._editor.set_popup(self._popup)
+        root.addWidget(self._popup)
+        self._popup.hide()
 
     def _on_send(self, text: str) -> None:
         self._editor.clear()
@@ -416,7 +419,6 @@ class ChatInputWindow(QWidget):
 
     def _on_editor_height_changed(self, _h: int) -> None:
         self._update_size()
-        self._reposition_popup()
 
     def _update_size(self) -> None:
         self.adjustSize()
@@ -451,11 +453,13 @@ class ChatInputWindow(QWidget):
         """Called on each keypress — update autocomplete visibility."""
         if not self._commands:
             self._popup.hide()
+            self._update_size()
             return
 
         trigger = self._find_slash_trigger(text, cursor_pos)
         if trigger is None:
             self._popup.hide()
+            self._update_size()
             return
 
         filter_text = trigger["filter_text"].lower()
@@ -463,22 +467,12 @@ class ChatInputWindow(QWidget):
 
         if not filtered:
             self._popup.hide()
+            self._update_size()
             return
 
         self._popup.update_items(filtered)
-        self._reposition_popup()
         self._popup.show()
-        self._popup.raise_()
-
-    def _reposition_popup(self) -> None:
-        """Position popup just above the editor."""
-        editor_geom = self._editor.geometry()
-        popup_h = self._popup.sizeHint().height()
-        popup_w = max(self.width() - 24, 300)
-        self._popup.setFixedWidth(popup_w)
-        x = editor_geom.left()
-        y = editor_geom.top() - popup_h - 4
-        self._popup.move(x, y)
+        self._update_size()
 
     def _insert_command(self, cmd: SlashCommand) -> None:
         """Replace the current /partial trigger with cmd.name + space."""
