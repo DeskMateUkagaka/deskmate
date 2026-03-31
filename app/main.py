@@ -514,18 +514,14 @@ class DeskMate:
             return
 
         if state == "delta" and message:
-            content_blocks = message.get("content", [])
-            parts = [
-                block["text"]
-                for block in content_blocks
-                if block.get("type") == "text" and block.get("text")
-            ]
-            if parts:
-                self._current_response = "".join(parts)
+            text_content = self._extract_text_content(message)
+            if text_content:
+                self._current_response = text_content
             self._on_stream_delta(self._current_response)
 
         elif state == "final":
-            self._on_stream_final(self._current_response)
+            final_text = self._extract_text_content(message) or self._current_response
+            self._on_stream_final(final_text)
             self._current_response = ""
 
         elif state == "error":
