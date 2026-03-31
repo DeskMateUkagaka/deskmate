@@ -70,7 +70,7 @@ class IdleAnimationManager(QObject):
         if self._animating:
             self._animating = False
             self.idle_cleared.emit()
-            logger.debug("[idle] interaction interrupted animation")
+            # logger.debug("[idle] interaction interrupted animation")
         if self._enabled and self._has_animations():
             self._start_idle_timer()
 
@@ -104,9 +104,9 @@ class IdleAnimationManager(QObject):
         base_ms = self._interval_seconds * 1000
         jitter = base_ms * (random.random() * 0.2 - 0.1)  # ±10%
         delay_ms = int(base_ms + jitter)
-        logger.debug(
-            f"[idle] starting idle timer: {delay_ms}ms (base={int(base_ms)}ms, jitter={jitter:+.0f}ms)"
-        )
+        # logger.debug(
+        #     f"[idle] starting idle timer: {delay_ms}ms (base={int(base_ms)}ms, jitter={jitter:+.0f}ms)"
+        # )
         self._idle_timer.start(delay_ms)
 
     def _on_idle_fired(self) -> None:
@@ -117,14 +117,14 @@ class IdleAnimationManager(QObject):
         anim = random.choice(anims)
         path = str(self._skin.path / anim.file)  # type: ignore[union-attr]
 
-        logger.debug(f"[idle] timer fired, playing: {anim.file} (duration={anim.duration_ms}ms)")
+        # logger.debug(f"[idle] timer fired, playing: {anim.file} (duration={anim.duration_ms}ms)")
 
         self._animating = True
         self.idle_override.emit(path)
         self._anim_timer.start(anim.duration_ms)
 
     def _on_anim_complete(self) -> None:
-        logger.debug("[idle] animation complete, restoring expression")
+        # logger.debug("[idle] animation complete, restoring expression")
         self._animating = False
         self.idle_cleared.emit()
         # Restart idle timer for next cycle
