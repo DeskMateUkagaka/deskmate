@@ -2,7 +2,6 @@
 
 ## Framework Migration: Tauri -> PySide6
 
-- [ ] bubble/chat input margins: window add top/bottom/left/right margin (tray size/edge differences per user)
 - [ ] Port quake-style terminal
 - [ ] Port command autocomplete
 - [ ] Auto completion sort of works but not displays properly
@@ -181,6 +180,7 @@
   - [x] Use preview.png - mandatory
   - [x] skin config persistence - after choose skin keep it in user config
 - [x] Replace the default app icons
+- [x] bubble/chat input margins: window add top/bottom/left/right margin (tray size/edge differences per user)
 
 ## Won't Do
 

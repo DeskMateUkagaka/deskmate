@@ -6,12 +6,16 @@ Run: /usr/bin/python3 app/main.py
 """
 
 import asyncio
+import ctypes
+import ctypes.util
 import os
 import random
 import signal
 import sys
+import threading
 from pathlib import Path
 
+import setproctitle
 import yaml
 from loguru import logger
 
@@ -106,6 +110,15 @@ class DeskMate:
         self._quake.toggled.connect(self._on_quake_toggled)
         self._quake.toggle_requested.connect(self._toggle_quake_terminal)
         self._quake.setup_signal_handler()
+
+        # SIGUSR2 → toggle ghost visibility
+        self._sigusr2_event = threading.Event()
+        signal.signal(signal.SIGUSR2, lambda *_: self._sigusr2_event.set())
+        self._sigusr2_timer = QTimer()
+        self._sigusr2_timer.setInterval(100)
+        self._sigusr2_timer.timeout.connect(self._check_sigusr2)
+        self._sigusr2_timer.start()
+        logger.info("SIGUSR2 handler registered (pkill -USR2 -x python3 to toggle ghost)")
 
         # Idle animation
         self._idle_manager = IdleAnimationManager(self._app)
@@ -741,6 +754,11 @@ class DeskMate:
     def _on_quake_toggled(self, visible: bool):
         logger.info(f"Quake terminal {'shown' if visible else 'hidden'}")
 
+    def _check_sigusr2(self):
+        if self._sigusr2_event.is_set():
+            self._sigusr2_event.clear()
+            self._toggle_ghost()
+
     def _toggle_ghost(self):
         if self._ghost.isVisible():
             # Save position while ghost is still visible (swaymsg can find it)
@@ -909,7 +927,22 @@ class DeskMate:
         return self._app.exec()
 
 
+def _set_process_name(name: str) -> None:
+    """Set the process name visible to pkill/pgrep and ps."""
+    # setproctitle changes /proc/PID/cmdline (shown by ps -eaf)
+    setproctitle.setproctitle(name)
+    # prctl changes /proc/PID/comm (used by pkill -x)
+    libname = ctypes.util.find_library("c")
+    if not libname:
+        return
+    libc = ctypes.CDLL(libname, use_errno=True)
+    PR_SET_NAME = 15
+    libc.prctl(PR_SET_NAME, name.encode(), 0, 0, 0)
+    logger.info(f"Process name set to '{name}'")
+
+
 def main():
+    _set_process_name("deskmate")
     sys.exit(DeskMate().run())
 
 

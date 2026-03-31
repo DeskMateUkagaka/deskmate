@@ -119,7 +119,12 @@ For tmux/byobu session reattachment:
 
 ### Keyboard Shortcut (Wayland)
 
-Wayland compositors don't support application-level global hotkeys. DeskMate listens for `SIGUSR1` to toggle the quake terminal, so you can bind a key in your compositor config.
+Wayland compositors don't support application-level global hotkeys. DeskMate listens for Unix signals to toggle features, so you can bind keys in your compositor config.
+
+| Signal | Action | Command |
+|--------|--------|---------|
+| `SIGUSR1` | Toggle quake terminal | `pkill -USR1 -x deskmate` |
+| `SIGUSR2` | Toggle ghost visibility (show/hide) | `pkill -USR2 -x deskmate` |
 
 **Sway / i3:**
 
@@ -127,6 +132,7 @@ Add to `~/.config/sway/config` (or `~/.config/i3/config`):
 
 ```
 bindsym Ctrl+Alt+grave exec pkill -USR1 -x deskmate
+bindsym Ctrl+Alt+h exec pkill -USR2 -x deskmate
 ```
 
 (`grave` is the backtick `` ` `` key.)

@@ -5,3 +5,4 @@ cryptography>=44.0
 pydantic>=2.0
 loguru>=0.7
 platformdirs
+setproctitle

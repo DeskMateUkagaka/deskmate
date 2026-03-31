@@ -681,9 +681,9 @@ class _TransparentWebPage(QWebEnginePage):
         self.setBackgroundColor(QColor(0, 0, 0, 0))
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-        logger.debug(
-            f"[bubble] navigation: url={url.toString()} type={nav_type} main_frame={is_main_frame}"
-        )
+        # logger.debug(
+        #     f"[bubble] navigation: url={url.toString()} type={nav_type} main_frame={is_main_frame}"
+        # )
         if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
             logger.info(f"[bubble] opening link: {url.toString()}")
             ok = QDesktopServices.openUrl(url)
