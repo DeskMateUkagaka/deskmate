@@ -2,6 +2,7 @@
 
 ## Immediate Product Gaps
 
+- [ ] Get Skins
 - [ ] Add a conversation history / quake-style terminal window
   - [x] Use real terminal? Like, foot terminal?
   - [ ] How about Mac?
@@ -18,9 +19,7 @@
 ## Runtime Verification
 
 - [x] Test against a live OpenClaw gateway (challenge/nonce handshake, token auth)
-- [x] Test Wayland transparency (`GDK_BACKEND=wayland`)
 - [x] Verify `[emotion:X]` prompting end-to-end with actual model responses
-- [x] Decide where the `[emotion:X]` contract should be injected: `chat.inject`, agent config, or per-message prelude
 
 ## Later
 
@@ -50,7 +49,7 @@
 - [x] Floating-window rule requirement is documented
 - [x] Bubble repaint nudge workaround is in place for transparency bleed
 - [x] Save/restore ghost position after drag
-- [ ] Bubble repositions correctly after repeated drags
+- [x] Bubble repositions correctly after repeated drags
 
 ### Linux - X11 + i3
 

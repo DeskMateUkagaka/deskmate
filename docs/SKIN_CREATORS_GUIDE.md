@@ -19,6 +19,7 @@ A complete skin looks like this:
 ```
 my-skin/
   manifest.yaml          # Required — metadata + configuration
+  preview.png            # Highyl recommended: show up at the skin selector
   style.md               # Recommended — talking style for SOUL.md
   neutral.png            # Required — the fallback expression
   happy.png              # Optional — one PNG per expression
@@ -385,7 +386,7 @@ Both structures are supported. `__MACOSX/` folders and `.DS_Store` files are aut
 ### Uploading to Pling
 
 1. Create an account at [pling.com](https://www.pling.com/)
-2. Go to **Add Content** and upload under the appropriate category
+2. Go to **Add Content** and upload under the appropriate category - `App Addons` + `Various Addons` seems to be the best fit, as of 2026-03-31
 3. **Required tags**: Add both `deskmate` and `deskmate-v1` tags — these are how DeskMate's in-app browser finds your skin
 4. Upload your ZIP file as the download
 5. Add a preview image (screenshot of your character) — this is the thumbnail shown in the in-app skin browser

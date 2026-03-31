@@ -44,6 +44,7 @@ from src.lib.skin import SkinLoader, UiPlacement
 from src.lib.window_position import ScreenMargins, ScreenRect, calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
+from src.windows.get_skins import GetSkinsWindow
 from src.windows.ghost import GhostWindow
 from src.windows.settings import SettingsWindow
 from src.windows.skin_picker import SkinPickerWindow
@@ -92,6 +93,7 @@ class DeskMate:
         self._input = ChatInputWindow()
         self._settings_win = SettingsWindow()
         self._skin_picker = SkinPickerWindow(self._skin_loader)
+        self._get_skins_win = GetSkinsWindow(self._skin_loader)
 
         # Load skin into ghost — need the emotion->files mapping from manifest
         emotions_map = self._load_emotions_map(self._skin)
@@ -192,6 +194,7 @@ class DeskMate:
 
         # Skin picker signals
         self._skin_picker.skin_selected.connect(self._on_skin_selected)
+        self._get_skins_win.skin_installed.connect(self._on_skin_installed)
 
     def _setup_shortcuts(self):
         # Enter/Return opens chat input (on ghost or bubble window)
@@ -224,6 +227,7 @@ class DeskMate:
         menu.addAction("Show/Hide", self._toggle_ghost)
         menu.addAction("Toggle Terminal", self._toggle_quake_terminal)
         menu.addAction("Change Skin", self._show_skin_picker)
+        menu.addAction("Get Skins", self._show_get_skins)
         menu.addAction("Settings", self._show_settings)
         menu.addSeparator()
         menu.addAction("Quit", self._quit)
@@ -790,6 +794,18 @@ class DeskMate:
         self._skin_picker.move(x, y)
         logger.debug("_show_skin_picker: done")
 
+    def _show_get_skins(self):
+        gx, gy = self._ghost_screen_pos()
+        x = gx + self._ghost.width() + 10
+        y = gy - 40
+        sr = self._ghost_screen_rect()
+        if x + self._get_skins_win.width() > sr.x + sr.width:
+            x = gx - self._get_skins_win.width() - 10
+        x = max(sr.x, min(x, sr.x + sr.width - self._get_skins_win.width()))
+        y = max(sr.y, min(y, sr.y + sr.height - self._get_skins_win.height()))
+        self._get_skins_win.move(x, y)
+        self._get_skins_win.show_window()
+
     def _on_skin_selected(self, skin_id: str):
         logger.info(f"_on_skin_selected: switching to {skin_id}")
         try:
@@ -812,6 +828,12 @@ class DeskMate:
         except Exception as e:
             logger.warning(f"Failed to save skin setting: {e}")
         logger.info(f"_on_skin_selected: complete, skin={new_skin.name}")
+
+    def _on_skin_installed(self, skin_id: str) -> None:
+        logger.info(f"New skin installed: {skin_id}")
+        if self._skin_picker.isVisible():
+            skins = self._skin_loader.list_skins()
+            self._skin_picker.show_picker(skins, self._settings.current_skin_id)
 
     def _show_settings(self):
         # Position near the ghost

@@ -1,3 +1,5 @@
+import shutil
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -53,6 +55,8 @@ class SkinInfo:
     idle_animations: list[IdleAnimation] = field(default_factory=list)
     source: str = "bundled"  # bundled | community
     format_version: int = 1
+    store_provider: str = ""
+    store_content_id: str = ""
 
 
 def _parse_ui_placement(data: dict[str, Any]) -> UiPlacement:
@@ -139,6 +143,15 @@ def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
             )
         idle_animations.append(IdleAnimation(file=anim_file, duration_ms=anim_dur))
 
+    store_provider = ""
+    store_content_id = ""
+    store_raw = data.get("deskmate_store")
+    if isinstance(store_raw, dict):
+        if store_raw.get("provider") is not None:
+            store_provider = str(store_raw.get("provider"))
+        if store_raw.get("content_id") is not None:
+            store_content_id = str(store_raw.get("content_id"))
+
     return SkinInfo(
         id=skin_id,
         name=str(data.get("name", skin_id)),
@@ -153,6 +166,8 @@ def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
         idle_animations=idle_animations,
         source=source,
         format_version=int(data.get("format_version", 1)),
+        store_provider=store_provider,
+        store_content_id=store_content_id,
     )
 
 
@@ -196,6 +211,18 @@ class SkinLoader:
             skins.append(skin)
         return skins
 
+    def installed_skin_ids(self) -> list[str]:
+        return [skin.id for skin in self.list_skins() if skin.source == "community"]
+
+    def installed_store_content_ids(self, provider: str) -> set[str]:
+        return {
+            skin.store_content_id
+            for skin in self.list_skins()
+            if skin.source == "community"
+            and skin.store_provider == provider
+            and skin.store_content_id
+        }
+
     def load_skin(self, skin_id: str) -> SkinInfo:
         """Load a specific skin by ID. User skins take priority over bundled."""
         user_path = self._user_skins_dir / skin_id
@@ -230,3 +257,97 @@ class SkinLoader:
             if preview.exists():
                 return preview
         return None
+
+    def install_skin(
+        self, zip_path: Path, *, store_provider: str = "", store_content_id: str = ""
+    ) -> str:
+        with zipfile.ZipFile(zip_path) as archive:
+            manifest_prefix = self._find_manifest_prefix(archive)
+            manifest_name = f"{manifest_prefix}manifest.yaml"
+            manifest_data = yaml.safe_load(archive.read(manifest_name).decode("utf-8"))
+            if not isinstance(manifest_data, dict):
+                raise ValueError("manifest.yaml in ZIP is not a YAML mapping")
+
+            format_version = int(manifest_data.get("format_version", 1))
+            if format_version > 1:
+                raise ValueError(
+                    f"This skin requires DeskMate v{format_version} (you have v1). Please update DeskMate."
+                )
+
+            if manifest_prefix:
+                skin_id = manifest_prefix.rstrip("/")
+            else:
+                skin_id = zip_path.stem
+
+            bundled_collision = any(
+                skin.id == skin_id and skin.source == "bundled" for skin in self.list_skins()
+            )
+            if bundled_collision:
+                skin_id = f"community-{skin_id}"
+
+            target_dir = self._user_skins_dir / skin_id
+            if target_dir.exists():
+                shutil.rmtree(target_dir)
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            for info in archive.infolist():
+                name = info.filename
+                if name.startswith("__MACOSX/") or name.endswith(".DS_Store"):
+                    continue
+
+                if manifest_prefix:
+                    if not name.startswith(manifest_prefix):
+                        continue
+                    relative_name = name.removeprefix(manifest_prefix)
+                else:
+                    relative_name = name
+
+                if not relative_name:
+                    continue
+
+                relative_path = Path(relative_name)
+                if relative_path.is_absolute() or ".." in relative_path.parts:
+                    raise ValueError(f"ZIP entry escapes skin directory: {name}")
+
+                out_path = target_dir / relative_path
+                if info.is_dir():
+                    out_path.mkdir(parents=True, exist_ok=True)
+                    continue
+
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as src, out_path.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                logger.info(f"Extracted skin file: {out_path}")
+
+        if store_provider and store_content_id:
+            manifest_path = target_dir / "manifest.yaml"
+            manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(manifest_data, dict):
+                raise ValueError("Installed manifest.yaml is not a YAML mapping")
+            manifest_data["deskmate_store"] = {
+                "provider": store_provider,
+                "content_id": store_content_id,
+            }
+            manifest_path.write_text(
+                yaml.safe_dump(manifest_data, sort_keys=False, allow_unicode=False),
+                encoding="utf-8",
+            )
+
+        try:
+            _load_manifest(skin_id, target_dir, "community")
+        except Exception:
+            shutil.rmtree(target_dir, ignore_errors=True)
+            raise
+        logger.info(f"Installed skin: {skin_id} from {zip_path}")
+        return skin_id
+
+    def _find_manifest_prefix(self, archive: zipfile.ZipFile) -> str:
+        names = archive.namelist()
+        if "manifest.yaml" in names:
+            return ""
+
+        for name in names:
+            if name.endswith("/manifest.yaml") and name.count("/") == 1:
+                return name.split("/", 1)[0] + "/"
+
+        raise ValueError("No manifest.yaml found in ZIP (checked root and one subfolder deep)")
