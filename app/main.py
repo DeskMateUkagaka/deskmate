@@ -37,7 +37,7 @@ from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
 from src.lib.quake_terminal import QuakeTerminalManager
 from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader, UiPlacement
-from src.lib.window_position import ScreenRect, calc_anchor, calc_window_position
+from src.lib.window_position import ScreenMargins, ScreenRect, calc_anchor, calc_window_position
 from src.windows.bubble import BubbleWindow
 from src.windows.chat_input import ChatInputWindow
 from src.windows.ghost import GhostWindow
@@ -269,6 +269,15 @@ class DeskMate:
             return
         window.move(x, y)
 
+    def _popup_margins(self) -> ScreenMargins:
+        s = self._settings
+        return ScreenMargins(
+            top=int(s.popup_margin_top),
+            bottom=int(s.popup_margin_bottom),
+            left=int(s.popup_margin_left),
+            right=int(s.popup_margin_right),
+        )
+
     def _position_window(self, window, placement):
         """Position *window* relative to ghost using shared anchor + clamping."""
         gx, gy = self._ghost_screen_pos()
@@ -288,6 +297,7 @@ class DeskMate:
             window.height(),
             placement.origin,
             screen=sr,
+            margins=self._popup_margins(),
         )
         self._move_window(window, pos.screen_x, pos.screen_y)
         return pos
@@ -320,6 +330,7 @@ class DeskMate:
             self._input.height(),
             "center",
             screen=sr,
+            margins=self._popup_margins(),
         )
         self._move_window(self._input, pos.screen_x, pos.screen_y)
 
