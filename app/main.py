@@ -749,7 +749,11 @@ class DeskMate:
     # ------------------------------------------------------------------
 
     def _toggle_quake_terminal(self):
-        self._quake.toggle(self._settings.quake_terminal)
+        sr = self._ghost_screen_rect()
+        self._quake.toggle(
+            self._settings.quake_terminal,
+            screen_rect=(sr.x, sr.y, sr.width, sr.height),
+        )
 
     def _on_quake_toggled(self, visible: bool):
         logger.info(f"Quake terminal {'shown' if visible else 'hidden'}")

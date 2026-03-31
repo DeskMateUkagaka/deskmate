@@ -12,10 +12,61 @@ Usage:
 import abc
 import json
 import os
+import socket
+import struct
 import subprocess
 
 from loguru import logger
 from PySide6.QtCore import QTimer
+
+# ---------------------------------------------------------------------------
+# Sway IPC (direct socket, no subprocess)
+# ---------------------------------------------------------------------------
+
+_SWAY_MAGIC = b"i3-ipc"
+_SWAY_HEADER = struct.Struct("<6sII")  # magic(6) + length(u32) + type(u32)
+
+# Message types
+_IPC_COMMAND = 0
+_IPC_GET_TREE = 4
+_IPC_GET_OUTPUTS = 3
+
+
+def _sway_ipc(msg_type: int, payload: str = "") -> dict | list | None:
+    """Send a single IPC message to sway and return the parsed JSON response."""
+    sock_path = os.environ.get("SWAYSOCK")
+    if not sock_path:
+        return None
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(2)
+            sock.connect(sock_path)
+            data = payload.encode()
+            sock.sendall(_SWAY_HEADER.pack(_SWAY_MAGIC, len(data), msg_type) + data)
+            # read response header
+            hdr = b""
+            while len(hdr) < _SWAY_HEADER.size:
+                hdr += sock.recv(_SWAY_HEADER.size - len(hdr))
+            _, resp_len, _ = _SWAY_HEADER.unpack(hdr)
+            # read response body
+            body = b""
+            while len(body) < resp_len:
+                body += sock.recv(resp_len - len(body))
+            return json.loads(body)
+    except Exception as e:
+        logger.warning(f"sway IPC failed: {e}")
+        return None
+
+
+def _sway_command(cmd: str) -> bool:
+    """Run a sway command via IPC. Returns True if all results succeeded."""
+    result = _sway_ipc(_IPC_COMMAND, cmd)
+    if result is None:
+        return False
+    if isinstance(result, list):
+        return all(r.get("success", False) for r in result)
+    return result.get("success", False)
+
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -81,20 +132,10 @@ class Compositor(abc.ABC):
 
 
 class SwayCompositor(Compositor):
-    """Sway IPC via swaymsg."""
-
-    def _run(self, cmd: str, shell: bool = True) -> subprocess.CompletedProcess:
-        return subprocess.run(cmd, shell=shell, capture_output=True, timeout=2)
+    """Sway IPC via direct Unix socket (no subprocess)."""
 
     def _get_tree(self) -> dict | None:
-        try:
-            result = subprocess.run(["swaymsg", "-t", "get_tree"], capture_output=True, timeout=2)
-            if result.returncode != 0:
-                return None
-            return json.loads(result.stdout)
-        except Exception as e:
-            logger.warning(f"swaymsg get_tree failed: {e}")
-            return None
+        return _sway_ipc(_IPC_GET_TREE)
 
     def _find_node(self, title: str) -> dict | None:
         tree = self._get_tree()
@@ -114,26 +155,48 @@ class SwayCompositor(Compositor):
     def _criteria(self, title: str) -> str:
         return f'[title="^{title}$"]'
 
+    def _cmd(self, cmd: str) -> bool:
+        logger.debug(f"[sway] command: {cmd}")
+        ok = _sway_command(cmd)
+        if not ok:
+            logger.warning(f"sway command failed: {cmd}")
+        return ok
+
     # -- Abstract implementations --
 
     def get_screen_at(self, x: int, y: int) -> tuple[int, int, int, int] | None:
-        try:
-            result = subprocess.run(
-                ["swaymsg", "-t", "get_outputs"], capture_output=True, timeout=2
+        outputs = _sway_ipc(_IPC_GET_OUTPUTS)
+        if not outputs:
+            return None
+        for out in outputs:
+            if not out.get("active"):
+                continue
+            r = out.get("rect", {})
+            ox, oy = r.get("x", 0), r.get("y", 0)
+            ow, oh = r.get("width", 0), r.get("height", 0)
+            logger.debug(
+                f"[sway] output '{out.get('name')}': rect=({ox},{oy},{ow},{oh}) scale={out.get('scale')}"
             )
-            if result.returncode != 0:
-                return None
-            outputs = json.loads(result.stdout)
-            for out in outputs:
-                if not out.get("active"):
-                    continue
-                r = out.get("rect", {})
-                ox, oy = r.get("x", 0), r.get("y", 0)
-                ow, oh = r.get("width", 0), r.get("height", 0)
-                if ox <= x < ox + ow and oy <= y < oy + oh:
-                    return (ox, oy, ow, oh)
-        except Exception as e:
-            logger.warning(f"swaymsg get_outputs failed: {e}")
+            if ox <= x < ox + ow and oy <= y < oy + oh:
+                logger.debug(
+                    f"[sway] point ({x},{y}) -> output '{out.get('name')}' ({ox},{oy},{ow},{oh})"
+                )
+                return (ox, oy, ow, oh)
+        return None
+
+    def get_output_name_at(self, x: int, y: int) -> str | None:
+        """Return the output name containing the given point."""
+        outputs = _sway_ipc(_IPC_GET_OUTPUTS)
+        if not outputs:
+            return None
+        for out in outputs:
+            if not out.get("active"):
+                continue
+            r = out.get("rect", {})
+            ox, oy = r.get("x", 0), r.get("y", 0)
+            ow, oh = r.get("width", 0), r.get("height", 0)
+            if ox <= x < ox + ow and oy <= y < oy + oh:
+                return out.get("name")
         return None
 
     def get_window_position(self, title: str) -> tuple[float, float] | None:
@@ -148,26 +211,58 @@ class SwayCompositor(Compositor):
 
     def set_window_position(self, title: str, x: int, y: int) -> bool:
         logger.info(f"set_window_position(title={title}, x={x}, y={y}): sway")
-        result = self._run(f"swaymsg '{self._criteria(title)} move absolute position {x} {y}'")
-        if result.returncode == 0:
-            logger.info("set_window_position result: True")
-            return True
-        logger.warning(f"swaymsg move failed: {result.stderr.decode().strip()}")
-        return False
+        ok = self._cmd(f"{self._criteria(title)} move absolute position {x} {y}")
+        logger.info(f"set_window_position result: {ok}")
+        return ok
 
     def show_window(self, title: str, x: int, y: int, width: int, height: int) -> None:
+        logger.debug(f"[sway] show_window: title={title} x={x} y={y} w={width} h={height}")
         c = self._criteria(title)
-        # scratchpad show pulls from scratchpad (no-op if not in scratchpad).
-        # floating enable is required — the window may be tiled.
-        cmd = f"swaymsg '{c} scratchpad show, floating enable, move position {x} {y}, resize set {width} {height}, focus'"
-        result = self._run(cmd)
-        if result.returncode != 0:
-            logger.warning(f"swaymsg show failed: {result.stderr.decode().strip()}")
+        # Pull from scratchpad first — may fail if window was never hidden, that's OK.
+        _sway_command(f"{c} scratchpad show")
+        _sway_command(f"{c} floating enable")
+        # move absolute position is unreliable with fractional scaling.
+        # Move to the correct output first, then use output-relative coordinates.
+        output_name = self.get_output_name_at(x, y)
+        screen = self.get_screen_at(x, y) if output_name else None
+        if output_name and screen:
+            rel_x = x - screen[0]
+            rel_y = y - screen[1]
+            logger.debug(
+                f"[sway] -> output={output_name} rel=({rel_x},{rel_y}) size=({width},{height})"
+            )
+            _sway_command(f"{c} move to output {output_name}")
+            resize_cmd = f"{c} resize set {width} {height}, move position {rel_x} {rel_y}, focus"
+        else:
+            resize_cmd = f"{c} resize set {width} {height}, move position {x} {y}, focus"
+        # Apps (e.g. kitty) may override the resize during initialization.
+        # Retry until the size sticks (up to 5 attempts, 100ms apart).
+        self._cmd(resize_cmd)
+        attempts_left = 5
+
+        def _verify_resize():
+            nonlocal attempts_left
+            node = self._find_node(title)
+            if node:
+                r = node.get("rect", {})
+                actual_w, actual_h = r.get("width", 0), r.get("height", 0)
+                # Allow some tolerance for cell rounding (kitty rounds to char cells)
+                if abs(actual_w - width) > 20 or abs(actual_h - height) > 40:
+                    attempts_left -= 1
+                    logger.debug(
+                        f"[sway] resize mismatch: wanted ({width},{height}) "
+                        f"got ({actual_w},{actual_h}), retries left={attempts_left}"
+                    )
+                    if attempts_left > 0:
+                        _sway_command(resize_cmd)
+                        QTimer.singleShot(100, _verify_resize)
+                    return
+            logger.debug(f"[sway] resize verified for '{title}'")
+
+        QTimer.singleShot(100, _verify_resize)
 
     def hide_window(self, title: str) -> None:
-        result = self._run(f"swaymsg '{self._criteria(title)} move scratchpad'")
-        if result.returncode != 0:
-            logger.warning(f"swaymsg hide failed: {result.stderr.decode().strip()}")
+        self._cmd(f"{self._criteria(title)} move scratchpad")
 
     def find_window(self, title: str) -> bool:
         return self._find_node(title) is not None

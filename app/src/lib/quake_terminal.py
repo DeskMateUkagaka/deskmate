@@ -168,8 +168,11 @@ class QuakeTerminalManager(QObject):
         self._poll_timer.start()
         logger.info("SIGUSR1 handler registered (pkill -USR1 -x python3 to toggle)")
 
-    def toggle(self, config) -> bool:
-        """Toggle the terminal. Returns new visibility state."""
+    def toggle(self, config, screen_rect: tuple[int, int, int, int] | None = None) -> bool:
+        """Toggle the terminal. Returns new visibility state.
+
+        screen_rect: (x, y, w, h) of the screen to place the terminal on.
+        """
         # Check if previously spawned process is still alive
         if self._process is not None and self._process.poll() is not None:
             logger.info(
@@ -179,13 +182,13 @@ class QuakeTerminalManager(QObject):
             self._visible = False
 
         if self._process is None:
-            return self._spawn(config)
+            return self._spawn(config, screen_rect)
 
         if self._visible:
             self._hide()
             return False
         else:
-            self._show(config)
+            self._show(config, screen_rect)
             return True
 
     def cleanup(self) -> None:
@@ -211,27 +214,39 @@ class QuakeTerminalManager(QObject):
             # calls toggle() with the right config on the main thread.
             self.toggle_requested.emit()
 
-    def _compute_geometry(self, config) -> tuple[int, int, int, int]:
-        """Return (x, y, width, height) in screen pixels for the terminal."""
-        from PySide6.QtWidgets import QApplication
+    def _compute_geometry(
+        self, config, screen_rect: tuple[int, int, int, int] | None = None
+    ) -> tuple[int, int, int, int]:
+        """Return (x, y, width, height) in screen pixels for the terminal.
 
-        screen = QApplication.primaryScreen()
-        if screen is None:
-            return 0, 0, 1280, 400
+        screen_rect: (x, y, w, h) of the target screen. Falls back to primary screen.
+        """
+        if screen_rect:
+            sx, sy, sw, sh = screen_rect
+        else:
+            from PySide6.QtWidgets import QApplication
 
-        geom = screen.availableGeometry()
-        width = geom.width()
-        height = int(geom.height() * config.height_percent / 100)
-        return geom.left(), geom.top(), width, height
+            screen = QApplication.primaryScreen()
+            if screen is None:
+                return 0, 0, 1280, 400
+            geom = screen.availableGeometry()
+            sx, sy, sw, sh = geom.left(), geom.top(), geom.width(), geom.height()
 
-    def _spawn(self, config) -> bool:
+        width = sw
+        height = int(sh * config.height_percent / 100)
+        logger.debug(
+            f"[quake] geometry: screen=({sx},{sy},{sw},{sh}) -> terminal=({sx},{sy},{width},{height})"
+        )
+        return sx, sy, width, height
+
+    def _spawn(self, config, screen_rect=None) -> bool:
         """Detect terminal, spawn it, position it, return True on success."""
         terminal = _detect_terminal(config.terminal_emulator)
         if terminal is None:
             logger.error("No supported terminal emulator found on PATH")
             return False
 
-        x, y, width, height = self._compute_geometry(config)
+        x, y, width, height = self._compute_geometry(config, screen_rect)
         args = _build_spawn_args(terminal, _WINDOW_TITLE, width, height, config.command)
 
         logger.info(f"Spawning terminal: {' '.join(args)}")
@@ -249,8 +264,8 @@ class QuakeTerminalManager(QObject):
         self.toggled.emit(True)
         return True
 
-    def _show(self, config) -> None:
-        x, y, width, height = self._compute_geometry(config)
+    def _show(self, config, screen_rect=None) -> None:
+        x, y, width, height = self._compute_geometry(config, screen_rect)
         compositor().show_window(_WINDOW_TITLE, x, y, width, height)
         self._visible = True
         self.toggled.emit(True)

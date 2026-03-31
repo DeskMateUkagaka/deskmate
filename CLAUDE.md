@@ -132,9 +132,19 @@ Manifest can also define `bubble_placement`, `input_placement` (UiPlacement with
 - `app_id` is set to `deskmate` via `setDesktopFileName("deskmate")`.
 - Quake terminal uses `swaymsg '[title="deskmate-quake"] ...'` for show/hide/position.
 
-### Fractional Scaling
+### Multi-Monitor Screen Detection
+
+**Never use `QApplication.primaryScreen()` for positioning.** On multi-monitor setups, the ghost may be on any screen. All popup windows (bubble, chat input, quake terminal) must appear on the **same screen as the ghost**. Use `_ghost_screen_rect()` (which calls `compositor().get_screen_at(ghost_x, ghost_y)`) to get the correct screen geometry, then pass it to positioning functions. `primaryScreen()` is only acceptable as a last-resort fallback.
+
+### Fractional Scaling & Sway IPC Gotchas
 
 Sway with fractional scale (e.g., 1.333x) causes blurry rendering in ALL Qt/GTK apps — Sway sends integer scale 2 to apps, then downscales. This is a compositor limitation, not fixable from the app side. Integer scales (1x, 2x) render sharply.
+
+Key IPC pitfalls with fractional scaling:
+- **`move absolute position` is unreliable across outputs.** Use `move to output <name>` first, then output-relative `move position` coordinates.
+- **`resize set` in a chained command with `move to output` may apply at the old output's scale.** Split them into separate IPC calls.
+- **External apps (kitty, foot, etc.) race with sway `resize set`.** The app's own initialization can override the compositor resize. `show_window()` in `compositor.py` verifies the actual rect after 100ms and retries up to 5 times.
+- **`scratchpad show` fails if the window was never in the scratchpad** (e.g., first spawn). This failure aborts any chained commands. Always send `scratchpad show` as a separate IPC call.
 
 ## Debugging
 
