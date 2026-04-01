@@ -319,6 +319,7 @@ class ChatInputWindow(QWidget):
         """Show the input window at the given screen position and focus it."""
         self.move(pos)
         self.show()
+        self.activateWindow()
         self._editor.setFocus()
         self._editor.clear()
         self._popup.hide()
