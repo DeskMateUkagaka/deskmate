@@ -1,5 +1,7 @@
 # DeskMate
 
+![DeskMate screenshot](pics/screenshot.apng)
+
 DeskMate is an AI-powered desktop accessory in the spirit of Ukagaka.
 
 It puts a character on your desktop, gives that character a visual identity through skins and expressions, and acts as a front end for OpenClaw so the character can talk, react, and feel present instead of living in a browser tab.
