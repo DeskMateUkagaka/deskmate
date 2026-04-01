@@ -20,7 +20,7 @@ import yaml
 from loguru import logger
 
 # Log to file so we can see what happened after a DE crash
-logger.add(Path.home() / "deskmate.log", rotation="1 MB", retention=3)
+# logger.add(Path.home() / "deskmate.log", rotation="1 MB", retention=3)
 
 # PySide6 ships its own Qt plugins which may lack the system IME plugin (e.g.
 # fcitx5).  Prepend the system Qt6 plugin path so the compositor's input method
