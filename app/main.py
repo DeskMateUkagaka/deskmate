@@ -648,11 +648,7 @@ class DeskMate:
         self._gateway.on_status_change = self._on_gateway_status
 
         self._gateway_task = asyncio.run_coroutine_threadsafe(
-            self._gateway.start(
-                self._settings.gateway_url,
-                self._settings.gateway_token or None,
-                self._settings_mgr._config_dir,
-            ),
+            self._gateway.start(),
             self._loop,
         )
         logger.info(f"Gateway connecting to {self._settings.gateway_url}")
@@ -860,20 +856,21 @@ class DeskMate:
 
     def _on_settings_saved(self, updated: dict) -> None:
         old_url = self._settings.gateway_url
-        for key, value in updated.items():
-            if hasattr(self._settings, key):
-                setattr(self._settings, key, value)
+        old_token = self._settings.gateway_token
         try:
             self._settings_mgr.update(**updated)
         except Exception as e:
             logger.warning(f"Failed to persist settings: {e}")
+        self._settings = self._settings_mgr.settings
 
         # Apply ghost size immediately
         self._apply_ghost_size()
 
-        # Reconnect gateway if URL changed
-        if updated.get("gateway_url", old_url) != old_url:
-            logger.info("Gateway URL changed — reconnecting")
+        # Reconnect gateway if URL or token changed
+        new_url = self._settings.gateway_url
+        new_token = self._settings.gateway_token
+        if new_url != old_url or new_token != old_token:
+            logger.info("Gateway settings changed — reconnecting")
             if self._gateway:
                 self._gateway.stop()
                 self._gateway = None

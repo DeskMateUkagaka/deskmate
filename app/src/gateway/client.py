@@ -23,6 +23,8 @@ except ImportError:  # pragma: no cover
 
 from loguru import logger
 
+from src.lib.settings import SettingsManager
+
 from .device_identity import DeviceIdentity
 from .protocol import EventFrame, ResponseFrame, parse_frame
 from .types import AuthParams, ClientInfo, ConnectParams, to_wire
@@ -70,24 +72,17 @@ class GatewayClient:
     def status(self) -> str:
         return self._status
 
-    async def start(
-        self,
-        url: str,
-        token: str | None = None,
-        data_dir: Path | None = None,
-    ) -> None:
+    async def start(self) -> None:
         """Start the connection loop in a background asyncio task."""
         if not _HAS_WEBSOCKETS:
             raise RuntimeError(
                 "websockets package is required but not installed. Run: uv pip install websockets"
             )
-        self._url = url
-        self._token = token
-        self._data_dir = data_dir or Path.home() / ".config" / "deskmate"
+        self._data_dir = SettingsManager()._config_dir
         self._identity = DeviceIdentity.load_or_create(self._data_dir)
         self._stop_event.clear()
         self._task = asyncio.create_task(self._connection_loop(), name="gateway-client")
-        logger.info(f"GatewayClient started, connecting to {url}")
+        logger.info("GatewayClient started")
 
     async def stop(self) -> None:
         """Signal the connection loop to stop and wait for it to finish."""
@@ -144,10 +139,16 @@ class GatewayClient:
                 fut.set_exception(exc)
         self._pending.clear()
 
+    def _read_settings(self) -> tuple[str, str | None]:
+        """Read current gateway URL and token from the singleton SettingsManager."""
+        s = SettingsManager().settings
+        return s.gateway_url, s.gateway_token or None
+
     async def _connection_loop(self) -> None:
         self._ws = None
         attempt = 0
         while not self._stop_event.is_set():
+            self._url, self._token = self._read_settings()
             self._set_status("connecting")
             try:
                 async with ws_connect(self._url) as ws:
