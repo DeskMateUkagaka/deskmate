@@ -1,0 +1,25 @@
+DeskMate
+Copyright (C) 2026 DeskMate contributors
+
+This product includes third-party software.
+
+Notable third-party components used by DeskMate include:
+
+- PySide6 / Qt for Python
+- Qt
+- Qt WebEngine
+
+Qt for Python / PySide6 is developed by The Qt Company Ltd. and Qt contributors.
+Qt WebEngine includes code and third-party components from the Qt project and the Chromium project.
+
+DeskMate source licensing is described in the LICENSE file.
+Additional third-party attribution and packaging guidance is described in THIRD_PARTY_NOTICES.md.
+
+When distributing packaged builds of DeskMate, include at minimum:
+
+- LICENSE
+- NOTICE
+- THIRD_PARTY_NOTICES.md
+- the relevant upstream Qt / PySide6 / Qt WebEngine / Chromium notice and license files required by the bundled distribution
+
+This notice file is provided for attribution and packaging use. It is not legal advice.

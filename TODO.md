@@ -8,9 +8,9 @@
   - [ ] How about Mac?
   - [ ] What happens on Windows?
 - [ ] Write README
-- [ ] Installation instructions
-  - [ ] Human part - need a bootstrap before the AI can handle stuff on its own
-  - [ ] AI part
+  - [ ] Installation instructions
+    - [ ] Human part - need a bootstrap before the AI can handle stuff on its own
+    - [ ] AI part
 - [ ] Set up PyInstaller or Briefcase packaging (Linux AppImage, Windows .exe, macOS .app)
   - Options: PyInstaller (most common), Nuitka (compiled), Briefcase (single config)
   - Build on each platform separately (no cross-compilation)

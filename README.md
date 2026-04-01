@@ -72,3 +72,9 @@ If you are making or distributing skins, treat `style.md` as the source material
 ## Development
 
 See `CLAUDE.md` for development setup, architecture notes, and platform-specific details.
+
+## Licensing
+
+DeskMate itself is licensed under `LICENSE`.
+
+DeskMate also uses third-party software, most notably `PySide6` / Qt for Python and Qt WebEngine. See `THIRD_PARTY_NOTICES.md` for attribution and distribution notes.
