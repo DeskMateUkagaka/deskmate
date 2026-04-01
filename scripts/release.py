@@ -266,11 +266,16 @@ def clean_paths(context: ReleaseContext) -> None:
 
 
 def nuitka_extra_args() -> str:
+    skins_dir = (APP_DIR / "skins").as_posix()
+    icons_dir = (APP_DIR / "icons").as_posix()
     args = [
         "--quiet",
+        "--assume-yes-for-downloads",
         "--noinclude-qt-translations",
-        f"--include-data-dir={APP_DIR / 'skins'}=./skins",
-        f"--include-data-dir={APP_DIR / 'icons'}=./icons",
+        "--include-package=shiboken6",
+        "--include-package=PySide6",
+        f"--include-data-dir={skins_dir}=./skins",
+        f"--include-data-dir={icons_dir}=./icons",
     ]
     return " ".join(str(part) for part in args)
 
@@ -322,7 +327,45 @@ def run_deploy(context: ReleaseContext) -> Path:
     run(["pyside6-deploy", "-c", str(context.spec_file), "-f"])
     bundle_path = context.stage_dir / f"{context.artifact_base}{context.target.executable_suffix}"
     require_existing(bundle_path)
+    fixup_windows_dlls(bundle_path, context.target)
     return bundle_path
+
+
+def fixup_windows_dlls(bundle_path: Path, target: TargetInfo) -> None:
+    """Fix DLL issues in the Nuitka standalone bundle on Windows.
+
+    1. Copy .abi3.dll files into their matching package subdirectories — Nuitka
+       places them at the bundle root, but the .pyd files inside shiboken6/ and
+       PySide6/ need them as siblings for Windows DLL resolution.
+    2. Copy python3.dll (stable ABI shim) into the bundle if missing — Nuitka
+       bundles pythonXYZ.dll but not the stable ABI forwarder that .abi3.pyd
+       extensions link against.
+    """
+    if target.key != "windows":
+        return
+
+    for dll in bundle_path.glob("*.abi3.dll"):
+        package_name = Path(dll.stem).stem  # "shiboken6.abi3.dll" -> "shiboken6"
+        package_dir = bundle_path / package_name
+        if package_dir.is_dir():
+            dest = package_dir / dll.name
+            if not dest.exists():
+                shutil.copy2(dll, dest)
+                log(f"Copied {dll.name} -> {package_dir.name}/")
+
+    python3_dll = bundle_path / "python3.dll"
+    if not python3_dll.exists():
+        import sysconfig
+
+        base = Path(sysconfig.get_config_var("installed_base"))
+        source = base / "python3.dll"
+        if source.exists():
+            shutil.copy2(source, python3_dll)
+            log(f"Copied python3.dll from {base}")
+        else:
+            raise ReleaseError(
+                f"python3.dll not found at {source} — needed by .abi3.pyd extensions"
+            )
 
 
 def docs_destination(bundle_path: Path, target: TargetInfo) -> Path:
