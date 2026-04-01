@@ -3,7 +3,7 @@
 import json
 
 from loguru import logger
-from PySide6.QtCore import QObject, Qt, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -708,6 +708,7 @@ class BubbleWindow(QWidget):
     action = Signal(str, str)  # item_id, label
     content_sized = Signal(int)  # height
     all_dismissed = Signal()
+    window_mapped = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -839,6 +840,10 @@ class BubbleWindow(QWidget):
     def show_bubble(self) -> None:
         self.show()
         logger.debug("Bubble shown")
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        QTimer.singleShot(20, self.window_mapped.emit)
 
     def hide_bubble(self) -> None:
         self.hide()

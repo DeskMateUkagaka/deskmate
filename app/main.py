@@ -106,6 +106,7 @@ class DeskMate:
         self._current_emotion = "neutral"
         self._active_bubble_id: str | None = None
         self._bubble_counter = 0
+        self._bubble_visible_before_hide = False
 
         # Quake terminal
         self._quake = QuakeTerminalManager()
@@ -188,6 +189,7 @@ class DeskMate:
         self._bubble.action.connect(self._on_bubble_action)
         self._bubble.all_dismissed.connect(lambda: self._ghost.set_expression("neutral"))
         self._bubble.content_sized.connect(lambda _h: self._reposition_bubble())
+        self._bubble.window_mapped.connect(self._reposition_bubble)
 
         # Settings signals
         self._settings_win.settings_saved.connect(self._on_settings_saved)
@@ -551,7 +553,6 @@ class DeskMate:
         item_id = f"{label}-{self._bubble_counter}"
         self._bubble.start_streaming(item_id, "")
         if not self._bubble.is_bubble_visible():
-            self._reposition_bubble()
             self._bubble.show_bubble()
         return item_id
 
@@ -763,14 +764,21 @@ class DeskMate:
             self._sigusr2_event.clear()
             self._toggle_ghost()
 
+    def _close_auxiliary_windows(self):
+        self._input.hide_input()
+        self._settings_win.hide_settings()
+        self._skin_picker.hide_picker()
+        self._get_skins_win.hide()
+
     def _toggle_ghost(self):
+        self._close_auxiliary_windows()
         if self._ghost.isVisible():
             # Save position while ghost is still visible (swaymsg can find it)
             x, y = self._ghost.save_position()
             self._state.ghost_x, self._state.ghost_y = x, y
+            self._bubble_visible_before_hide = self._bubble.is_bubble_visible()
             self._ghost.hide()
             self._bubble.hide_bubble()
-            self._input.hide_input()
         else:
             self._ghost.show()
             # Restore happens via window_mapped signal (deferred until compositor maps the window)
@@ -928,6 +936,9 @@ class DeskMate:
         else:
             logger.info("Saved position unusable, falling back to default")
             self._default_ghost_position()
+
+        if self._bubble_visible_before_hide and self._ghost.isVisible():
+            self._bubble.show_bubble()
 
     def run(self) -> int:
         self._ghost.show()
