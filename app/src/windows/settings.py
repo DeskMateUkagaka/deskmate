@@ -216,7 +216,7 @@ class SettingsWindow(QWidget):
         app_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self._ghost_height = QSpinBox(self)
-        self._ghost_height.setRange(100, 1000)
+        self._ghost_height.setRange(100, 4096)
         self._ghost_height.setSuffix(" px")
         self._ghost_height.setStyleSheet(_INPUT_STYLE)
 
