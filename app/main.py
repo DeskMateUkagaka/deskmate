@@ -864,8 +864,9 @@ class DeskMate:
             logger.warning(f"Failed to persist settings: {e}")
         self._settings = self._settings_mgr.settings
 
-        # Apply ghost size immediately
+        # Apply changed settings immediately
         self._apply_ghost_size()
+        self._idle_manager.set_interval(self._settings.idle_interval_seconds)
 
         # Reconnect gateway if URL or token changed
         new_url = self._settings.gateway_url
