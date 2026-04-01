@@ -94,6 +94,28 @@ Relevant issues:
 | Quake terminal | `app/src/lib/quake_terminal.py` |
 | Slash command autocomplete | `app/src/lib/commands.py` |
 
+## Release Packaging
+
+The release script lives at `scripts/release.py`.
+
+It uses Qt for Python's recommended desktop packaging path: `pyside6-deploy`, which wraps Nuitka.
+
+Example:
+
+```bash
+source ~/usr/venv-3.13/bin/activate
+python scripts/release.py --version 0.1.0
+```
+
+Important:
+
+- builds are native-only
+- Linux builds must be made on Linux
+- Windows builds must be made on Windows
+- macOS builds must be made on macOS
+
+This is intentional. `PySide6` and `QtWebEngine` packaging are platform-specific, so the script rejects cross-building.
+
 ## Legacy Tauri App
 
 The original Tauri v2 codebase is preserved in `app-tauri/` for reference. See `memory/BLEED.md` for documentation of the WebKitGTK transparency bleed bug that drove the migration to PySide6.
