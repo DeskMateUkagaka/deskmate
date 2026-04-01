@@ -19,6 +19,10 @@ Packaging and installation steps still need to be written.
 
 For now, development and architecture notes live in `CLAUDE.md`.
 
+## First Run
+
+On first launch, DeskMate needs your OpenClaw gateway token. Find it in `~/.openclaw/openclaw.json` under `gateway.auth.token`, then paste it into Settings > Token (right-click the tray icon to open Settings).
+
 ## Personality And Talking Style
 
 After installing DeskMate, set up your character's talking style through OpenClaw's prompt files.
