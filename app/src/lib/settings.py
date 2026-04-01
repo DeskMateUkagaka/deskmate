@@ -91,10 +91,20 @@ class AppStateManager:
 
 
 class SettingsManager:
+    _instance: "SettingsManager | None" = None
+
+    def __new__(cls, config_dir: Path | None = None) -> "SettingsManager":
+        if cls._instance is not None:
+            return cls._instance
+        inst = super().__new__(cls)
+        inst._config_dir = config_dir if config_dir is not None else _default_config_dir()
+        inst._settings = Settings()
+        inst._path = inst._config_dir / "config.yaml"
+        cls._instance = inst
+        return inst
+
     def __init__(self, config_dir: Path | None = None):
-        self._config_dir = config_dir if config_dir is not None else _default_config_dir()
-        self._settings = Settings()
-        self._path = self._config_dir / "config.yaml"
+        pass
 
     @property
     def path(self) -> Path:
