@@ -115,13 +115,14 @@ class DeskMate:
         self._quake.setup_signal_handler()
 
         # SIGUSR2 → toggle ghost visibility
-        self._sigusr2_event = threading.Event()
-        signal.signal(signal.SIGUSR2, lambda *_: self._sigusr2_event.set())
-        self._sigusr2_timer = QTimer()
-        self._sigusr2_timer.setInterval(100)
-        self._sigusr2_timer.timeout.connect(self._check_sigusr2)
-        self._sigusr2_timer.start()
-        logger.info("SIGUSR2 handler registered (pkill -USR2 -x python3 to toggle ghost)")
+        if hasattr(signal, "SIGUSR2"):
+            self._sigusr2_event = threading.Event()
+            signal.signal(signal.SIGUSR2, lambda *_: self._sigusr2_event.set())
+            self._sigusr2_timer = QTimer()
+            self._sigusr2_timer.setInterval(100)
+            self._sigusr2_timer.timeout.connect(self._check_sigusr2)
+            self._sigusr2_timer.start()
+            logger.info("SIGUSR2 handler registered (pkill -USR2 -x python3 to toggle ghost)")
 
         # Idle animation
         self._idle_manager = IdleAnimationManager(self._app)

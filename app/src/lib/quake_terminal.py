@@ -156,6 +156,9 @@ class QuakeTerminalManager(QObject):
 
     def setup_signal_handler(self) -> None:
         """Register SIGUSR1 and start a QTimer to poll it on the main thread."""
+        if not hasattr(signal, "SIGUSR1"):
+            logger.info("SIGUSR1 not available on this platform, skipping signal handler")
+            return
 
         def _handler(signum, frame):
             self._signal_event.set()
