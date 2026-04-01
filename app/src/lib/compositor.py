@@ -10,11 +10,13 @@ Usage:
 """
 
 import abc
+import ctypes
 import json
 import os
 import socket
 import struct
 import subprocess
+import sys
 
 from loguru import logger
 from PySide6.QtCore import QTimer
@@ -375,6 +377,47 @@ class NullCompositor(Compositor):
 
     def find_window(self, title):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Windows DWM border removal
+# ---------------------------------------------------------------------------
+
+
+def remove_dwm_border(widget) -> None:
+    """Remove the Windows 11 DWM border and rounded corners from a frameless window.
+
+    On Windows 11, the Desktop Window Manager draws a visible rounded border
+    around all windows, including frameless transparent ones.  Three DWM
+    attributes together suppress it completely:
+
+    1. DWMWA_NCRENDERING_POLICY = DISABLED — stop DWM non-client rendering.
+    2. DWMWA_WINDOW_CORNER_PREFERENCE = DONOTROUND — disable rounded corners.
+    3. DWMWA_BORDER_COLOR = COLOR_NONE — suppress the border color.
+
+    Safe to call on non-Windows platforms (no-op).
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        hwnd = int(widget.winId())
+        dwmapi = ctypes.windll.dwmapi
+
+        # Disable non-client area rendering
+        policy = ctypes.c_uint32(1)  # DWMNCRP_DISABLED
+        dwmapi.DwmSetWindowAttribute(hwnd, 2, ctypes.byref(policy), ctypes.sizeof(policy))
+
+        # Disable rounded corners
+        pref = ctypes.c_uint32(1)  # DWMWCP_DONOTROUND
+        dwmapi.DwmSetWindowAttribute(hwnd, 33, ctypes.byref(pref), ctypes.sizeof(pref))
+
+        # Suppress border color
+        color = ctypes.c_uint32(0xFFFFFFFE)  # DWMWA_COLOR_NONE
+        dwmapi.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(color), ctypes.sizeof(color))
+
+        logger.debug(f"remove_dwm_border: applied to HWND {hwnd:#x}")
+    except Exception as e:
+        logger.debug(f"remove_dwm_border failed (pre-Win11?): {e}")
 
 
 # ---------------------------------------------------------------------------

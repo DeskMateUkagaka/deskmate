@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.lib.compositor import remove_dwm_border
+
 from src.lib.commands import SlashCommand
 
 # Connection status colours
@@ -301,6 +303,7 @@ class ChatInputWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowTitle("deskmate-input")
+        remove_dwm_border(self)
 
         self._commands: list[SlashCommand] = []
         self._connection_status = "disconnected"

@@ -10,7 +10,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from src.lib.compositor import compositor
+from src.lib.compositor import compositor, remove_dwm_border
 from src.lib.consts import DEFAULT_GHOST_HEIGHT
 
 GHOST_HTML = """\
@@ -136,6 +136,7 @@ class GhostWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowTitle("deskmate-ghost")
+        remove_dwm_border(self)
 
         # Emotion -> [file paths]
         self._emotion_files: dict[str, list[Path]] = {}
@@ -195,6 +196,8 @@ class GhostWindow(QWidget):
             self._install_filters_recursive(self._web)
             if self._skin_dir:
                 self._update_image()
+            # Re-apply DWM border fix — Chromium init resets DWM attributes
+            remove_dwm_border(self)
 
     def _install_filters_recursive(self, widget) -> None:
         """Install event filter on widget and all its children, recursively."""

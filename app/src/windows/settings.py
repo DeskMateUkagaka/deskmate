@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.lib.compositor import remove_dwm_border
 from src.lib.settings import Settings
 
 # Stylesheet constants for dark theme form elements
@@ -96,6 +97,7 @@ class SettingsWindow(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        remove_dwm_border(self)
         self.setFixedWidth(360)
 
         font = QFont("Segoe UI", 10)
