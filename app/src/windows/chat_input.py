@@ -13,9 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.lib.compositor import remove_dwm_border
-
 from src.lib.commands import SlashCommand
+from src.lib.compositor import remove_dwm_border
 
 # Connection status colours
 _STATUS_COLORS = {
