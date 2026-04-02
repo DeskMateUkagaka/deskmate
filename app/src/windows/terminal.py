@@ -320,7 +320,10 @@ class TerminalWindow(QWidget):
             # Ctrl+` toggles terminal (MetaModifier on macOS, ControlModifier on Windows)
             if event.key() == Qt.Key.Key_QuoteLeft and (
                 (sys.platform == "darwin" and event.modifiers() == Qt.KeyboardModifier.MetaModifier)
-                or (sys.platform == "win32" and event.modifiers() == Qt.KeyboardModifier.ControlModifier)
+                or (
+                    sys.platform == "win32"
+                    and event.modifiers() == Qt.KeyboardModifier.ControlModifier
+                )
             ):
                 self.terminal_toggle_requested.emit()
                 return True
