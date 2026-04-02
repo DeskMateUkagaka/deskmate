@@ -65,6 +65,7 @@ class DeskMate:
         self._app.setApplicationName("deskmate")
         self._app.setDesktopFileName("deskmate")  # Sets Wayland app_id
         self._app.setQuitOnLastWindowClosed(False)
+        self._app.aboutToQuit.connect(self._cleanup)
 
         # Settings
         self._settings_mgr = SettingsManager()
@@ -880,6 +881,10 @@ class DeskMate:
             self._connect_gateway()
 
     def _quit(self):
+        self._app.quit()
+
+    def _cleanup(self):
+        """Shutdown hook called via aboutToQuit — runs regardless of quit path."""
         # Save ghost position
         x, y = self._ghost.save_position()
         logger.info(f"Saving ghost position: ({x}, {y})")
@@ -894,7 +899,6 @@ class DeskMate:
 
         self._quake.cleanup()
         self._async_timer.stop()
-        self._app.quit()
 
     # ------------------------------------------------------------------
     # Run
