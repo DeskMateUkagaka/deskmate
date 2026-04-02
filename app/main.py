@@ -963,13 +963,14 @@ def _set_process_name(name: str) -> None:
     """Set the process name visible to pkill/pgrep and ps."""
     # setproctitle changes /proc/PID/cmdline (shown by ps -eaf)
     setproctitle.setproctitle(name)
-    # prctl changes /proc/PID/comm (used by pkill -x)
-    libname = ctypes.util.find_library("c")
-    if not libname:
-        return
-    libc = ctypes.CDLL(libname, use_errno=True)
-    PR_SET_NAME = 15
-    libc.prctl(PR_SET_NAME, name.encode(), 0, 0, 0)
+    # prctl changes /proc/PID/comm (used by pkill -x) — Linux only
+    if sys.platform == "linux":
+        libname = ctypes.util.find_library("c")
+        if not libname:
+            return
+        libc = ctypes.CDLL(libname, use_errno=True)
+        PR_SET_NAME = 15
+        libc.prctl(PR_SET_NAME, name.encode(), 0, 0, 0)
     logger.info(f"Process name set to '{name}'")
 
 
