@@ -58,6 +58,38 @@ Once installed, skins keep their style files in DeskMate's data directory:
 
 If you're making or sharing skins, `style.md` is where you define the character's voice and vibe.
 
+## Keyboard Shortcuts
+
+### Windows
+
+| Shortcut | Action |
+|----------|--------|
+| `Win+F12` | Toggle ghost visibility — global, works from any app |
+| `Ctrl+`` | Toggle chat history terminal — global, works from any app |
+| `Win+`` | Toggle chat history terminal visibility (Windows Terminal's built-in quake mode — works once the terminal is open) |
+| `Enter` | Open chat input (when ghost is focused) |
+| `Ctrl+Q` | Quit |
+
+On the first <code>Ctrl+`</code>, DeskMate spawns Windows Terminal in quake mode running the configured command (default: `openclaw tui`). After that, both <code>Ctrl+`</code> and <code>Win+`</code> toggle its visibility.
+
+### Linux / macOS
+
+| Shortcut | Action |
+|----------|--------|
+| <code>Ctrl+`</code> | Toggle chat history terminal (macOS: physical Ctrl, not Cmd) |
+| Bare <code>`</code> | Toggle chat history terminal (when ghost is focused) |
+| `Enter` | Open chat input (when ghost is focused) |
+| `Ctrl+Q` | Quit |
+
+You can also use signals to toggle from any context (e.g. from a window manager keybinding):
+
+```
+pkill -USR1 -x deskmate   # toggle chat history terminal
+pkill -USR2 -x deskmate   # toggle ghost visibility
+```
+
+On Linux, the chat history uses an embedded terminal (xterm.js + pty). SIGUSR signals work on both Linux and macOS.
+
 ## Development
 
 See `CLAUDE.md` and `DEV.md` for dev setup, architecture, and platform quirks.

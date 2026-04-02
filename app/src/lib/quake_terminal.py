@@ -132,9 +132,14 @@ class QuakeTerminalManager(QObject):
 
         logger.info("Global Ctrl+` hotkey registered for quake terminal toggle")
 
-        # Install native event filter so Qt doesn't swallow WM_HOTKEY
-        self._hotkey_filter = _WinHotkeyFilter(self._hotkey_id, self.toggle_requested)
-        QApplication.instance().installNativeEventFilter(self._hotkey_filter)
+        # Install or reuse the shared native event filter
+        app = QApplication.instance()
+        self._hotkey_filter = getattr(app, "_win_hotkey_filter", None)
+        if self._hotkey_filter is None:
+            self._hotkey_filter = WinGlobalHotkeyFilter()
+            app._win_hotkey_filter = self._hotkey_filter
+            app.installNativeEventFilter(self._hotkey_filter)
+        self._hotkey_filter.add(self._hotkey_id, self.toggle_requested)
 
     # ------------------------------------------------------------------
     # Internal — Windows Terminal quake mode
@@ -296,13 +301,18 @@ class QuakeTerminalManager(QObject):
 # ----------------------------------------------------------------------
 
 
-class _WinHotkeyFilter(QAbstractNativeEventFilter):
-    """Intercept WM_HOTKEY before Qt's event loop consumes it."""
+class WinGlobalHotkeyFilter(QAbstractNativeEventFilter):
+    """Intercept WM_HOTKEY before Qt's event loop consumes it.
 
-    def __init__(self, hotkey_id: int, signal: Signal):
+    Supports multiple hotkeys.  Call :meth:`add` after ``RegisterHotKey``.
+    """
+
+    def __init__(self):
         super().__init__()
-        self._hotkey_id = hotkey_id
-        self._signal = signal
+        self._handlers: dict[int, Signal] = {}  # hotkey_id → signal
+
+    def add(self, hotkey_id: int, signal: Signal) -> None:
+        self._handlers[hotkey_id] = signal
 
     def nativeEventFilter(self, event_type, message):
         if event_type != b"windows_generic_MSG":
@@ -312,9 +322,11 @@ class _WinHotkeyFilter(QAbstractNativeEventFilter):
 
         msg = ctypes.cast(int(message), ctypes.POINTER(wintypes.MSG)).contents
         WM_HOTKEY = 0x0312
-        if msg.message == WM_HOTKEY and msg.wParam == self._hotkey_id:
-            self._signal.emit()
-            return True, 0
+        if msg.message == WM_HOTKEY:
+            sig = self._handlers.get(msg.wParam)
+            if sig is not None:
+                sig.emit()
+                return True, 0
         return False, 0
 
 

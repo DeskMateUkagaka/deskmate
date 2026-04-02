@@ -38,7 +38,7 @@ from src.lib.commands import load_cached_commands, parse_commands_response, save
 from src.lib.compositor import compositor
 from src.lib.idle import IdleAnimationManager
 from src.lib.parse import parse_buttons, parse_emotion, strip_all_tags
-from src.lib.quake_terminal import QuakeTerminalManager
+from src.lib.quake_terminal import QuakeTerminalManager, WinGlobalHotkeyFilter
 from src.lib.settings import AppStateManager, SettingsManager
 from src.lib.skin import SkinLoader, UiPlacement
 from src.lib.window_position import ScreenMargins, ScreenRect, calc_anchor, calc_window_position
@@ -115,7 +115,7 @@ class DeskMate:
         self._quake.toggle_requested.connect(self._toggle_quake_terminal)
         self._quake.setup_signal_handler()
 
-        # SIGUSR2 → toggle ghost visibility
+        # SIGUSR2 → toggle ghost visibility (Unix)
         if hasattr(signal, "SIGUSR2"):
             self._sigusr2_event = threading.Event()
             signal.signal(signal.SIGUSR2, lambda *_: self._sigusr2_event.set())
@@ -124,6 +124,10 @@ class DeskMate:
             self._sigusr2_timer.timeout.connect(self._check_sigusr2)
             self._sigusr2_timer.start()
             logger.info("SIGUSR2 handler registered (pkill -USR2 -x python3 to toggle ghost)")
+
+        # Win+F12 → toggle ghost visibility (Windows)
+        if sys.platform == "win32":
+            self._setup_visibility_hotkey()
 
         # Idle animation
         self._idle_manager = IdleAnimationManager(self._app)
@@ -231,7 +235,7 @@ class DeskMate:
     def _build_context_menu(self) -> QMenu:
         menu = QMenu()
         menu.addAction("Show/Hide", self._toggle_ghost)
-        menu.addAction("Toggle Terminal", self._toggle_quake_terminal)
+        menu.addAction("Toggle Chat History", self._toggle_quake_terminal)
         menu.addAction("Change Skin", self._show_skin_picker)
         menu.addAction("Get Skins", self._show_get_skins)
         menu.addAction("Settings", self._show_settings)
@@ -768,6 +772,37 @@ class DeskMate:
             self._sigusr2_event.clear()
             self._toggle_ghost()
 
+    def _setup_visibility_hotkey(self):
+        """Register Win+F12 as a global hotkey to toggle ghost visibility."""
+        import ctypes
+
+        from PySide6.QtCore import QObject, Signal
+
+        user32 = ctypes.windll.user32
+        MOD_WIN, VK_F12 = 0x0008, 0x7B
+        self._visibility_hotkey_id = 0xDECB
+
+        if not user32.RegisterHotKey(None, self._visibility_hotkey_id, MOD_WIN, VK_F12):
+            logger.warning("Failed to register global Win+F12 hotkey (already in use?)")
+            return
+
+        logger.info("Global Win+F12 hotkey registered for ghost visibility toggle")
+
+        # Reuse or create the shared native event filter
+        hotkey_filter = getattr(self._app, "_win_hotkey_filter", None)
+        if hotkey_filter is None:
+            hotkey_filter = WinGlobalHotkeyFilter()
+            self._app._win_hotkey_filter = hotkey_filter
+            self._app.installNativeEventFilter(hotkey_filter)
+
+        # Bridge: WinGlobalHotkeyFilter emits a Signal, connect to _toggle_ghost
+        class _Bridge(QObject):
+            triggered = Signal()
+
+        self._visibility_bridge = _Bridge()
+        self._visibility_bridge.triggered.connect(self._toggle_ghost)
+        hotkey_filter.add(self._visibility_hotkey_id, self._visibility_bridge.triggered)
+
     def _close_auxiliary_windows(self):
         self._input.hide_input()
         self._settings_win.hide_settings()
@@ -785,6 +820,8 @@ class DeskMate:
             self._bubble.hide_bubble()
         else:
             self._ghost.show()
+            self._ghost.raise_()
+            self._ghost.activateWindow()
             # Restore happens via window_mapped signal (deferred until compositor maps the window)
 
     def _show_skin_picker(self):
@@ -919,6 +956,10 @@ class DeskMate:
             self._loop.run_until_complete(self._gateway.stop())
 
         self._quake.cleanup()
+        if hasattr(self, "_visibility_hotkey_id"):
+            import ctypes
+
+            ctypes.windll.user32.UnregisterHotKey(None, self._visibility_hotkey_id)
         self._async_timer.stop()
 
     # ------------------------------------------------------------------
