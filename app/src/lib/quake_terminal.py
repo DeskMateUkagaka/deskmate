@@ -66,9 +66,16 @@ class QuakeTerminalManager(QObject):
             return True
 
     def cleanup(self) -> None:
-        """Kill the pty process on app exit."""
+        """Kill the pty and destroy the terminal window.
+
+        The QWebEngineView cannot be deleted synchronously — Chromium crashes
+        (SIGTRAP) if the widget is freed while the render process is still
+        running. Hide first, clean up the pty, then schedule deferred deletion.
+        """
         if self._window is not None:
+            self._window.hide()
             self._window.cleanup()
+            self._window.deleteLater()
             self._window = None
         self._visible = False
 

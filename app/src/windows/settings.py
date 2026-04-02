@@ -2,7 +2,7 @@
 
 from loguru import logger
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QKeyEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -117,6 +117,17 @@ class SettingsWindow(QWidget):
         self._bubble_timeout.setValue(round(settings.bubble_timeout_ms / 1000))
         self._ghost_height.setValue(settings.ghost_height_pixels)
         self._idle_interval.setValue(int(settings.idle_interval_seconds))
+        self._terminal_command.setText(settings.quake_terminal.command)
+
+        self.adjustSize()
+        screen = QGuiApplication.screenAt(self.pos())
+        if screen is None:
+            screen = QGuiApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = geo.x() + (geo.width() - self.width()) // 2
+            y = geo.y() + (geo.height() - self.height()) // 2
+            self.move(x, y)
 
         self.show()
         self.raise_()
@@ -156,6 +167,9 @@ class SettingsWindow(QWidget):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Escape:
             self.hide_settings()
+            return
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._on_save()
             return
         super().keyPressEvent(event)
 
@@ -255,6 +269,63 @@ class SettingsWindow(QWidget):
         beh_form.addRow(ii_label, self._idle_interval)
         root.addLayout(beh_form)
 
+        # --- Section: Terminal ---
+        term_section = QLabel("TERMINAL", self)
+        term_section.setStyleSheet(_SECTION_STYLE)
+        root.addWidget(term_section)
+
+        term_form = QFormLayout()
+        term_form.setContentsMargins(0, 0, 0, 0)
+        term_form.setSpacing(6)
+        term_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self._terminal_command = QLineEdit(self)
+        self._terminal_command.setPlaceholderText("openclaw tui")
+        self._terminal_command.setStyleSheet(_INPUT_STYLE)
+
+        tc_label = QLabel("Command", self)
+        tc_label.setStyleSheet(_LABEL_STYLE)
+
+        term_form.addRow(tc_label, self._terminal_command)
+        root.addLayout(term_form)
+
+        # Example commands with paste buttons
+        examples = [
+            "openclaw tui",
+            "ssh -t user@remote.host \"TERM=xterm-256color bash -li -c 'openclaw tui'\"",
+            "ssh -t user@remote.host \"TERM=xterm-256color bash -li -c 'byobu a -t session-name'\"",
+        ]
+        for cmd in examples:
+            row = QHBoxLayout()
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(4)
+
+            paste_btn = QPushButton("\u2398", self)  # ⎘ copy symbol
+            paste_btn.setFixedSize(20, 20)
+            paste_btn.setStyleSheet(
+                "QPushButton {"
+                "  background: rgba(255,255,255,0.07);"
+                "  color: rgba(200,200,220,0.6);"
+                "  border: 1px solid rgba(255,255,255,0.10);"
+                "  border-radius: 4px;"
+                "  font-size: 12px;"
+                "  padding: 0;"
+                "}"
+                "QPushButton:hover { background: rgba(255,255,255,0.15); color: #e8e8f0; }"
+            )
+            paste_btn.setToolTip("Paste into command field")
+            paste_btn.clicked.connect(lambda _, c=cmd: self._terminal_command.setText(c))
+
+            example_label = QLabel(cmd, self)
+            example_label.setStyleSheet(
+                "color: rgba(180,180,200,0.5); font-size: 10px; font-family: monospace;"
+            )
+            example_label.setWordWrap(True)
+
+            row.addWidget(paste_btn)
+            row.addWidget(example_label, 1)
+            root.addLayout(row)
+
         # --- Action buttons ---
         root.addSpacing(4)
         btn_row = QHBoxLayout()
@@ -280,6 +351,7 @@ class SettingsWindow(QWidget):
             "bubble_timeout_ms": self._bubble_timeout.value() * 1000,
             "ghost_height_pixels": self._ghost_height.value(),
             "idle_interval_seconds": float(self._idle_interval.value()),
+            "quake_terminal_command": self._terminal_command.text().strip(),
         }
         logger.info(f"Settings saved: gateway_url={updated['gateway_url']}")
         self.settings_saved.emit(updated)

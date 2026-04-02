@@ -859,7 +859,17 @@ class DeskMate:
     def _on_settings_saved(self, updated: dict) -> None:
         old_url = self._settings.gateway_url
         old_token = self._settings.gateway_token
+        old_terminal_cmd = self._settings.quake_terminal.command
+
+        # Extract terminal command before passing to settings manager
+        new_terminal_cmd = updated.pop("quake_terminal_command", old_terminal_cmd)
+
         try:
+            if new_terminal_cmd != old_terminal_cmd:
+                new_qt = self._settings.quake_terminal.model_copy(
+                    update={"command": new_terminal_cmd}
+                )
+                updated["quake_terminal"] = new_qt
             self._settings_mgr.update(**updated)
         except Exception as e:
             logger.warning(f"Failed to persist settings: {e}")
@@ -868,6 +878,11 @@ class DeskMate:
         # Apply changed settings immediately
         self._apply_ghost_size()
         self._idle_manager.set_interval(self._settings.idle_interval_seconds)
+
+        # Kill terminal if command changed — respawns on next toggle
+        if new_terminal_cmd != old_terminal_cmd:
+            logger.info(f"Terminal command changed to '{new_terminal_cmd}' — killing terminal")
+            self._quake.cleanup()
 
         # Reconnect gateway if URL or token changed
         new_url = self._settings.gateway_url

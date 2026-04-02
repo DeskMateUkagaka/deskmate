@@ -6,6 +6,7 @@ Requires Unix (macOS / Linux) for pty.fork(). On Windows, spawn() is a no-op.
 import base64
 import json
 import os
+import shlex
 import struct
 import sys
 import threading
@@ -98,6 +99,12 @@ function initTerminal() {
         if (bridge) bridge.onResize(JSON.stringify({cols: size.cols, rows: size.rows}));
     });
 
+    // Copy on select
+    term.onSelectionChange(function() {
+        var sel = term.getSelection();
+        if (sel) navigator.clipboard.writeText(sel);
+    });
+
     new ResizeObserver(function() {
         if (fitAddon) fitAddon.fit();
     }).observe(document.getElementById('terminal'));
@@ -109,8 +116,12 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
     bridge.ready();
 });
 
-function writeData(data) {
-    if (term) term.write(data);
+function writeBase64(b64) {
+    if (!term) return;
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    term.write(bytes);
 }
 </script>
 </body>
@@ -198,6 +209,7 @@ class TerminalWindow(QWidget):
     """
 
     window_mapped = Signal()
+    _pty_data_received = Signal(str)  # base64-encoded pty output, thread-safe
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -222,6 +234,9 @@ class TerminalWindow(QWidget):
         self._web.setPage(self._page)
         self._web.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self._page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        self._page.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
 
         # QWebChannel bridge
         self._bridge = _TerminalBridge(self)
@@ -232,12 +247,14 @@ class TerminalWindow(QWidget):
         self._bridge.input_received.connect(self._on_input)
         self._bridge.resize_requested.connect(self._on_resize)
         self._bridge.js_ready.connect(self._on_js_ready)
+        self._pty_data_received.connect(self._write_to_xterm)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._web)
 
         self._page.setHtml(TERMINAL_HTML)
+        self._page.loadFinished.connect(self._on_page_loaded)
 
         # Poll for child process exit
         self._exit_timer = QTimer(self)
@@ -286,6 +303,12 @@ class TerminalWindow(QWidget):
     # Internal
     # ------------------------------------------------------------------
 
+    def _on_page_loaded(self, ok: bool):
+        if ok:
+            # Re-apply platform fixes — Chromium init resets window attributes
+            remove_dwm_border(self)
+            prevent_hide_on_deactivate(self)
+
     def _on_js_ready(self):
         self._loaded = True
         logger.debug("TerminalWindow: xterm.js ready")
@@ -305,7 +328,7 @@ class TerminalWindow(QWidget):
 
         cmd = self._command
         if cmd:
-            cmd_parts = cmd.split()
+            cmd_parts = shlex.split(cmd)
         else:
             shell = os.environ.get("SHELL", "/bin/sh")
             cmd_parts = [shell]
@@ -323,19 +346,13 @@ class TerminalWindow(QWidget):
             logger.info(f"Pty spawned: pid={pid}, cmd={cmd_parts}")
 
     def _on_pty_data(self, data: bytes):
-        """Called from reader thread — marshal to Qt main thread."""
+        """Called from reader thread — emit signal to marshal to Qt main thread."""
         encoded = base64.b64encode(data).decode("ascii")
-        QTimer.singleShot(0, lambda: self._write_to_xterm(encoded))
+        self._pty_data_received.emit(encoded)
 
     def _write_to_xterm(self, b64data: str):
         """Write base64-encoded data to xterm.js (must run on main thread)."""
-        js = f"""
-        (function() {{
-            var raw = atob("{b64data}");
-            writeData(raw);
-        }})();
-        """
-        self._page.runJavaScript(js)
+        self._page.runJavaScript(f'writeBase64("{b64data}");')
 
     def _on_input(self, data: str):
         """User typed in xterm.js — write to pty master."""
