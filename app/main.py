@@ -594,7 +594,11 @@ class DeskMate:
         self._active_bubble_id = None
         self._chat_state = "idle"
         self._current_emotion = ""
-        self._idle_manager.reset()
+        # If gateway is not connected, restore connecting state instead of idle
+        if self._gateway.status != "connected":
+            self._apply_connecting_state(True)
+        else:
+            self._idle_manager.reset()
 
     def _debug_stream_text(self, text: str, *, label: str = "debug", duration_ms: int = 1000):
         """Stream text into the bubble over duration_ms, simulating gateway streaming."""
