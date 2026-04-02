@@ -38,8 +38,9 @@ html, body {
 }
 #overlay {
     position: absolute;
-    bottom: 12%;
+    top: 50%;
     left: 0; right: 0;
+    transform: translateY(-50%);
     text-align: center;
     font-family: monospace;
     font-size: 13px;
