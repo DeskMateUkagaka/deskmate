@@ -384,6 +384,46 @@ class NullCompositor(Compositor):
 # ---------------------------------------------------------------------------
 
 
+def prevent_hide_on_deactivate(widget) -> None:
+    """Prevent a Qt Tool window from hiding when the app loses focus on macOS.
+
+    macOS NSPanels (created by Qt for Tool-type windows) hide automatically
+    when the application deactivates.  Setting hidesOnDeactivate = NO keeps
+    them visible, which is the expected behaviour for a desktop companion.
+
+    Safe to call on non-macOS platforms (no-op).
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        from ctypes import c_bool, c_void_p
+
+        objc = ctypes.cdll.LoadLibrary("libobjc.dylib")
+        objc.objc_msgSend.restype = c_void_p
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p]
+
+        sel_reg = objc.sel_registerName
+        sel_reg.restype = c_void_p
+        sel_reg.argtypes = [ctypes.c_char_p]
+
+        # Get NSView from Qt widget, then its NSWindow
+        view_ptr = c_void_p(int(widget.winId()))
+        window_sel = sel_reg(b"window")
+        ns_window = objc.objc_msgSend(view_ptr, window_sel)
+        if not ns_window:
+            return
+
+        # [nsWindow setHidesOnDeactivate:NO]
+        set_hides_sel = sel_reg(b"setHidesOnDeactivate:")
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p, c_bool]
+        objc.objc_msgSend(ns_window, set_hides_sel, False)
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p]
+
+        logger.debug("prevent_hide_on_deactivate: applied")
+    except Exception as e:
+        logger.debug(f"prevent_hide_on_deactivate failed: {e}")
+
+
 def remove_dwm_border(widget) -> None:
     """Remove the Windows 11 DWM border and rounded corners from a frameless window.
 

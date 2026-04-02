@@ -10,7 +10,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from src.lib.compositor import remove_dwm_border
+from src.lib.compositor import prevent_hide_on_deactivate, remove_dwm_border
 
 # ---------------------------------------------------------------------------
 # Embedded HTML template — full feature bubble with markdown, streaming,
@@ -722,6 +722,7 @@ class BubbleWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowTitle("deskmate-bubble")
         remove_dwm_border(self)
+        prevent_hide_on_deactivate(self)
         self.resize(648, 400)
         self._max_window_height = 560
 
@@ -870,8 +871,9 @@ class BubbleWindow(QWidget):
             self._page.runJavaScript(js)
         self._pending_js.clear()
         logger.debug(f"BubbleWindow: page loaded, flushed {len(self._pending_js)} pending JS calls")
-        # Re-apply DWM border fix — Chromium init resets DWM attributes
+        # Re-apply platform fixes — Chromium init can reset window attributes
         remove_dwm_border(self)
+        prevent_hide_on_deactivate(self)
 
     def _run_js(self, js: str) -> None:
         if self._loaded:
