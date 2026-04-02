@@ -181,6 +181,7 @@ class DeskMate:
         self._ghost.dismiss_requested.connect(self._bubble._dismiss_oldest)
         self._ghost.pin_requested.connect(self._bubble._pin_newest)
         self._ghost.expression_changed.connect(lambda expr: logger.info(f"Expression: {expr}"))
+        self._ghost.terminal_toggle_requested.connect(self._toggle_quake_terminal)
 
         # Chat input signals
         self._input.message_sent.connect(self._on_chat_send)

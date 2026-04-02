@@ -126,6 +126,7 @@ class GhostWindow(QWidget):
     pin_requested = Signal()
     expression_changed = Signal(str)
     window_mapped = Signal()
+    terminal_toggle_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -358,6 +359,10 @@ class GhostWindow(QWidget):
                     self.clicked.emit()
                 self._press_pos = None
                 self._dragging = False
+                return True
+        elif etype == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_QuoteLeft:
+                self.terminal_toggle_requested.emit()
                 return True
         elif etype == QEvent.Type.ChildAdded:
             child = event.child()
