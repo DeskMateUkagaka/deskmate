@@ -273,6 +273,7 @@ def nuitka_extra_args() -> str:
         "--assume-yes-for-downloads",
         "--noinclude-qt-translations",
         "--windows-console-mode=disable",
+        "--output-filename=deskmate",
         "--include-package=shiboken6",
         "--include-package=PySide6",
         f"--include-data-dir={skins_dir}=./skins",
