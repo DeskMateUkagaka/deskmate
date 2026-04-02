@@ -424,6 +424,38 @@ def prevent_hide_on_deactivate(widget) -> None:
         logger.debug(f"prevent_hide_on_deactivate failed: {e}")
 
 
+def remove_window_shadow(widget) -> None:
+    """Remove the macOS window shadow from a frameless transparent window.
+
+    Safe to call on non-macOS platforms (no-op).
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        from ctypes import c_bool, c_void_p
+
+        objc = ctypes.cdll.LoadLibrary("libobjc.dylib")
+        objc.objc_msgSend.restype = c_void_p
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p]
+
+        sel_reg = objc.sel_registerName
+        sel_reg.restype = c_void_p
+        sel_reg.argtypes = [ctypes.c_char_p]
+
+        view_ptr = c_void_p(int(widget.winId()))
+        ns_window = objc.objc_msgSend(view_ptr, sel_reg(b"window"))
+        if not ns_window:
+            return
+
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p, c_bool]
+        objc.objc_msgSend(ns_window, sel_reg(b"setHasShadow:"), False)
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p]
+
+        logger.debug("remove_window_shadow: applied")
+    except Exception as e:
+        logger.debug(f"remove_window_shadow failed: {e}")
+
+
 def remove_dwm_border(widget) -> None:
     """Remove the Windows 11 DWM border and rounded corners from a frameless window.
 
