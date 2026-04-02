@@ -8,13 +8,27 @@
 
 ## Getting Started
 
+### 1. Install uv
+
+Follow the instructions at [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+### 2. Set up the environment
+
 ```bash
-cd app
-uv pip install -r requirements.txt
-python3 main.py
+uv python install 3.13
+uv venv -p 3.13
+source .venv/bin/activate        # Linux / macOS
+# .venv\Scripts\activate.ps1     # Windows PowerShell
+uv pip install -r app/requirements.txt
 ```
 
-First run creates `~/.config/deskmate/` with default settings and a generated Ed25519 device identity.
+### 3. Run
+
+```bash
+python app/main.py
+```
+
+First run creates `~/.config/deskmate/` (Linux/macOS) or `%LOCALAPPDATA%\deskmate\deskmate\` (Windows) with default settings and a generated Ed25519 device identity.
 
 **Sway users** need this in their config:
 ```
