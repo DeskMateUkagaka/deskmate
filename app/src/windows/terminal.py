@@ -18,7 +18,7 @@ if sys.platform != "win32":
     import termios
 
 from loguru import logger
-from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -209,6 +209,7 @@ class TerminalWindow(QWidget):
     """
 
     window_mapped = Signal()
+    terminal_toggle_requested = Signal()  # Ctrl+` on macOS
     _pty_data_received = Signal(str)  # base64-encoded pty output, thread-safe
 
     def __init__(self, parent=None):
@@ -252,6 +253,8 @@ class TerminalWindow(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._web)
+
+        self._web.installEventFilter(self)
 
         self._page.setHtml(TERMINAL_HTML)
         self._page.loadFinished.connect(self._on_page_loaded)
@@ -308,6 +311,25 @@ class TerminalWindow(QWidget):
             # Re-apply platform fixes — Chromium init resets window attributes
             remove_dwm_border(self)
             prevent_hide_on_deactivate(self)
+            # Install event filter on all child widgets for key interception
+            for child in self._web.findChildren(QWidget):
+                child.installEventFilter(self)
+
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.Type.KeyPress:
+            # Ctrl+` toggles terminal on macOS (Qt maps physical Ctrl to MetaModifier)
+            if (
+                sys.platform == "darwin"
+                and event.key() == Qt.Key.Key_QuoteLeft
+                and event.modifiers() == Qt.KeyboardModifier.MetaModifier
+            ):
+                self.terminal_toggle_requested.emit()
+                return True
+        elif event.type() == QEvent.Type.ChildAdded:
+            child = event.child()
+            if hasattr(child, "installEventFilter"):
+                child.installEventFilter(self)
+        return super().eventFilter(obj, event)
 
     def _on_js_ready(self):
         self._loaded = True

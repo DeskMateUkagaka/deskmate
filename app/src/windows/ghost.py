@@ -1,5 +1,6 @@
 """GhostWindow — transparent window using QWebEngineView for browser-quality sprite rendering."""
 
+import sys
 from pathlib import Path
 
 from loguru import logger
@@ -362,9 +363,16 @@ class GhostWindow(QWidget):
                 self._dragging = False
                 return True
         elif etype == QEvent.Type.KeyPress:
+            logger.debug(f"KeyPress: key=0x{event.key():x} mods={event.modifiers()!r}")
             if event.key() == Qt.Key.Key_QuoteLeft:
-                self.terminal_toggle_requested.emit()
-                return True
+                mods = event.modifiers()
+                # Bare ` always toggles; Ctrl+` also toggles on macOS
+                # (Qt maps the physical Ctrl key to MetaModifier on macOS)
+                if mods == Qt.KeyboardModifier.NoModifier or (
+                    sys.platform == "darwin" and mods == Qt.KeyboardModifier.MetaModifier
+                ):
+                    self.terminal_toggle_requested.emit()
+                    return True
         elif etype == QEvent.Type.ChildAdded:
             child = event.child()
             if hasattr(child, "installEventFilter"):

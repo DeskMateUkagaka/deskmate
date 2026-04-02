@@ -1,5 +1,7 @@
 """ChatInputWindow — transparent popup for text input."""
 
+import sys
+
 from loguru import logger
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen
@@ -143,6 +145,7 @@ class _InputEdit(QTextEdit):
 
     send_requested = Signal(str)
     dismiss_requested = Signal()
+    terminal_toggle_requested = Signal()
     height_changed = Signal(int)
     text_changed_for_ac = Signal(str, int)  # (full text, cursor position)
 
@@ -189,6 +192,15 @@ class _InputEdit(QTextEdit):
         self._popup = popup
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        # Ctrl+` toggles terminal on macOS (Qt maps physical Ctrl to MetaModifier)
+        if (
+            sys.platform == "darwin"
+            and event.key() == Qt.Key.Key_QuoteLeft
+            and event.modifiers() == Qt.KeyboardModifier.MetaModifier
+        ):
+            self.terminal_toggle_requested.emit()
+            return
+
         popup_active = self._popup is not None and self._popup.isVisible()
 
         if popup_active:
@@ -290,6 +302,7 @@ class ChatInputWindow(QWidget):
 
     message_sent = Signal(str)  # User pressed Enter with non-empty text
     dismissed = Signal()  # User pressed Escape
+    terminal_toggle_requested = Signal()  # Ctrl+` on macOS
     window_mapped = Signal()  # Fired once after the window is shown (compositor has mapped it)
     resized = Signal(int, int)  # Content size changed (width, height)
 
@@ -405,6 +418,7 @@ class ChatInputWindow(QWidget):
         self._editor = _InputEdit(self)
         self._editor.send_requested.connect(self._on_send)
         self._editor.dismiss_requested.connect(self._on_dismiss)
+        self._editor.terminal_toggle_requested.connect(self.terminal_toggle_requested)
         self._editor.height_changed.connect(self._on_editor_height_changed)
         self._editor.text_changed_for_ac.connect(self._on_text_changed_for_ac)
         self._editor.setPlaceholderText("Type a message…")

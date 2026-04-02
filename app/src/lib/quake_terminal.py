@@ -116,6 +116,7 @@ class QuakeTerminalManager(QObject):
         x, y, width, height = self._compute_geometry(config, screen_rect)
 
         self._window = TerminalWindow()
+        self._window.terminal_toggle_requested.connect(self.toggle_requested)
         self._window.setGeometry(x, y, width, height)
         self._window.show()
         self._window.spawn(config.command if config.command else None)

@@ -186,6 +186,7 @@ class DeskMate:
         # Chat input signals
         self._input.message_sent.connect(self._on_chat_send)
         self._input.dismissed.connect(self._input.hide_input)
+        self._input.terminal_toggle_requested.connect(self._toggle_quake_terminal)
         self._input.window_mapped.connect(self._reposition_input)
 
         # Bubble signals
