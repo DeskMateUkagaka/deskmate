@@ -368,6 +368,7 @@ class GhostWindow(QWidget):
                 mods = event.modifiers()
                 # Bare ` always toggles; Ctrl+` also toggles on macOS
                 # (Qt maps the physical Ctrl key to MetaModifier on macOS)
+                # Windows uses a global hotkey instead (RegisterHotKey).
                 if mods == Qt.KeyboardModifier.NoModifier or (
                     sys.platform == "darwin" and mods == Qt.KeyboardModifier.MetaModifier
                 ):

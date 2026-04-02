@@ -317,11 +317,10 @@ class TerminalWindow(QWidget):
 
     def eventFilter(self, obj, event) -> bool:
         if event.type() == QEvent.Type.KeyPress:
-            # Ctrl+` toggles terminal on macOS (Qt maps physical Ctrl to MetaModifier)
-            if (
-                sys.platform == "darwin"
-                and event.key() == Qt.Key.Key_QuoteLeft
-                and event.modifiers() == Qt.KeyboardModifier.MetaModifier
+            # Ctrl+` toggles terminal (MetaModifier on macOS, ControlModifier on Windows)
+            if event.key() == Qt.Key.Key_QuoteLeft and (
+                (sys.platform == "darwin" and event.modifiers() == Qt.KeyboardModifier.MetaModifier)
+                or (sys.platform == "win32" and event.modifiers() == Qt.KeyboardModifier.ControlModifier)
             ):
                 self.terminal_toggle_requested.emit()
                 return True

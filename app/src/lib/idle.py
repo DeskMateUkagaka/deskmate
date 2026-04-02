@@ -2,7 +2,6 @@
 
 import random
 
-from loguru import logger
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from src.lib.skin import SkinInfo

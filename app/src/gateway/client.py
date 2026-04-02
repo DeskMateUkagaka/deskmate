@@ -116,6 +116,15 @@ class GatewayClient:
     # Internal
     # ------------------------------------------------------------------
 
+    def _regenerate_identity(self) -> None:
+        """Delete expired device identity so a fresh one is created on reconnect."""
+        assert self._data_dir is not None
+        path = self._data_dir / "identity" / "device.json"
+        if path.exists():
+            path.unlink()
+            logger.info("Deleted expired device identity; will regenerate on reconnect")
+        self._identity = DeviceIdentity.load_or_create(self._data_dir)
+
     def _set_status(self, status: str) -> None:
         if status == self._status:
             return
@@ -159,6 +168,8 @@ class GatewayClient:
                 raise
             except Exception as exc:
                 logger.warning(f"WebSocket error: {exc}")
+                if "device signature expired" in str(exc):
+                    self._regenerate_identity()
             finally:
                 self._ws = None
                 self._set_status("disconnected")

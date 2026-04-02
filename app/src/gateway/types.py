@@ -1,7 +1,6 @@
 """Data classes for the OpenClaw gateway protocol."""
 
 import platform
-import re
 from dataclasses import dataclass, field
 from typing import Any
 

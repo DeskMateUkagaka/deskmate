@@ -825,7 +825,7 @@ class DeskMate:
         except (FileNotFoundError, ValueError) as e:
             logger.error(f"Failed to load skin '{skin_id}': {e}")
             return
-        logger.debug(f"_on_skin_selected: skin loaded, setting on ghost")
+        logger.debug("_on_skin_selected: skin loaded, setting on ghost")
         self._skin = new_skin
         emotions_map = self._load_emotions_map(new_skin)
         logger.debug(

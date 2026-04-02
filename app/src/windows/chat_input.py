@@ -192,7 +192,8 @@ class _InputEdit(QTextEdit):
         self._popup = popup
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        # Ctrl+` toggles terminal on macOS (Qt maps physical Ctrl to MetaModifier)
+        # Ctrl+` toggles terminal on macOS (Qt maps physical Ctrl to MetaModifier).
+        # Windows uses a global hotkey instead (RegisterHotKey).
         if (
             sys.platform == "darwin"
             and event.key() == Qt.Key.Key_QuoteLeft
