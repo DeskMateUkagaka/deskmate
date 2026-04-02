@@ -1,152 +1,30 @@
 """Quake-style dropdown terminal manager for DeskMate.
 
-Spawns an external terminal emulator and shows/hides it via compositor
-commands (Sway, X11 fallback). Toggle is triggered by calling toggle()
-directly or via SIGUSR1 signal from an external keybind.
+Uses an embedded TerminalWindow (xterm.js + pty) instead of external terminal
+emulators. Toggle via tray menu or SIGUSR1 signal.
 
 Usage (Sway config):
     bindsym Ctrl+Alt+grave exec pkill -USR1 -x python3
 """
 
-import platform
-import shutil
 import signal
-import subprocess
 import threading
-from pathlib import Path
 
 from loguru import logger
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from src.lib.compositor import compositor
-
-# ---------------------------------------------------------------------------
-# Terminal emulator definitions
-# ---------------------------------------------------------------------------
-
-
-def _detect_terminal(override: str | None = None) -> str | None:
-    """Return the first available terminal emulator command."""
-    if override:
-        return override if shutil.which(override) else None
-
-    system = platform.system()
-
-    if system == "Linux":
-        candidates = ["foot", "kitty", "alacritty", "konsole", "xterm", "xfce4-terminal"]
-        for cmd in candidates:
-            if shutil.which(cmd):
-                return cmd
-        return None
-
-    if system == "Darwin":
-        iterm = Path("/Applications/iTerm.app")
-        if iterm.exists():
-            return "iterm2"
-        for cmd in ["kitty", "alacritty"]:
-            if shutil.which(cmd):
-                return cmd
-        return "open -a Terminal"
-
-    if system == "Windows":
-        if shutil.which("wt"):
-            return "wt"
-        if shutil.which("powershell"):
-            return "powershell"
-        return None
-
-    return None
-
-
-def _build_spawn_args(
-    terminal: str, title: str, width_px: int, height_px: int, command: str
-) -> list[str]:
-    """Build the argv list for launching the terminal."""
-    cols = max(40, width_px // 8)  # rough char width estimate
-    rows = max(10, height_px // 16)  # rough char height estimate
-    cmd_parts = command.split()
-
-    if terminal == "foot":
-        return [
-            "foot",
-            f"--title={title}",
-            f"--window-size-pixels={width_px}x{height_px}",
-            "-e",
-            *cmd_parts,
-        ]
-
-    if terminal == "kitty":
-        return [
-            "kitty",
-            "--title",
-            title,
-            "-o",
-            f"initial_window_width={width_px}",
-            "-o",
-            f"initial_window_height={height_px}",
-            "-e",
-            *cmd_parts,
-        ]
-
-    if terminal == "alacritty":
-        return [
-            "alacritty",
-            "--title",
-            title,
-            "-e",
-            *cmd_parts,
-        ]
-
-    if terminal == "konsole":
-        return [
-            "konsole",
-            "--hide-menubar",
-            "--hide-tabbar",
-            "-p",
-            f"tabtitle={title}",
-            "-e",
-            *cmd_parts,
-        ]
-
-    if terminal == "xterm":
-        return [
-            "xterm",
-            "-T",
-            title,
-            "-geometry",
-            f"{cols}x{rows}",
-            "-e",
-            *cmd_parts,
-        ]
-
-    if terminal in ("xfce4-terminal",):
-        return [
-            terminal,
-            f"--title={title}",
-            "-e",
-            command,
-        ]
-
-    # Generic fallback
-    return [terminal, "-e", *cmd_parts]
-
-
-# ---------------------------------------------------------------------------
-# Manager
-# ---------------------------------------------------------------------------
-
-_WINDOW_TITLE = "deskmate-quake"
+from src.windows.terminal import TerminalWindow
 
 
 class QuakeTerminalManager(QObject):
-    """Manages an external terminal process as a quake-style dropdown."""
+    """Manages an embedded terminal window as a quake-style dropdown."""
 
     toggled = Signal(bool)  # emits visibility state after toggle
-    toggle_requested = Signal()  # emitted when SIGUSR1 fires; connect to trigger toggle
+    toggle_requested = Signal()  # emitted when SIGUSR1 fires
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
-        self._process: subprocess.Popen | None = None
+        self._window: TerminalWindow | None = None
         self._visible: bool = False
         self._signal_event = threading.Event()
 
@@ -176,16 +54,9 @@ class QuakeTerminalManager(QObject):
 
         screen_rect: (x, y, w, h) of the screen to place the terminal on.
         """
-        # Check if previously spawned process is still alive
-        if self._process is not None and self._process.poll() is not None:
-            logger.info(
-                f"Terminal process exited (returncode={self._process.returncode}), resetting state"
-            )
-            self._process = None
-            self._visible = False
-
-        if self._process is None:
-            return self._spawn(config, screen_rect)
+        if self._window is None:
+            self._spawn(config, screen_rect)
+            return True
 
         if self._visible:
             self._hide()
@@ -195,16 +66,15 @@ class QuakeTerminalManager(QObject):
             return True
 
     def cleanup(self) -> None:
-        """Kill the terminal process on app exit."""
-        if self._process is not None and self._process.poll() is None:
-            logger.info(f"Terminating quake terminal process (pid={self._process.pid})")
-            self._process.terminate()
-            self._process = None
+        """Kill the pty process on app exit."""
+        if self._window is not None:
+            self._window.cleanup()
+            self._window = None
         self._visible = False
 
     def is_running(self) -> bool:
-        """Return True if the terminal process is alive."""
-        return self._process is not None and self._process.poll() is None
+        """Return True if the terminal window exists and pty is alive."""
+        return self._window is not None and self._window.is_running()
 
     # ------------------------------------------------------------------
     # Internal
@@ -213,17 +83,12 @@ class QuakeTerminalManager(QObject):
     def _check_signal(self) -> None:
         if self._signal_event.is_set():
             self._signal_event.clear()
-            # Config is owned by the caller — emit toggle_requested so the owner
-            # calls toggle() with the right config on the main thread.
             self.toggle_requested.emit()
 
     def _compute_geometry(
         self, config, screen_rect: tuple[int, int, int, int] | None = None
     ) -> tuple[int, int, int, int]:
-        """Return (x, y, width, height) in screen pixels for the terminal.
-
-        screen_rect: (x, y, w, h) of the target screen. Falls back to primary screen.
-        """
+        """Return (x, y, width, height) for the terminal."""
         if screen_rect:
             sx, sy, sw, sh = screen_rect
         else:
@@ -237,43 +102,42 @@ class QuakeTerminalManager(QObject):
 
         width = sw
         height = int(sh * config.height_percent / 100)
-        logger.debug(
-            f"[quake] geometry: screen=({sx},{sy},{sw},{sh}) -> terminal=({sx},{sy},{width},{height})"
-        )
         return sx, sy, width, height
 
-    def _spawn(self, config, screen_rect=None) -> bool:
-        """Detect terminal, spawn it, position it, return True on success."""
-        terminal = _detect_terminal(config.terminal_emulator)
-        if terminal is None:
-            logger.error("No supported terminal emulator found on PATH")
-            return False
-
+    def _spawn(self, config, screen_rect=None) -> None:
+        """Create the terminal window, position it, spawn pty."""
         x, y, width, height = self._compute_geometry(config, screen_rect)
-        args = _build_spawn_args(terminal, _WINDOW_TITLE, width, height, config.command)
 
-        logger.info(f"Spawning terminal: {' '.join(args)}")
-        self._process = subprocess.Popen(args)
-        logger.info(f"Terminal spawned (pid={self._process.pid})")
-
-        # Wait for the compositor to see the window, then position it
-        comp = compositor()
-        comp.wait_for_window(
-            _WINDOW_TITLE,
-            lambda: comp.show_window(_WINDOW_TITLE, x, y, width, height),
-        )
+        self._window = TerminalWindow()
+        self._window.setGeometry(x, y, width, height)
+        self._window.show()
+        self._window.spawn(config.command if config.command else None)
 
         self._visible = True
         self.toggled.emit(True)
-        return True
+        logger.info(f"Quake terminal spawned at ({x},{y},{width},{height})")
 
     def _show(self, config, screen_rect=None) -> None:
+        """Show and reposition the terminal window."""
+        if self._window is None:
+            return
         x, y, width, height = self._compute_geometry(config, screen_rect)
-        compositor().show_window(_WINDOW_TITLE, x, y, width, height)
+        self._window.setGeometry(x, y, width, height)
+        self._window.show()
+        self._window.raise_()
+        self._window.activateWindow()
+
+        # Respawn pty if the previous command exited
+        if not self._window.is_running():
+            self._window.spawn(config.command if config.command else None)
+
         self._visible = True
         self.toggled.emit(True)
 
     def _hide(self) -> None:
-        compositor().hide_window(_WINDOW_TITLE)
+        """Hide the terminal window."""
+        if self._window is None:
+            return
+        self._window.hide()
         self._visible = False
         self.toggled.emit(False)
