@@ -54,7 +54,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deskmate-${{ inputs.version }}-${{ matrix.target }}
-          path: dist/release/deskmate-*
+          path: |
+            dist/release/deskmate-*.tar.gz
+            dist/release/deskmate-*.zip
 
   publish:
     needs: build
