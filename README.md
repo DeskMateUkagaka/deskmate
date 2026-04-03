@@ -17,7 +17,9 @@ DeskMate connects to [OpenClaw](https://openclaw.ai) as the AI backend, so the c
 
 ## Installing
 
-Proper packaging is still in the works. For now, check `CLAUDE.md` for how to run it from source.
+Pre-built archives are available on the [Releases](https://github.com/DeskMateUkagaka/deskmate/releases) page for Linux, macOS, and Windows. Download, extract, and run.
+
+To run from source instead, see `DEV.md`.
 
 ## Getting Started
 
