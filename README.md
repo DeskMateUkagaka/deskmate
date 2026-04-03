@@ -58,6 +58,12 @@ Once installed, skins keep their style files in DeskMate's data directory:
 
 If you're making or sharing skins, `style.md` is where you define the character's voice and vibe.
 
+## Create Your Own Skins
+
+Want to make your own character? A skin is just a folder with a `manifest.yaml` and some PNG files — one per expression. You can define custom expressions, idle animations, chat bubble themes, and a talking style that gives your character a unique personality.
+
+Check out the [Skin Creator Guide](docs/SKIN_CREATORS_GUIDE.md) for the full walkthrough, from minimal setup to publishing on Pling.
+
 ## Keyboard Shortcuts
 
 ### Windows
