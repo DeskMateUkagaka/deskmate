@@ -107,3 +107,8 @@ See `CLAUDE.md` and `DEV.md` for dev setup, architecture, and platform quirks.
 DeskMate is licensed under `LICENSE`.
 
 Third-party notices (PySide6/Qt, Qt WebEngine, etc.) are in `THIRD_PARTY_NOTICES.md`.
+
+## Future Works
+
+* Use Virtuber engine or something for more "life"
+* Allow other backends than OpenClaw
