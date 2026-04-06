@@ -1,0 +1,36 @@
+type: live2d
+format_version: 2
+name: Hiyori (Live2D)
+author: Live2D Inc.
+description: Live2D Cubism SDK sample character
+version: "1.0"
+
+live2d:
+  model: model/Hiyori/Hiyori.model3.json
+  scale: 1.0
+  anchor_x: 0.5
+  anchor_y: 0.5
+  idle_motion_group: "Idle"
+  lip_sync: true
+  lip_sync_param: "ParamMouthOpenY"
+  expressions:
+    # Hiyori has no .exp3.json files, so we use motion-only mappings
+    neutral:
+      - { motion_group: "Idle", motion_index: 0 }
+    happy:
+      - { motion_group: "TapBody", motion_index: 0 }
+      - { motion_group: "TapBody", motion_index: 1 }
+    thinking:
+      - { motion_group: "Idle", motion_index: 1 }
+      - { motion_group: "Idle", motion_index: 2 }
+    sad:
+      - { motion_group: "Idle", motion_index: 3 }
+    surprise:
+      - { motion_group: "TapBody", motion_index: 2 }
+    connecting:
+      - { motion_group: "Idle", motion_index: 4 }
+
+bubble_placement:
+  x: -300
+  y: -800
+  origin: bottom-right

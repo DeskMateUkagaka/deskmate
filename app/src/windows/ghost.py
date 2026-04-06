@@ -1,5 +1,6 @@
 """GhostWindow — transparent window using QWebEngineView for browser-quality sprite rendering."""
 
+import random
 import sys
 from pathlib import Path
 
@@ -13,8 +14,9 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from src.lib.compositor import compositor, prevent_hide_on_deactivate, remove_dwm_border
 from src.lib.consts import DEFAULT_GHOST_HEIGHT
+from src.lib.skin import Live2dConfig, SkinInfo
 
-GHOST_HTML = """\
+GHOST_HTML_STATIC = """\
 <!DOCTYPE html>
 <html>
 <head>
@@ -96,11 +98,190 @@ document.addEventListener('keydown', function(e) {
 </html>"""
 
 
+def _live2d_html(lib_dir: Path) -> str:
+    """Build the Live2D HTML template with absolute file:// paths to vendored JS."""
+    pixi = QUrl.fromLocalFile(str(lib_dir / "pixi.min.js")).toString()
+    cubism_core = QUrl.fromLocalFile(str(lib_dir / "live2dcubismcore.min.js")).toString()
+    cubism4 = QUrl.fromLocalFile(str(lib_dir / "cubism4.min.js")).toString()
+    live2d_display = QUrl.fromLocalFile(str(lib_dir / "pixi-live2d-display.min.js")).toString()
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="{pixi}"></script>
+<script src="{cubism_core}"></script>
+<script src="{cubism4}"></script>
+<script src="{live2d_display}"></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<style>
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+html, body {{
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+}}
+#overlay {{
+    position: absolute;
+    top: 50%;
+    left: 0; right: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: bold;
+    color: #e04040;
+    text-shadow: 0 0 4px rgba(0,0,0,0.7);
+    pointer-events: none;
+    display: none;
+    z-index: 10;
+}}
+</style>
+</head>
+<body>
+<div id="overlay"></div>
+<script>
+let bridge = null;
+let app = null;
+let model = null;
+let lipSyncParam = "ParamMouthOpenY";
+let lipSyncRAF = null;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {{
+    bridge = channel.objects.bridge;
+}});
+
+async function loadModel(url, scale, anchorX, anchorY, lipParam) {{
+    try {{
+        lipSyncParam = lipParam || "ParamMouthOpenY";
+
+        if (model && app) {{
+            app.stage.removeChild(model);
+            model.destroy();
+            model = null;
+        }}
+
+        if (!app) {{
+            app = new PIXI.Application({{
+                view: document.createElement('canvas'),
+                transparent: true,
+                backgroundAlpha: 0,
+                resizeTo: window,
+                antialias: true,
+            }});
+            document.body.insertBefore(app.view, document.getElementById('overlay'));
+        }}
+
+        model = await PIXI.live2d.Live2DModel.from(url);
+        model.anchor.set(anchorX, anchorY);
+
+        // Scale model to fill window height
+        const targetH = window.innerHeight;
+        const modelH = model.height;
+        const s = (targetH / modelH) * scale;
+        model.scale.set(s, s);
+        model.x = window.innerWidth * anchorX;
+        model.y = window.innerHeight * anchorY;
+
+        app.stage.addChild(model);
+
+        if (bridge) bridge.onModelLoaded();
+    }} catch (e) {{
+        console.error("Live2D model load failed:", e);
+        if (bridge) bridge.onModelError(String(e));
+    }}
+}}
+
+function setExpression(id) {{
+    if (!model) return;
+    model.expression(id);
+}}
+
+function triggerMotion(group, index) {{
+    if (!model) return;
+    model.motion(group, index);
+}}
+
+function startLipSync() {{
+    if (!model || lipSyncRAF) return;
+    function oscillate() {{
+        if (!model) {{ lipSyncRAF = null; return; }}
+        const value = 0.4 + Math.random() * 0.6;
+        try {{
+            model.internalModel.coreModel.setParameterValueById(lipSyncParam, value);
+        }} catch (e) {{}}
+        lipSyncRAF = requestAnimationFrame(oscillate);
+    }}
+    lipSyncRAF = requestAnimationFrame(oscillate);
+}}
+
+function stopLipSync() {{
+    if (lipSyncRAF) {{
+        cancelAnimationFrame(lipSyncRAF);
+        lipSyncRAF = null;
+    }}
+    if (!model) return;
+    try {{
+        model.internalModel.coreModel.setParameterValueById(lipSyncParam, 0.0);
+    }} catch (e) {{}}
+}}
+
+function destroy() {{
+    stopLipSync();
+    if (model && app) {{
+        app.stage.removeChild(model);
+        model.destroy();
+        model = null;
+    }}
+    if (app) {{
+        app.destroy(true);
+        app = null;
+    }}
+}}
+
+function setOverlay(text) {{
+    const el = document.getElementById('overlay');
+    if (text) {{
+        el.textContent = text;
+        el.style.display = 'block';
+    }} else {{
+        el.style.display = 'none';
+    }}
+}}
+
+window.addEventListener('resize', function() {{
+    if (!model) return;
+    const targetH = window.innerHeight;
+    const modelH = model.height / model.scale.y;
+    const s = targetH / modelH;
+    model.scale.set(s, s);
+    model.x = window.innerWidth * model.anchor.x;
+    model.y = window.innerHeight * model.anchor.y;
+}});
+
+document.addEventListener('keydown', function(e) {{
+    if ((e.key === 'Escape' || e.key === 'x' || e.key === 'X') && bridge) {{
+        bridge.onDismissRequested();
+    }} else if ((e.key === 'p' || e.key === 'P') && bridge) {{
+        bridge.onPinRequested();
+    }}
+}});
+</script>
+</body>
+</html>"""
+
+
 class _GhostBridge(QObject):
     """QWebChannel bridge for JS -> Python callbacks."""
 
     dismiss_requested = Signal()
     pin_requested = Signal()
+    model_loaded = Signal()
+    model_error = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -112,6 +293,14 @@ class _GhostBridge(QObject):
     @Slot()
     def onPinRequested(self):
         self.pin_requested.emit()
+
+    @Slot()
+    def onModelLoaded(self):
+        self.model_loaded.emit()
+
+    @Slot(str)
+    def onModelError(self, msg: str):
+        self.model_error.emit(msg)
 
 
 class GhostWindow(QWidget):
@@ -142,7 +331,13 @@ class GhostWindow(QWidget):
         remove_dwm_border(self)
         prevent_hide_on_deactivate(self)
 
-        # Emotion -> [file paths]
+        # Skin type routing
+        self._skin_type: str = "static"
+        self._live2d_config: Live2dConfig | None = None
+        self._model_ready: bool = False
+        self._pending_expression: str | None = None
+
+        # Static skin state: Emotion -> [file paths]
         self._emotion_files: dict[str, list[Path]] = {}
         self._current_expr: str = "neutral"
         self._variant_indices: dict[str, int] = {}
@@ -179,6 +374,8 @@ class GhostWindow(QWidget):
         self._bridge = _GhostBridge(self)
         self._bridge.dismiss_requested.connect(self.dismiss_requested)
         self._bridge.pin_requested.connect(self.pin_requested)
+        self._bridge.model_loaded.connect(self._on_model_loaded)
+        self._bridge.model_error.connect(self._on_model_error)
         channel = QWebChannel(page)
         channel.registerObject("bridge", self._bridge)
         page.setWebChannel(channel)
@@ -188,7 +385,7 @@ class GhostWindow(QWidget):
         layout.addWidget(self._web)
 
         # Use file:// base URL so <img src="file:///..."> works
-        self._web.setHtml(GHOST_HTML, QUrl("file:///"))
+        self._web.setHtml(GHOST_HTML_STATIC, QUrl("file:///"))
         self._page_loaded = False
         self._web.loadFinished.connect(self._on_page_loaded)
 
@@ -198,7 +395,9 @@ class GhostWindow(QWidget):
             # QWebEngineView creates its render widget asynchronously —
             # install event filter on ALL descendants to capture mouse events
             self._install_filters_recursive(self._web)
-            if self._skin_dir:
+            if self._skin_type == "live2d" and self._live2d_config:
+                self._load_live2d_model()
+            elif self._skin_dir:
                 self._update_image()
             # Re-apply platform fixes — Chromium init can reset window attributes
             remove_dwm_border(self)
@@ -214,28 +413,63 @@ class GhostWindow(QWidget):
     # Public API
     # ------------------------------------------------------------------
 
-    def set_skin(self, emotions_map: dict[str, list[str]], skin_dir: Path) -> None:
-        """Load emotion file mappings."""
+    def set_skin(self, skin_info: SkinInfo, emotions_map: dict[str, list[str]] | None = None) -> None:
+        """Load a skin. For static skins, emotions_map provides file mappings.
+        For live2d skins, the ghost handles expression mapping internally."""
+        old_type = self._skin_type
+        self._skin_type = skin_info.type
+        self._live2d_config = skin_info.live2d_config
+        self._skin_dir = skin_info.path
+        self._model_ready = False
+        self._pending_expression = None
+
+        if skin_info.type == "live2d":
+            # Set square window size for live2d
+            h = self._display_height or DEFAULT_GHOST_HEIGHT
+            self._img_width = h
+            self._img_height = h
+            self.resize(h + 20, h + 20)
+
+            if old_type == "live2d":
+                # Same type: destroy old model, load new one (no page reload)
+                self._web.page().runJavaScript("destroy();")
+                self._load_live2d_model()
+            else:
+                # Cross-type switch: load live2d HTML page
+                lib_dir = Path(__file__).resolve().parent.parent.parent / "lib" / "live2d"
+                html = _live2d_html(lib_dir)
+                self._page_loaded = False
+                self._web.setHtml(html, QUrl("file:///"))
+            logger.info(f"Live2D skin loaded: {skin_info.name}")
+            return
+
+        # Static skin path
         self._emotion_files.clear()
         self._variant_indices.clear()
-        self._skin_dir = skin_dir
 
-        for expr, files in emotions_map.items():
-            if isinstance(files, str):
-                files = [files]
-            paths = []
-            for fname in files:
-                p = skin_dir / fname
-                if p.exists():
-                    paths.append(p)
-                else:
-                    logger.warning(f"Skin asset not found: {p}")
-            if paths:
-                self._emotion_files[expr] = paths
-                self._variant_indices[expr] = 0
+        if old_type == "live2d":
+            # Cross-type switch: destroy live2d, reload static HTML
+            self._web.page().runJavaScript("destroy();")
+            self._page_loaded = False
+            self._web.setHtml(GHOST_HTML_STATIC, QUrl("file:///"))
+
+        if emotions_map:
+            for expr, files in emotions_map.items():
+                if isinstance(files, str):
+                    files = [files]
+                paths = []
+                for fname in files:
+                    p = skin_info.path / fname
+                    if p.exists():
+                        paths.append(p)
+                    else:
+                        logger.warning(f"Skin asset not found: {p}")
+                if paths:
+                    self._emotion_files[expr] = paths
+                    self._variant_indices[expr] = 0
 
         if not self._emotion_files:
-            logger.error(f"No skin assets loaded from {skin_dir}")
+            logger.error(f"No skin assets loaded from {skin_info.path}")
             return
 
         self._current_expr = next(
@@ -243,12 +477,16 @@ class GhostWindow(QWidget):
             next(iter(self._emotion_files)),
         )
 
-        # Compute display dimensions from first image
         self._compute_display_size()
         self._update_image()
-        logger.info(f"Skin loaded: {len(self._emotion_files)} expressions from {skin_dir}")
+        logger.info(f"Skin loaded: {len(self._emotion_files)} expressions from {skin_info.path}")
 
     def set_expression(self, name: str) -> None:
+        if self._skin_type == "live2d":
+            self._set_expression_live2d(name)
+            return
+
+        # Static skin
         if name not in self._emotion_files:
             name = (
                 "neutral"
@@ -261,6 +499,75 @@ class GhostWindow(QWidget):
         self._idle_override_path = None
         self._update_image()
         self.expression_changed.emit(name)
+
+    def _set_expression_live2d(self, name: str) -> None:
+        config = self._live2d_config
+        if not config:
+            return
+
+        # Resolve emotion name, fallback to neutral
+        if name not in config.expressions:
+            name = "neutral" if "neutral" in config.expressions else ""
+        if not name:
+            return
+
+        if not self._model_ready:
+            self._pending_expression = name
+            return
+
+        if name == self._current_expr:
+            return
+        self._current_expr = name
+
+        entries = config.expressions[name]
+        entry = random.choice(entries)
+        if entry.expression:
+            self._web.page().runJavaScript(f"setExpression({_js_str(entry.expression)});")
+        if entry.motion_group:
+            idx = entry.motion_index if entry.motion_index is not None else 0
+            self._web.page().runJavaScript(
+                f"triggerMotion({_js_str(entry.motion_group)}, {idx});"
+            )
+        self.expression_changed.emit(name)
+
+    # ------------------------------------------------------------------
+    # Live2D methods
+    # ------------------------------------------------------------------
+
+    def _load_live2d_model(self) -> None:
+        config = self._live2d_config
+        if not config or not self._skin_dir:
+            return
+        model_path = self._skin_dir / config.model
+        url = QUrl.fromLocalFile(str(model_path.resolve())).toString()
+        js = (
+            f"loadModel({_js_str(url)}, {config.scale}, "
+            f"{config.anchor_x}, {config.anchor_y}, "
+            f"{_js_str(config.lip_sync_param)});"
+        )
+        self._web.page().runJavaScript(js)
+
+    def _on_model_loaded(self) -> None:
+        self._model_ready = True
+        logger.info("Live2D model loaded successfully")
+        if self._pending_expression:
+            expr = self._pending_expression
+            self._pending_expression = None
+            self.set_expression(expr)
+
+    def _on_model_error(self, msg: str) -> None:
+        logger.error(f"Live2D model load failed: {msg}")
+        self.set_overlay("Model load failed")
+
+    def start_lip_sync(self) -> None:
+        if self._skin_type != "live2d" or not self._model_ready:
+            return
+        self._web.page().runJavaScript("startLipSync();")
+
+    def stop_lip_sync(self) -> None:
+        if self._skin_type != "live2d" or not self._model_ready:
+            return
+        self._web.page().runJavaScript("stopLipSync();")
 
     def set_height(self, pixels: int | None) -> None:
         """Set target display height (mutually exclusive with set_width)."""

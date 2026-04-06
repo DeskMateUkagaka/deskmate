@@ -81,6 +81,16 @@ class _SkinCard(QWidget):
             author_label.setMaximumWidth(_CARD_SIZE - 16)
             layout.addWidget(author_label)
 
+        # Live2D badge
+        if skin.type == "live2d":
+            badge = QLabel("Live2D", self._img_label)
+            badge.setStyleSheet(
+                "background: rgba(80,130,220,0.8); color: white; font-size: 8px;"
+                " padding: 2px 4px; border-radius: 3px;"
+            )
+            badge.move(self._img_label.width() - 34, 2)
+            badge.show()
+
         # Description
         if skin.description:
             desc_label = QLabel(skin.description, self)

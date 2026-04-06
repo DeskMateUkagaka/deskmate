@@ -41,6 +41,25 @@ class IdleAnimation:
 
 
 @dataclass
+class Live2dExpressionEntry:
+    expression: str
+    motion_group: str | None = None
+    motion_index: int | None = None
+
+
+@dataclass
+class Live2dConfig:
+    model: str  # path to .model3.json relative to skin dir
+    scale: float = 1.0
+    anchor_x: float = 0.5
+    anchor_y: float = 0.5
+    idle_motion_group: str = "idle"
+    lip_sync: bool = False
+    lip_sync_param: str = "ParamMouthOpenY"
+    expressions: dict[str, list[Live2dExpressionEntry]] = field(default_factory=dict)
+
+
+@dataclass
 class SkinInfo:
     id: str
     name: str
@@ -49,6 +68,8 @@ class SkinInfo:
     version: str = "1.0"
     description: str | None = None
     emotions: list[str] = field(default_factory=list)
+    type: str = "static"  # static | live2d
+    live2d_config: Live2dConfig | None = None
     bubble_placement: UiPlacement | None = None
     input_placement: UiPlacement | None = None
     bubble_theme: BubbleTheme | None = None
@@ -98,6 +119,50 @@ def _parse_bubble_theme(data: dict[str, Any]) -> BubbleTheme:
     return t
 
 
+def _parse_live2d_config(data: dict[str, Any], skin_id: str, skin_path: Path) -> Live2dConfig:
+    live2d_raw = data.get("live2d")
+    if not isinstance(live2d_raw, dict):
+        raise ValueError(f"Skin '{skin_id}' has type 'live2d' but no 'live2d' block in manifest")
+
+    model = live2d_raw.get("model")
+    if not model:
+        raise ValueError(f"Skin '{skin_id}' live2d block missing required 'model' path")
+    model_path = skin_path / model
+    if not model_path.exists():
+        raise ValueError(f"Skin '{skin_id}' live2d model not found: {model_path}")
+
+    expressions: dict[str, list[Live2dExpressionEntry]] = {}
+    for emotion, entries in live2d_raw.get("expressions", {}).items():
+        if not isinstance(entries, list):
+            entries = [entries]
+        expr_list = []
+        for entry in entries:
+            if isinstance(entry, dict):
+                expr_list.append(Live2dExpressionEntry(
+                    expression=str(entry.get("expression", "")),
+                    motion_group=entry.get("motion_group"),
+                    motion_index=entry.get("motion_index"),
+                ))
+            elif isinstance(entry, str):
+                expr_list.append(Live2dExpressionEntry(expression=entry))
+        if expr_list:
+            expressions[emotion] = expr_list
+
+    if "neutral" not in expressions:
+        raise ValueError(f"Live2D skin '{skin_id}' missing required 'neutral' expression mapping")
+
+    return Live2dConfig(
+        model=str(model),
+        scale=float(live2d_raw.get("scale", 1.0)),
+        anchor_x=float(live2d_raw.get("anchor_x", 0.5)),
+        anchor_y=float(live2d_raw.get("anchor_y", 0.5)),
+        idle_motion_group=str(live2d_raw.get("idle_motion_group", "idle")),
+        lip_sync=bool(live2d_raw.get("lip_sync", False)),
+        lip_sync_param=str(live2d_raw.get("lip_sync_param", "ParamMouthOpenY")),
+        expressions=expressions,
+    )
+
+
 def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
     manifest_path = skin_path / "manifest.yaml"
     contents = manifest_path.read_text(encoding="utf-8")
@@ -106,17 +171,28 @@ def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
     if not isinstance(data, dict):
         raise ValueError(f"manifest.yaml for skin '{skin_id}' is not a YAML mapping")
 
-    emotions_raw: dict[str, list[str]] = data.get("emotions", {})
-    if not isinstance(emotions_raw, dict):
-        raise ValueError(f"'emotions' in skin '{skin_id}' must be a mapping")
+    skin_type = str(data.get("type", "static"))
 
-    if "neutral" not in emotions_raw:
-        raise ValueError(f"Skin '{skin_id}' is missing required emotion 'neutral'")
+    # For live2d skins, parse the live2d config and derive emotions from expression keys
+    live2d_config: Live2dConfig | None = None
+    if skin_type == "live2d":
+        live2d_config = _parse_live2d_config(data, skin_id, skin_path)
+        emotions_list = list(live2d_config.expressions.keys())
+    else:
+        # Static skin: validate emotions as before
+        emotions_raw: dict[str, list[str]] = data.get("emotions", {})
+        if not isinstance(emotions_raw, dict):
+            raise ValueError(f"'emotions' in skin '{skin_id}' must be a mapping")
 
-    # Validate emotion PNG lists are non-empty
-    for emotion, files in emotions_raw.items():
-        if not files:
-            raise ValueError(f"Emotion '{emotion}' in skin '{skin_id}' has no files")
+        if "neutral" not in emotions_raw:
+            raise ValueError(f"Skin '{skin_id}' is missing required emotion 'neutral'")
+
+        # Validate emotion PNG lists are non-empty
+        for emotion, files in emotions_raw.items():
+            if not files:
+                raise ValueError(f"Emotion '{emotion}' in skin '{skin_id}' has no files")
+
+        emotions_list = list(emotions_raw.keys())
 
     bubble_placement: UiPlacement | None = None
     if isinstance(data.get("bubble_placement"), dict):
@@ -159,7 +235,9 @@ def _load_manifest(skin_id: str, skin_path: Path, source: str) -> SkinInfo:
         author=str(data.get("author", "")) if data.get("author") is not None else "",
         version=str(data.get("version", "1.0")) if data.get("version") is not None else "1.0",
         description=str(data["description"]) if data.get("description") is not None else None,
-        emotions=list(emotions_raw.keys()),
+        emotions=emotions_list,
+        type=skin_type,
+        live2d_config=live2d_config,
         bubble_placement=bubble_placement,
         input_placement=input_placement,
         bubble_theme=bubble_theme,
@@ -269,9 +347,9 @@ class SkinLoader:
                 raise ValueError("manifest.yaml in ZIP is not a YAML mapping")
 
             format_version = int(manifest_data.get("format_version", 1))
-            if format_version > 1:
+            if format_version > 2:
                 raise ValueError(
-                    f"This skin requires DeskMate v{format_version} (you have v1). Please update DeskMate."
+                    f"This skin requires a newer DeskMate (format v{format_version}). Please update DeskMate."
                 )
 
             if manifest_prefix:

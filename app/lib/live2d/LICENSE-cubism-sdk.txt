@@ -1,0 +1,10 @@
+Live2D Cubism Core
+
+Copyright (c) Live2D Inc. All rights reserved.
+
+Licensed under the Live2D Proprietary Software License Agreement.
+https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html
+
+Free for use in applications generating less than $1,000 USD in annual revenue.
+See the Live2D Open Software License for details:
+https://www.live2d.com/eula/live2d-open-software-license-agreement_en.html

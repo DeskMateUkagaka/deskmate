@@ -96,9 +96,14 @@ class DeskMate:
         self._skin_picker = SkinPickerWindow(self._skin_loader)
         self._get_skins_win = GetSkinsWindow(self._skin_loader)
 
-        # Load skin into ghost — need the emotion->files mapping from manifest
-        emotions_map = self._load_emotions_map(self._skin)
-        self._ghost.set_skin(emotions_map, self._skin.path)
+        # Load skin into ghost
+        self._skin_type: str = self._skin.type
+        self._lip_sync_active: bool = False
+        if self._skin.type == "live2d":
+            self._ghost.set_skin(self._skin)
+        else:
+            emotions_map = self._load_emotions_map(self._skin)
+            self._ghost.set_skin(self._skin, emotions_map)
         self._apply_ghost_size()
 
         # Chat state
@@ -573,6 +578,15 @@ class DeskMate:
         display_text = strip_all_tags(raw_text)
         if self._active_bubble_id:
             self._bubble.update_text(self._active_bubble_id, display_text)
+        # Start lip sync on first delta for live2d skins
+        if (
+            not self._lip_sync_active
+            and self._skin_type == "live2d"
+            and self._skin.live2d_config
+            and self._skin.live2d_config.lip_sync
+        ):
+            self._ghost.start_lip_sync()
+            self._lip_sync_active = True
 
     def _on_stream_final(self, raw_text: str) -> None:
         """Finalize streaming: update bubble, extract buttons, end streaming."""
@@ -593,6 +607,9 @@ class DeskMate:
 
     def _end_streaming(self) -> None:
         """Finalize active bubble and restart idle."""
+        if self._lip_sync_active:
+            self._ghost.stop_lip_sync()
+            self._lip_sync_active = False
         if self._active_bubble_id:
             self._bubble.finalize(self._active_bubble_id, self._settings.bubble_timeout_ms)
         self._active_bubble_id = None
@@ -601,7 +618,7 @@ class DeskMate:
         # If gateway is not connected, restore connecting state instead of idle
         if self._gateway.status != "connected":
             self._apply_connecting_state(True)
-        else:
+        elif self._skin_type == "static":
             self._idle_manager.reset()
 
     def _debug_stream_text(self, text: str, *, label: str = "debug", duration_ms: int = 1000):
@@ -864,11 +881,15 @@ class DeskMate:
             return
         logger.debug("_on_skin_selected: skin loaded, setting on ghost")
         self._skin = new_skin
-        emotions_map = self._load_emotions_map(new_skin)
-        logger.debug(
-            f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin"
-        )
-        self._ghost.set_skin(emotions_map, new_skin.path)
+        self._skin_type = new_skin.type
+        if new_skin.type == "live2d":
+            self._ghost.set_skin(new_skin)
+        else:
+            emotions_map = self._load_emotions_map(new_skin)
+            logger.debug(
+                f"_on_skin_selected: emotions_map has {len(emotions_map)} entries, calling set_skin"
+            )
+            self._ghost.set_skin(new_skin, emotions_map)
         self._idle_manager.set_skin(new_skin)
         logger.debug("_on_skin_selected: set_skin done, saving settings")
         self._settings.current_skin_id = skin_id

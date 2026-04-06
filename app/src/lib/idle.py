@@ -76,9 +76,14 @@ class IdleAnimationManager(QObject):
     def set_skin(self, skin: SkinInfo) -> None:
         """Update available animations when the skin changes."""
         self._skin = skin
-        # Restart the cycle with the new skin
-        if self._enabled:
-            self.reset()
+        if skin.type == "live2d":
+            # Live2D models handle idle motions via their own motion groups
+            self.stop()
+            self._enabled = False
+            return
+        # Static skin: re-enable and restart
+        self._enabled = True
+        self.reset()
 
     def set_interval(self, seconds: float) -> None:
         """Update the idle interval (takes effect on next cycle)."""

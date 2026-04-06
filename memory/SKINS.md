@@ -20,7 +20,7 @@ my-skin/
 name: My Skin
 author: Artist Name
 version: 1.0.0
-format_version: 1          # 1 = static PNGs (current), 2+ = future (animated, etc.)
+format_version: 1          # 1 = static PNGs, 2 = Live2D support
 
 emotions:
   neutral:                   # Required; list of variant PNGs (random pick on each change)
@@ -66,11 +66,47 @@ idle_animations:
     duration_ms: 2000
 ```
 
+### Live2D Skin (format_version: 2)
+
+```yaml
+type: live2d
+format_version: 2
+name: My Live2D Skin
+author: Artist Name
+version: 1.0.0
+
+live2d:
+  model: model/Character.model3.json   # Path to .model3.json relative to skin dir
+  scale: 1.0                           # Model scale (default 1.0)
+  anchor_x: 0.5                        # Horizontal anchor 0-1 (default 0.5)
+  anchor_y: 0.5                        # Vertical anchor 0-1 (default 0.5)
+  idle_motion_group: "Idle"            # Motion group for idle animations
+  lip_sync: true                       # Enable mouth movement during AI streaming
+  lip_sync_param: "ParamMouthOpenY"    # Model parameter for mouth opening
+  expressions:
+    neutral:                           # Required; list of expression/motion combos (random pick)
+      - { expression: "F01" }
+    happy:
+      - { expression: "F02", motion_group: "Happy", motion_index: 0 }
+      - { expression: "F03" }          # Multiple variants supported
+    sad:
+      - { expression: "F04" }
+    thinking:
+      - { motion_group: "Idle", motion_index: 1 }  # Motion-only (no expression file)
+
+# No top-level `emotions:` block needed — derived from live2d.expressions keys
+```
+
+Live2D skins use the Cubism SDK rendered in QWebEngineView via pixi-live2d-display. The model gets automatic breathing, blinking, and physics. Python-side idle animations are disabled; the model's idle motion group handles idle behavior.
+
+Expression mappings are explicit — the skin author maps DeskMate emotion names to the model's expression IDs and/or motion groups. Each emotion is a list (random variant picked at runtime, same as static skins).
+
 ### Validation Rules
 
-- `neutral` emotion is required (used as fallback)
-- All declared emotion PNG files must exist on disk
-- `format_version` must be <= app's supported version (currently 1)
+- `neutral` emotion/expression is required (used as fallback)
+- For static skins: all declared emotion PNG files must exist on disk
+- For live2d skins: the `.model3.json` file must exist
+- `format_version` must be <= app's supported version (currently 2)
 
 ## Skin Directories
 
